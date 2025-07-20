@@ -137,6 +137,7 @@ class StockAnalyzer:
             # 1년 데이터가 부족한 경우 5년 데이터와 동일하게 설정
             mean_1y = mean_5y
             std_1y = std_5y
+<<<<<<< HEAD
             sigma_1_1y = mean_1y - std_1y
             sigma_2_1y = mean_1y - 2 * std_1y
             sigma_3_1y = mean_1y - 3 * std_1y
@@ -145,17 +146,40 @@ class StockAnalyzer:
             actual_prob_2_1y = (returns_5y <= sigma_2_1y).sum() / len(returns_5y) * 100
             actual_prob_3_1y = (returns_5y <= sigma_3_1y).sum() / len(returns_5y) * 100
             returns_1y = returns_5y  # 차트를 위해 5년 데이터 사용
+=======
+            sigma_1_1y = sigma_1_5y
+            sigma_2_1y = sigma_2_5y
+            sigma_3_1y = sigma_3_5y
+            actual_prob_1_1y = actual_prob_1_5y
+            actual_prob_2_1y = actual_prob_2_5y
+            actual_prob_3_1y = actual_prob_3_5y
+>>>>>>> 92bdd5b437dbf4529ef5772b5ef7352241aa21c7
     
         # 시그마 레벨 계산
         sigma_1_5y = mean_5y - std_5y
         sigma_2_5y = mean_5y - 2 * std_5y
         sigma_3_5y = mean_5y - 3 * std_5y
     
+<<<<<<< HEAD
         # 실제 발생 확률 계산 (5년)
+=======
+        sigma_1_1y = mean_1y - std_1y
+        sigma_2_1y = mean_1y - 2 * std_1y
+        sigma_3_1y = mean_1y - 3 * std_1y
+    
+        # 실제 발생 확률 계산
+>>>>>>> 92bdd5b437dbf4529ef5772b5ef7352241aa21c7
         actual_prob_1_5y = (returns_5y <= sigma_1_5y).sum() / len(returns_5y) * 100
         actual_prob_2_5y = (returns_5y <= sigma_2_5y).sum() / len(returns_5y) * 100
         actual_prob_3_5y = (returns_5y <= sigma_3_5y).sum() / len(returns_5y) * 100
     
+<<<<<<< HEAD
+=======
+        actual_prob_1_1y = (returns_1y <= sigma_1_1y).sum() / len(returns_1y) * 100
+        actual_prob_2_1y = (returns_1y <= sigma_2_1y).sum() / len(returns_1y) * 100
+        actual_prob_3_1y = (returns_1y <= sigma_3_1y).sum() / len(returns_1y) * 100
+    
+>>>>>>> 92bdd5b437dbf4529ef5772b5ef7352241aa21c7
         # 연도별 발생 횟수 계산
         df['연도'] = df.index.year
         yearly_stats = {}
@@ -317,7 +341,11 @@ st.info("""
 if st.button("🔄 새로고침", use_container_width=True):
     st.rerun()
     
+<<<<<<< HEAD
 # 현재가 표시 - 새로운 표 형식
+=======
+# 현재가 표시
+>>>>>>> 92bdd5b437dbf4529ef5772b5ef7352241aa21c7
 if st.session_state.monitoring_stocks:
     current_prices = []
     analyzer = StockAnalyzer()
@@ -513,4 +541,9 @@ with col1:
             st.session_state.monitoring_stocks[analysis['symbol']] = analysis
             save_stocks()  # 자동 저장
             st.success(f"{analysis['name']}이(가) 모니터링 목록에 추가되었습니다!")
+<<<<<<< HEAD
             del st.session_state.current_analysis
+=======
+            del st.session_state.current_analysis
+ 
+>>>>>>> 92bdd5b437dbf4529ef5772b5ef7352241aa21c7
