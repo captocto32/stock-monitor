@@ -363,6 +363,21 @@ if st.session_state.monitoring_stocks:
         # DataFrame 생성
         df_current = pd.DataFrame(current_prices)
         
+        # 종목명에서 심볼 추출하여 정렬용 컬럼 생성
+        df_current['정렬키'] = df_current['종목'].apply(lambda x: x.split('(')[0].strip())
+        
+        # 영문/한글 구분하여 정렬
+        df_current['is_english'] = df_current['정렬키'].apply(lambda x: x[0].encode().isalpha())
+        
+        # 영문 먼저, 그 다음 한글 순으로 정렬
+        df_current = df_current.sort_values(
+            by=['is_english', '정렬키'], 
+            ascending=[False, True]
+        )
+        
+        # 정렬용 컬럼 제거
+        df_current = df_current.drop(columns=['정렬키', 'is_english'])
+        
         # 선택 가능한 DataFrame으로 표시
         selected = st.dataframe(
             df_current, 
@@ -378,17 +393,20 @@ if st.session_state.monitoring_stocks:
             selected_stock = current_prices[selected_idx]
             symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
             
-            for sym, info in st.session_state.monitoring_stocks.items():
-                if sym == symbol:
-                    st.session_state.current_analysis = {
-                        'symbol': sym,
-                        'name': info['name'],
-                        'type': info['type'],
-                        'stats': info['stats'],
-                        'df': info['df']
-                    }
-                    st.rerun()
-                                
+            # 이미 현재 분석 중인 종목이 아닌 경우에만 실행
+            if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                for sym, info in st.session_state.monitoring_stocks.items():
+                    if sym == symbol:
+                        st.session_state.current_analysis = {
+                            'symbol': sym,
+                            'name': info['name'],
+                            'type': info['type'],
+                            'stats': info['stats'],
+                            'df': info['df']
+                        }
+                        st.rerun()
+                        break
+
 else:
     st.info("모니터링할 종목을 추가하세요.")
 
