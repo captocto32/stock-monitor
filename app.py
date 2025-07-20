@@ -162,8 +162,8 @@ class StockAnalyzer:
         for year in sorted(df['연도'].unique()):
             year_data = df[df['연도'] == year]
             yearly_stats[year] = {
-                '1sigma': (year_data['일일수익률'] <= sigma_1_5y).sum(),
-                '2sigma': (year_data['일일수익률'] <= sigma_2_5y).sum(),
+                '1sigma': ((year_data['일일수익률'] <= sigma_1_5y) & (year_data['일일수익률'] > sigma_2_5y)).sum(),
+                '2sigma': ((year_data['일일수익률'] <= sigma_2_5y) & (year_data['일일수익률'] > sigma_3_5y)).sum(),
                 '3sigma': (year_data['일일수익률'] <= sigma_3_5y).sum(),
                 'total_days': len(year_data)
             }
