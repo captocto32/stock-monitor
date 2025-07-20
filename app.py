@@ -159,27 +159,16 @@ class StockAnalyzer:
         # 연도별 발생 횟수 계산
         df['연도'] = df.index.year
         yearly_stats = {}
+
         for year in sorted(df['연도'].unique()):
             year_data = df[df['연도'] == year]
 
-            # 디버깅용 - Streamlit에 표시
-            if st.sidebar.checkbox("디버깅 정보 보기", value=False):
-                st.write(f"시그마 값: 1σ={sigma_1_5y:.2f}%, 2σ={sigma_2_5y:.2f}%, 3σ={sigma_3_5y:.2f}%")
-            
-            for year in sorted(df['연도'].unique()):
-                year_data = df[df['연도'] == year]
-            
-                # 각 구간별 계산
-                in_1sigma_range = ((year_data['일일수익률'] <= sigma_1_5y) & (year_data['일일수익률'] > sigma_2_5y)).sum()
-                in_2sigma_range = ((year_data['일일수익률'] <= sigma_2_5y) & (year_data['일일수익률'] > sigma_3_5y)).sum()
-                in_3sigma_range = (year_data['일일수익률'] <= sigma_3_5y).sum()
-                
-                yearly_stats[year] = {
-                    '1sigma': in_1sigma_range,
-                    '2sigma': in_2sigma_range,
-                    '3sigma': in_3sigma_range,
-                    'total_days': len(year_data)
-                }
+            yearly_stats[year] = {
+                '1sigma': in_1sigma_range,
+                '2sigma': in_2sigma_range,
+                '3sigma': in_3sigma_range,
+                'total_days': len(year_data)
+            }
     
         return {
             # 5년 데이터
@@ -512,6 +501,17 @@ with col1:
         yearly_df = pd.DataFrame(yearly_data)
         st.dataframe(yearly_df, use_container_width=True, hide_index=True)
         
+        # 디버깅 정보 추가
+        with st.expander("🔍 시그마 계산 확인"):
+            st.write(f"**5년 기준 시그마 값:**")
+            st.write(f"- 1σ: {analysis['stats']['1sigma']:.2f}%")
+            st.write(f"- 2σ: {analysis['stats']['2sigma']:.2f}%")
+            st.write(f"- 3σ: {analysis['stats']['3sigma']:.2f}%")
+            st.write(f"\n**구간별 정의:**")
+            st.write(f"- 1σ 구간: {analysis['stats']['2sigma']:.2f}% < 하락률 ≤ {analysis['stats']['1sigma']:.2f}%")
+            st.write(f"- 2σ 구간: {analysis['stats']['3sigma']:.2f}% < 하락률 ≤ {analysis['stats']['2sigma']:.2f}%")
+            st.write(f"- 3σ 구간: 하락률 ≤ {analysis['stats']['3sigma']:.2f}%")
+
         # 평균 발생 주기
         col_cycle1, col_cycle2, col_cycle3 = st.columns(3)
         total_days = sum(data['total_days'] for data in analysis['stats']['yearly_stats'].values())
