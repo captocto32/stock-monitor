@@ -361,17 +361,17 @@ if st.session_state.monitoring_stocks:
     
     if current_prices:
         # 헤더 표시
-        header_cols = st.columns([1, 1.5, 1.5, 1, 1.5, 1, 1.5, 1, 1.5])
+        header_cols = st.columns([1, 1.5, 1, 1, 1, 1, 1, 1, 1])
         headers = ['분석', '종목', '어제 종가', '1σ(1년)', '1σ 하락시', '2σ(1년)', '2σ 하락시', '3σ(1년)', '3σ 하락시']
         for col, header in zip(header_cols, headers):
             col.markdown(f"**{header}**")
         
         # 각 종목을 행으로 표시
         for idx, stock_data in enumerate(current_prices):
-            cols = st.columns([1, 1.5, 1.5, 1, 1.5, 1, 1.5, 1, 1.5])
+            cols = st.columns([1, 1.5, 1, 1, 1, 1, 1, 1, 1])
             
             with cols[0]:
-                # 종목명 버튼
+                # 분석 버튼
                 symbol = stock_data['종목'].split('(')[-1].rstrip(')')
                 if st.button("📊", key=f"analyze_{symbol}", help="종목 분석"):
                     # 해당 종목 분석으로 이동
@@ -387,7 +387,7 @@ if st.session_state.monitoring_stocks:
                             st.rerun()
             
             # 나머지 데이터 표시
-            cols[1].text(stock_data['종목'])  # 종목명 표시
+            cols[1].text(stock_data['종목'])
             cols[2].text(stock_data['어제 종가'])
             cols[3].text(stock_data['1σ(1년)'])
             cols[4].text(stock_data['1σ 하락시 가격'])
@@ -395,6 +395,10 @@ if st.session_state.monitoring_stocks:
             cols[6].text(stock_data['2σ 하락시 가격'])
             cols[7].text(stock_data['3σ(1년)'])
             cols[8].text(stock_data['3σ 하락시 가격'])
+
+            # 마지막 행이 아닐 때만 구분선 추가
+            if idx < len(current_prices) - 1:
+                st.divider()
             
 else:
     st.info("모니터링할 종목을 추가하세요.")
