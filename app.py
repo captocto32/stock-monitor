@@ -360,8 +360,40 @@ if st.session_state.monitoring_stocks:
             st.error(f"{symbol} 오류: {str(e)}")
     
     if current_prices:
-        df_current = pd.DataFrame(current_prices)
-        st.dataframe(df_current, use_container_width=True, hide_index=True)
+        # 헤더 표시
+        header_cols = st.columns([2, 1.5, 1, 1.5, 1, 1.5, 1, 1.5])
+        headers = ['종목', '어제 종가', '1σ(1년)', '1σ 하락시', '2σ(1년)', '2σ 하락시', '3σ(1년)', '3σ 하락시']
+        for col, header in zip(header_cols, headers):
+            col.markdown(f"**{header}**")
+        
+        # 각 종목을 행으로 표시
+        for idx, stock_data in enumerate(current_prices):
+            cols = st.columns([2, 1.5, 1, 1.5, 1, 1.5, 1, 1.5])
+            
+            with cols[0]:
+                # 종목명 버튼
+                symbol = stock_data['종목'].split('(')[-1].rstrip(')')
+                if st.button(stock_data['종목'], key=f"analyze_{symbol}"):
+                    # 해당 종목 분석으로 이동
+                    for sym, info in st.session_state.monitoring_stocks.items():
+                        if sym == symbol:
+                            st.session_state.current_analysis = {
+                                'symbol': sym,
+                                'name': info['name'],
+                                'type': info['type'],
+                                'stats': info['stats'],
+                                'df': info['df']
+                            }
+                            st.rerun()
+            
+            # 나머지 데이터 표시
+            cols[1].text(stock_data['어제 종가'])
+            cols[2].text(stock_data['1σ(1년)'])
+            cols[3].text(stock_data['1σ 하락시 가격'])
+            cols[4].text(stock_data['2σ(1년)'])
+            cols[5].text(stock_data['2σ 하락시 가격'])
+            cols[6].text(stock_data['3σ(1년)'])
+            cols[7].text(stock_data['3σ 하락시 가격'])
 else:
     st.info("모니터링할 종목을 추가하세요.")
 
