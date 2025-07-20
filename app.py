@@ -375,22 +375,22 @@ if st.session_state.monitoring_stocks:
             ascending=[False, True]
         )
         
-        # 정렬용 컬럼 제거
-        df_current = df_current.drop(columns=['정렬키', 'is_english'])
+        # 정렬용 컬럼 제거하고 인덱스 리셋
+        df_current = df_current.drop(columns=['정렬키', 'is_english']).reset_index(drop=True)
         
         # 선택 가능한 DataFrame으로 표시
         selected = st.dataframe(
             df_current, 
             use_container_width=True, 
             hide_index=True,
-            on_select="rerun",  # 선택 시 rerun
-            selection_mode="single-row"  # 단일 행 선택
+            on_select="rerun",
+            selection_mode="single-row"
         )
         
         # 선택된 행이 있으면 분석 실행
         if selected and len(selected.selection.rows) > 0:
             selected_idx = selected.selection.rows[0]
-            selected_stock = current_prices[selected_idx]
+            selected_stock = df_current.iloc[selected_idx]  # df_current에서 가져오기
             symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
             
             # 이미 현재 분석 중인 종목이 아닌 경우에만 실행
