@@ -329,11 +329,12 @@ if st.session_state.monitoring_stocks:
             
             # 1년 시그마 값들 (퍼센트)
             sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
+            sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
             sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
             
             # 시그마 하락시 가격 계산
             price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
-            price_at_2sigma = yesterday_close * (1 + info['stats'].get('2sigma_1y', info['stats']['2sigma']) / 100)
+            price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
             price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
             
             # 통화 단위 설정
@@ -349,6 +350,7 @@ if st.session_state.monitoring_stocks:
                 '어제 종가': f"{currency}{price_format.format(yesterday_close)}",
                 '1σ(1년)': f"{sigma_1_1y:.2f}%",
                 '1σ 하락시 가격': f"{currency}{price_format.format(price_at_1sigma)}",
+                '2σ(1년)': f"{sigma_2_1y:.2f}%",
                 '2σ 하락시 가격': f"{currency}{price_format.format(price_at_2sigma)}",
                 '3σ(1년)': f"{sigma_3_1y:.2f}%",
                 '3σ 하락시 가격': f"{currency}{price_format.format(price_at_3sigma)}"
