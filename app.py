@@ -161,12 +161,25 @@ class StockAnalyzer:
         yearly_stats = {}
         for year in sorted(df['연도'].unique()):
             year_data = df[df['연도'] == year]
-            yearly_stats[year] = {
-                '1sigma': ((year_data['일일수익률'] <= sigma_1_5y) & (year_data['일일수익률'] > sigma_2_5y)).sum(),
-                '2sigma': ((year_data['일일수익률'] <= sigma_2_5y) & (year_data['일일수익률'] > sigma_3_5y)).sum(),
-                '3sigma': (year_data['일일수익률'] <= sigma_3_5y).sum(),
-                'total_days': len(year_data)
-            }
+
+            # 디버깅용 - Streamlit에 표시
+            if st.sidebar.checkbox("디버깅 정보 보기", value=False):
+                st.write(f"시그마 값: 1σ={sigma_1_5y:.2f}%, 2σ={sigma_2_5y:.2f}%, 3σ={sigma_3_5y:.2f}%")
+            
+            for year in sorted(df['연도'].unique()):
+                year_data = df[df['연도'] == year]
+            
+                # 각 구간별 계산
+                in_1sigma_range = ((year_data['일일수익률'] <= sigma_1_5y) & (year_data['일일수익률'] > sigma_2_5y)).sum()
+                in_2sigma_range = ((year_data['일일수익률'] <= sigma_2_5y) & (year_data['일일수익률'] > sigma_3_5y)).sum()
+                in_3sigma_range = (year_data['일일수익률'] <= sigma_3_5y).sum()
+                
+                yearly_stats[year] = {
+                    '1sigma': in_1sigma_range,
+                    '2sigma': in_2sigma_range,
+                    '3sigma': in_3sigma_range,
+                    'total_days': len(year_data)
+                }
     
         return {
             # 5년 데이터
