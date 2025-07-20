@@ -1,0 +1,86 @@
+{
+  "SOXL": {
+    "name": "SOXL",
+    "type": "US"
+  },
+  "UVIX": {
+    "name": "UVIX",
+    "type": "US"
+  },
+  "TLT": {
+    "name": "TLT",
+    "type": "US"
+  },
+  "SSO": {
+    "name": "SSO",
+    "type": "US"
+  },
+  "TSLA": {
+    "name": "TSLA",
+    "type": "US"
+  },
+  "DIVO": {
+    "name": "DIVO",
+    "type": "US"
+  },
+  "GLDM": {
+    "name": "GLDM",
+    "type": "US"
+  },
+  "HYG": {
+    "name": "HYG",
+    "type": "US"
+  },
+  "IAU": {
+    "name": "IAU",
+    "type": "US"
+  },
+  "JEPI": {
+    "name": "JEPI",
+    "type": "US"
+  },
+  "SCHD": {
+    "name": "SCHD",
+    "type": "US"
+  },
+  "VOO": {
+    "name": "VOO",
+    "type": "US"
+  },
+  "SPLG": {
+    "name": "SPLG",
+    "type": "US"
+  },
+  "DGRW": {
+    "name": "DGRW",
+    "type": "US"
+  },
+  "JEPQ": {
+    "name": "JEPQ",
+    "type": "US"
+  },
+  "QQQM": {
+    "name": "QQQM",
+    "type": "US"
+  },
+  "BLOK": {
+    "name": "BLOK",
+    "type": "US"
+  },
+  "BABA": {
+    "name": "BABA",
+    "type": "US"
+  },
+  "ARKQ": {
+    "name": "ARKQ",
+    "type": "US"
+  },
+  "CONL": {
+    "name": "CONL",
+    "type": "US"
+  },
+  "MSTU": {
+    "name": "MSTU",
+    "type": "US"
+  }
+}
