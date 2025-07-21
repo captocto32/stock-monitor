@@ -516,9 +516,11 @@ with col1:
         df_analysis = analysis['df'].copy()
         df_analysis['일일수익률'] = df_analysis['종가'].pct_change() * 100
         
-        # 각 시그마 발생일 찾기
-        sigma_1_dates = df_analysis[df_analysis['일일수익률'] <= analysis['stats']['1sigma']].index
-        sigma_2_dates = df_analysis[df_analysis['일일수익률'] <= analysis['stats']['2sigma']].index
+        # 각 시그마 구간별 발생일 찾기
+        sigma_1_dates = df_analysis[(df_analysis['일일수익률'] <= analysis['stats']['1sigma']) & 
+                                    (df_analysis['일일수익률'] > analysis['stats']['2sigma'])].index
+        sigma_2_dates = df_analysis[(df_analysis['일일수익률'] <= analysis['stats']['2sigma']) & 
+                                    (df_analysis['일일수익률'] > analysis['stats']['3sigma'])].index
         sigma_3_dates = df_analysis[df_analysis['일일수익률'] <= analysis['stats']['3sigma']].index
         
         col1, col2, col3 = st.columns(3)
@@ -527,29 +529,29 @@ with col1:
             if len(sigma_1_dates) > 0:
                 last_date = sigma_1_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.metric("1σ 최근 발생", f"{days_ago}일 전")
+                st.metric("1σ 구간 최근 발생", f"{days_ago}일 전")
             else:
-                st.metric("1σ 최근 발생", "없음")
+                st.metric("1σ 구간 최근 발생", "없음")
                 
         with col2:
             if len(sigma_2_dates) > 0:
                 last_date = sigma_2_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.metric("2σ 최근 발생", f"{days_ago}일 전")
+                st.metric("2σ 구간 최근 발생", f"{days_ago}일 전")
             else:
-                st.metric("2σ 최근 발생", "없음")
+                st.metric("2σ 구간 최근 발생", "없음")
                 
         with col3:
             if len(sigma_3_dates) > 0:
                 last_date = sigma_3_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.metric("3σ 최근 발생", f"{days_ago}일 전")
+                st.metric("3σ 이하 최근 발생", f"{days_ago}일 전")
             else:
-                st.metric("3σ 최근 발생", "없음")
+                st.metric("3σ 이하 최근 발생", "없음")
         
         # 상세 발생일 목록 (expander)
         with st.expander("📅 시그마 하락 발생일 상세"):
-            tab1, tab2, tab3 = st.tabs(["2σ 발생일", "3σ 발생일", "극단적 하락 TOP 10"])
+            tab1, tab2, tab3 = st.tabs(["2σ 구간 발생일", "3σ 이하 발생일", "극단적 하락 TOP 10"])
             
             with tab1:
                 if len(sigma_2_dates) > 0:
@@ -561,8 +563,9 @@ with col1:
                             '수익률': f"{return_pct:.2f}%"
                         })
                     st.dataframe(pd.DataFrame(recent_2sigma), use_container_width=True, hide_index=True)
+                    st.caption(f"2σ 구간: {analysis['stats']['3sigma']:.2f}% < 하락률 ≤ {analysis['stats']['2sigma']:.2f}%")
                 else:
-                    st.info("2σ 하락 발생 이력이 없습니다.")
+                    st.info("2σ 구간 하락 발생 이력이 없습니다.")
                     
             with tab2:
                 if len(sigma_3_dates) > 0:
@@ -574,8 +577,9 @@ with col1:
                             '수익률': f"{return_pct:.2f}%"
                         })
                     st.dataframe(pd.DataFrame(recent_3sigma), use_container_width=True, hide_index=True)
+                    st.caption(f"3σ 이하: 하락률 ≤ {analysis['stats']['3sigma']:.2f}%")
                 else:
-                    st.info("3σ 하락 발생 이력이 없습니다.")
+                    st.info("3σ 이하 하락 발생 이력이 없습니다.")
                     
             with tab3:
                 # 최악의 하락일 TOP 10
