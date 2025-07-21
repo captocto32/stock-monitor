@@ -512,24 +512,77 @@ with col1:
             st.write(f"- 2σ 구간: {analysis['stats']['3sigma']:.2f}% < 하락률 ≤ {analysis['stats']['2sigma']:.2f}%")
             st.write(f"- 3σ 구간: 하락률 ≤ {analysis['stats']['3sigma']:.2f}%")
 
-        # 평균 발생 주기
-        col_cycle1, col_cycle2, col_cycle3 = st.columns(3)
-        total_days = sum(data['total_days'] for data in analysis['stats']['yearly_stats'].values())
-        total_1sigma = sum(data['1sigma'] for data in analysis['stats']['yearly_stats'].values())
-        total_2sigma = sum(data['2sigma'] for data in analysis['stats']['yearly_stats'].values())
-        total_3sigma = sum(data['3sigma'] for data in analysis['stats']['yearly_stats'].values())
+        # 최근 발생일 및 연속 발생 정보
+        df_analysis = analysis['df'].copy()
+        df_analysis['일일수익률'] = df_analysis['종가'].pct_change() * 100
         
-        with col_cycle1:
-            if total_1sigma > 0:
-                st.metric("1σ 평균 주기", f"{total_days/total_1sigma:.1f}일")
-        with col_cycle2:
-            if total_2sigma > 0:
-                st.metric("2σ 평균 주기", f"{total_days/total_2sigma:.1f}일")
-        with col_cycle3:
-            if total_3sigma > 0:
-                st.metric("3σ 평균 주기", f"{total_days/total_3sigma:.1f}일")
+        # 각 시그마 발생일 찾기
+        sigma_1_dates = df_analysis[df_analysis['일일수익률'] <= analysis['stats']['1sigma']].index
+        sigma_2_dates = df_analysis[df_analysis['일일수익률'] <= analysis['stats']['2sigma']].index
+        sigma_3_dates = df_analysis[df_analysis['일일수익률'] <= analysis['stats']['3sigma']].index
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if len(sigma_1_dates) > 0:
+                last_date = sigma_1_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("1σ 최근 발생", f"{days_ago}일 전")
             else:
-                st.metric("3σ 발생 횟수", f"{total_3sigma}번")
+                st.metric("1σ 최근 발생", "없음")
+                
+        with col2:
+            if len(sigma_2_dates) > 0:
+                last_date = sigma_2_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("2σ 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("2σ 최근 발생", "없음")
+                
+        with col3:
+            if len(sigma_3_dates) > 0:
+                last_date = sigma_3_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("3σ 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("3σ 최근 발생", "없음")
+        
+        # 상세 발생일 목록 (expander)
+        with st.expander("📅 시그마 하락 발생일 상세"):
+            tab1, tab2, tab3 = st.tabs(["2σ 발생일", "3σ 발생일", "극단적 하락 TOP 10"])
+            
+            with tab1:
+                if len(sigma_2_dates) > 0:
+                    recent_2sigma = []
+                    for date in sigma_2_dates[-20:]:  # 최근 20개
+                        return_pct = df_analysis.loc[date, '일일수익률']
+                        recent_2sigma.append({
+                            '날짜': date.strftime('%Y-%m-%d'),
+                            '수익률': f"{return_pct:.2f}%"
+                        })
+                    st.dataframe(pd.DataFrame(recent_2sigma), use_container_width=True, hide_index=True)
+                else:
+                    st.info("2σ 하락 발생 이력이 없습니다.")
+                    
+            with tab2:
+                if len(sigma_3_dates) > 0:
+                    recent_3sigma = []
+                    for date in sigma_3_dates:  # 3σ는 모두 표시
+                        return_pct = df_analysis.loc[date, '일일수익률']
+                        recent_3sigma.append({
+                            '날짜': date.strftime('%Y-%m-%d'),
+                            '수익률': f"{return_pct:.2f}%"
+                        })
+                    st.dataframe(pd.DataFrame(recent_3sigma), use_container_width=True, hide_index=True)
+                else:
+                    st.info("3σ 하락 발생 이력이 없습니다.")
+                    
+            with tab3:
+                # 최악의 하락일 TOP 10
+                worst_days = df_analysis.nsmallest(10, '일일수익률')[['일일수익률']].copy()
+                worst_days['날짜'] = worst_days.index.strftime('%Y-%m-%d')
+                worst_days['수익률'] = worst_days['일일수익률'].apply(lambda x: f"{x:.2f}%")
+                st.dataframe(worst_days[['날짜', '수익률']], use_container_width=True, hide_index=True)
                 
         # 수익률 분포 차트
         st.subheader("📈 일일 수익률 분포 (5년)")
