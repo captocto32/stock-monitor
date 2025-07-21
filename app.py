@@ -164,9 +164,9 @@ class StockAnalyzer:
             year_data = df[df['연도'] == year]
 
             yearly_stats[year] = {
-                '1sigma': in_1sigma_range,
-                '2sigma': in_2sigma_range,
-                '3sigma': in_3sigma_range,
+                '1sigma': ((year_data['일일수익률'] <= sigma_1_5y) & (year_data['일일수익률'] > sigma_2_5y)).sum(),
+                '2sigma': ((year_data['일일수익률'] <= sigma_2_5y) & (year_data['일일수익률'] > sigma_3_5y)).sum(),
+                '3sigma': (year_data['일일수익률'] <= sigma_3_5y).sum(),
                 'total_days': len(year_data)
             }
     
