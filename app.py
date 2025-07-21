@@ -291,7 +291,7 @@ with st.sidebar:
                 if df is not None:
                     stats = analyzer.calculate_sigma_levels(df)
                     
-                    # 세션에 저장
+                    # 세션에 저장 (강제로 덮어쓰기)
                     st.session_state.current_analysis = {
                         'symbol': symbol,
                         'name': name,
@@ -300,8 +300,7 @@ with st.sidebar:
                         'df': df
                     }
                     st.success("분석 완료! 아래에서 결과를 확인하세요.")
-                else:
-                    st.error("데이터를 가져올 수 없습니다.")
+                    st.rerun()  # 페이지 새로고침으로 확실하게 표시
 
 # 메인 영역 - 실시간 모니터링을 위로
 # 실시간 모니터링 상태 표시
