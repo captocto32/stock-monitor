@@ -261,6 +261,11 @@ with st.sidebar:
     
     # 종목 추가 섹션
     st.header("➕ 종목 추가")
+    
+    # 검색 히스토리 초기화
+    if 'search_history' not in st.session_state:
+        st.session_state.search_history = []
+    
     stock_input = st.text_input("종목명 또는 종목코드", placeholder="삼성전자 또는 005930")
     
     if st.button("🔍 검색 및 분석", use_container_width=True):
@@ -300,8 +305,16 @@ with st.sidebar:
                         'stats': stats,
                         'df': df
                     }
+
+                    # 검색 히스토리에 추가
+                    history_item = f"{name} ({symbol})"
+                    if history_item not in st.session_state.search_history:
+                        st.session_state.search_history.insert(0, history_item)
+                        # 최대 10개까지만 유지
+                        st.session_state.search_history = st.session_state.search_history[:10]
+                    
                     st.success("분석 완료! 아래에서 결과를 확인하세요.")
-                    st.rerun()  # 페이지 새로고침으로 확실하게 표시
+                    st.rerun()
 
 # 메인 영역 - 실시간 모니터링을 위로
 # 실시간 모니터링 상태 표시
