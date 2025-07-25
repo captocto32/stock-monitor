@@ -321,96 +321,160 @@ if st.button("🔄 새로고침", use_container_width=True):
     
 # 현재가 표시 - 새로운 표 형식
 if st.session_state.monitoring_stocks:
-    current_prices = []
+    # 한국/미국 종목 분리
+    kr_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'KR'}
+    us_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'US'}
+    
+    # 탭 생성
+    tab_kr, tab_us = st.tabs([f"🇰🇷 한국 주식 ({len(kr_stocks)})", f"🇺🇸 미국 주식 ({len(us_stocks)})"])
+    
     analyzer = StockAnalyzer()
     
-    for symbol, info in st.session_state.monitoring_stocks.items():
-        try:
-            # 어제 종가 (last_close가 실제로는 가장 최근 거래일의 종가)
-            yesterday_close = info['stats']['last_close']
+    # 한국 주식 탭
+    with tab_kr:
+        if kr_stocks:
+            current_prices_kr = []
+            for symbol, info in kr_stocks.items():
+                try:
+                    # 어제 종가 (last_close가 실제로는 가장 최근 거래일의 종가)
+                    yesterday_close = info['stats']['last_close']
+                    
+                    # 1년 시그마 값들 (퍼센트)
+                    sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
+                    sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
+                    sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
+                    
+                    # 시그마 하락시 가격 계산
+                    price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+                    price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+                    price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                    
+                    # 통화 단위 설정
+                    currency = '원'
+                    price_format = "{:,.0f}"
+                    
+                    current_prices_kr.append({
+                        '종목': f"{info['name']} ({symbol})",
+                        '어제 종가': f"{currency}{price_format.format(yesterday_close)}",
+                        '1σ(1년)': f"{sigma_1_1y:.2f}%",
+                        '1σ 하락시 가격': f"{currency}{price_format.format(price_at_1sigma)}",
+                        '2σ(1년)': f"{sigma_2_1y:.2f}%",
+                        '2σ 하락시 가격': f"{currency}{price_format.format(price_at_2sigma)}",
+                        '3σ(1년)': f"{sigma_3_1y:.2f}%",
+                        '3σ 하락시 가격': f"{currency}{price_format.format(price_at_3sigma)}"
+                    })
+                except Exception as e:
+                    st.error(f"{symbol} 오류: {str(e)}")
             
-            # 1년 시그마 값들 (퍼센트)
-            sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
-            sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
-            sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
-            
-            # 시그마 하락시 가격 계산
-            price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
-            price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
-            price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
-            
-            # 통화 단위 설정
-            if info['type'] == 'KR':
-                currency = '원'
-                price_format = "{:,.0f}"
-            else:
-                currency = '$'
-                price_format = "{:,.2f}"
-            
-            current_prices.append({
-                '종목': f"{info['name']} ({symbol})",
-                '어제 종가': f"{currency}{price_format.format(yesterday_close)}",
-                '1σ(1년)': f"{sigma_1_1y:.2f}%",
-                '1σ 하락시 가격': f"{currency}{price_format.format(price_at_1sigma)}",
-                '2σ(1년)': f"{sigma_2_1y:.2f}%",
-                '2σ 하락시 가격': f"{currency}{price_format.format(price_at_2sigma)}",
-                '3σ(1년)': f"{sigma_3_1y:.2f}%",
-                '3σ 하락시 가격': f"{currency}{price_format.format(price_at_3sigma)}"
-            })
-            
-        except Exception as e:
-            st.error(f"{symbol} 오류: {str(e)}")
+            if current_prices_kr:
+                # DataFrame 생성 및 정렬
+                df_current_kr = pd.DataFrame(current_prices_kr)
+                df_current_kr['정렬키'] = df_current_kr['종목'].apply(lambda x: x.split('(')[0].strip())
+                df_current_kr = df_current_kr.sort_values(by='정렬키').drop(columns=['정렬키']).reset_index(drop=True)
+                
+                # 선택 가능한 DataFrame으로 표시
+                selected_kr = st.dataframe(
+                    df_current_kr, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    on_select="rerun",
+                    selection_mode="single-row"
+                )
+                
+                # 선택된 행이 있으면 분석 실행
+                if selected_kr and len(selected_kr.selection.rows) > 0:
+                    selected_idx = selected_kr.selection.rows[0]
+                    selected_stock = df_current_kr.iloc[selected_idx]
+                    symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
+                    
+                    if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                        for sym, info in st.session_state.monitoring_stocks.items():
+                            if sym == symbol:
+                                st.session_state.current_analysis = {
+                                    'symbol': sym,
+                                    'name': info['name'],
+                                    'type': info['type'],
+                                    'stats': info['stats'],
+                                    'df': info['df']
+                                }
+                                st.rerun()
+                                break
+        else:
+            st.info("모니터링 중인 한국 주식이 없습니다.")
     
-    if current_prices:
-        # DataFrame 생성
-        df_current = pd.DataFrame(current_prices)
-        
-        # 종목명에서 심볼 추출하여 정렬용 컬럼 생성
-        df_current['정렬키'] = df_current['종목'].apply(lambda x: x.split('(')[0].strip())
-        
-        # 영문/한글 구분하여 정렬
-        df_current['is_english'] = df_current['정렬키'].apply(lambda x: x[0].encode().isalpha())
-        
-        # 영문 먼저, 그 다음 한글 순으로 정렬
-        df_current = df_current.sort_values(
-            by=['is_english', '정렬키'], 
-            ascending=[False, True]
-        )
-        
-        # 정렬용 컬럼 제거하고 인덱스 리셋
-        df_current = df_current.drop(columns=['정렬키', 'is_english']).reset_index(drop=True)
-        
-        # 선택 가능한 DataFrame으로 표시
-        selected = st.dataframe(
-            df_current, 
-            use_container_width=True, 
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row"
-        )
-        
-        # 선택된 행이 있으면 분석 실행
-        if selected and len(selected.selection.rows) > 0:
-            selected_idx = selected.selection.rows[0]
-            selected_stock = df_current.iloc[selected_idx]  # df_current에서 가져오기
-            symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
+    # 미국 주식 탭
+    with tab_us:
+        if us_stocks:
+            current_prices_us = []
+            for symbol, info in us_stocks.items():
+                try:
+                    # 어제 종가 (last_close가 실제로는 가장 최근 거래일의 종가)
+                    yesterday_close = info['stats']['last_close']
+                    
+                    # 1년 시그마 값들 (퍼센트)
+                    sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
+                    sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
+                    sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
+                    
+                    # 시그마 하락시 가격 계산
+                    price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+                    price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+                    price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                    
+                    # 통화 단위 설정
+                    currency = '$'
+                    price_format = "{:,.2f}"
+                    
+                    current_prices_us.append({
+                        '종목': f"{info['name']} ({symbol})",
+                        '어제 종가': f"{currency}{price_format.format(yesterday_close)}",
+                        '1σ(1년)': f"{sigma_1_1y:.2f}%",
+                        '1σ 하락시 가격': f"{currency}{price_format.format(price_at_1sigma)}",
+                        '2σ(1년)': f"{sigma_2_1y:.2f}%",
+                        '2σ 하락시 가격': f"{currency}{price_format.format(price_at_2sigma)}",
+                        '3σ(1년)': f"{sigma_3_1y:.2f}%",
+                        '3σ 하락시 가격': f"{currency}{price_format.format(price_at_3sigma)}"
+                    })
+                except Exception as e:
+                    st.error(f"{symbol} 오류: {str(e)}")
             
-            # 이미 현재 분석 중인 종목이 아닌 경우에만 실행
-            if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
-                for sym, info in st.session_state.monitoring_stocks.items():
-                    if sym == symbol:
-                        st.session_state.current_analysis = {
-                            'symbol': sym,
-                            'name': info['name'],
-                            'type': info['type'],
-                            'stats': info['stats'],
-                            'df': info['df']
-                        }
-                        st.rerun()
-                        break
-
-else:
-    st.info("모니터링할 종목을 추가하세요.")
+            if current_prices_us:
+                # DataFrame 생성 및 정렬
+                df_current_us = pd.DataFrame(current_prices_us)
+                df_current_us['정렬키'] = df_current_us['종목'].apply(lambda x: x.split('(')[0].strip())
+                df_current_us['is_english'] = df_current_us['정렬키'].apply(lambda x: x[0].encode().isalpha())
+                df_current_us = df_current_us.sort_values(by=['is_english', '정렬키'], ascending=[False, True])
+                df_current_us = df_current_us.drop(columns=['정렬키', 'is_english']).reset_index(drop=True)
+                
+                # 선택 가능한 DataFrame으로 표시
+                selected_us = st.dataframe(
+                    df_current_us, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    on_select="rerun",
+                    selection_mode="single-row"
+                )
+                
+                # 선택된 행이 있으면 분석 실행
+                if selected_us and len(selected_us.selection.rows) > 0:
+                    selected_idx = selected_us.selection.rows[0]
+                    selected_stock = df_current_us.iloc[selected_idx]
+                    symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
+                    
+                    if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                        for sym, info in st.session_state.monitoring_stocks.items():
+                            if sym == symbol:
+                                st.session_state.current_analysis = {
+                                    'symbol': sym,
+                                    'name': info['name'],
+                                    'type': info['type'],
+                                    'stats': info['stats'],
+                                    'df': info['df']
+                                }
+                                st.rerun()
+                                break
+        else:
+            st.info("모니터링 중인 미국 주식이 없습니다.")
 
 st.markdown("---")
 
