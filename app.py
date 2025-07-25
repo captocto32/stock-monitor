@@ -275,6 +275,7 @@ with st.sidebar:
             else:
                 # 한국 주식 검색
                 kr_code, kr_name = analyzer.search_korean_stock(stock_input)
+                st.write(f"디버그: kr_code={kr_code}, kr_name={kr_name}")  # 추가
                 
                 if kr_code:
                     symbol, name, stock_type = kr_code, kr_name, 'KR'
