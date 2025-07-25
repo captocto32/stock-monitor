@@ -626,7 +626,14 @@ with col1:
         
         # 모니터링 추가 버튼
         if st.button(f"🎯 {analysis['name']} 모니터링 목록에 추가", use_container_width=True, type="primary"):
+            # 디버깅용
+            st.write(f"추가 중: {analysis['symbol']} / {analysis['name']} / {analysis['type']}")
+            
             st.session_state.monitoring_stocks[analysis['symbol']] = analysis
             save_stocks()  # 자동 저장
             st.success(f"{analysis['name']}이(가) 모니터링 목록에 추가되었습니다!")
+            
+            # 저장 확인
+            st.write(f"현재 모니터링 종목: {list(st.session_state.monitoring_stocks.keys())}")
+            
             del st.session_state.current_analysis
