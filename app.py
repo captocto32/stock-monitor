@@ -363,13 +363,6 @@ with st.sidebar:
                         }
                         st.rerun()
 
-    # 디버깅용 - 세션 상태 확인
-    st.write("세션 상태 확인:")
-    st.write(f"search_history 존재: {'search_history' in st.session_state}")
-    if 'search_history' in st.session_state:
-        st.write(f"히스토리 개수: {len(st.session_state.search_history)}")
-        st.write(f"내용: {st.session_state.search_history}")
-
 # 메인 영역 - 실시간 모니터링을 위로
 # 실시간 모니터링 상태 표시
 st.header("🚀 실시간 모니터링")
