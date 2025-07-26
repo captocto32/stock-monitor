@@ -327,15 +327,34 @@ with st.sidebar:
         st.subheader("🕐 최근 검색")
         for item in st.session_state.search_history:
             col1, col2 = st.columns([3, 1])
-            with col1:
-                st.text(item)
             with col2:
                 if st.button("↻", key=f"history_{item}", help="다시 검색"):
                     # 종목 코드 추출
                     symbol = item.split('(')[-1].rstrip(')')
-                    # 입력창에 자동 입력 효과를 위해 페이지 새로고침
-                    st.session_state.search_from_history = symbol
-                    st.rerun()
+                    
+                    # 직접 분석 실행
+                    analyzer = StockAnalyzer()
+                    
+                    # 종목 타입 확인 (6자리면 한국, 아니면 미국)
+                    if len(symbol) == 6 and symbol.isdigit():
+                        stock_type = 'KR'
+                        name = item.split(' (')[0]
+                    else:
+                        stock_type = 'US'
+                        name = symbol
+                    
+                    # 데이터 분석
+                    df = analyzer.get_stock_data(symbol, stock_type)
+                    if df is not None:
+                        stats = analyzer.calculate_sigma_levels(df)
+                        st.session_state.current_analysis = {
+                            'symbol': symbol,
+                            'name': name,
+                            'type': stock_type,
+                            'stats': stats,
+                            'df': df
+                        }
+                        st.rerun()
 
     # 디버깅용 - 세션 상태 확인
     st.write("세션 상태 확인:")
