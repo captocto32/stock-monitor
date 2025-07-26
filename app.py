@@ -329,8 +329,13 @@ with st.sidebar:
             col1, col2 = st.columns([3, 1])
             with col2:
                 if st.button("↻", key=f"history_{item}", help="다시 검색"):
-                    # 종목 코드 추출
-                    symbol = item.split('(')[-1].rstrip(')')
+                    # 종목명과 심볼 추출
+                    parts = item.rsplit(' (', 1)  # 마지막 괄호 기준으로 분리
+                    if len(parts) == 2:
+                        name = parts[0]
+                        symbol = parts[1].rstrip(')')
+                    else:
+                        name = symbol = item
                     
                     # 직접 분석 실행
                     analyzer = StockAnalyzer()
