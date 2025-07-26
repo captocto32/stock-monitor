@@ -325,10 +325,12 @@ with st.sidebar:
     if 'search_history' in st.session_state and st.session_state.search_history:
         st.markdown("---")
         st.subheader("🕐 최근 검색")
-        for item in st.session_state.search_history:
+        for i, item in enumerate(st.session_state.search_history):
             col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"**{item}**")  # 굵은 글씨로 표시
             with col2:
-                if st.button("↻", key=f"history_{item}", help="다시 검색"):
+                if st.button("↻", key=f"history_{i}_{item}", help="다시 검색"):
                     # 종목명과 심볼 추출
                     parts = item.rsplit(' (', 1)  # 마지막 괄호 기준으로 분리
                     if len(parts) == 2:
