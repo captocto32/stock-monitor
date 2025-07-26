@@ -313,6 +313,9 @@ with st.sidebar:
                         # 최대 10개까지만 유지
                         st.session_state.search_history = st.session_state.search_history[:10]
                     
+                    # 디버깅용 - 히스토리 확인
+                    st.write(f"현재 검색 히스토리: {st.session_state.search_history}")
+
                     st.success("분석 완료! 아래에서 결과를 확인하세요.")
                     st.rerun()
                 else:
@@ -333,6 +336,13 @@ with st.sidebar:
                         # 입력창에 자동 입력 효과를 위해 페이지 새로고침
                         st.session_state.search_from_history = symbol
                         st.rerun()
+
+    # 디버깅용 - 세션 상태 확인
+    st.write("세션 상태 확인:")
+    st.write(f"search_history 존재: {'search_history' in st.session_state}")
+    if 'search_history' in st.session_state:
+        st.write(f"히스토리 개수: {len(st.session_state.search_history)}")
+        st.write(f"내용: {st.session_state.s
 
 # 메인 영역 - 실시간 모니터링을 위로
 # 실시간 모니터링 상태 표시
