@@ -321,21 +321,21 @@ with st.sidebar:
                 else:
                     st.error("데이터를 가져올 수 없습니다.")
 
-        # 검색 히스토리
-        if 'search_history' in st.session_state and st.session_state.search_history:
-            st.markdown("---")
-            st.subheader("🕐 최근 검색")
-            for item in st.session_state.search_history:
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.text(item)
-                with col2:
-                    if st.button("↻", key=f"history_{item}", help="다시 검색"):
-                        # 종목 코드 추출
-                        symbol = item.split('(')[-1].rstrip(')')
-                        # 입력창에 자동 입력 효과를 위해 페이지 새로고침
-                        st.session_state.search_from_history = symbol
-                        st.rerun()
+    # 검색 히스토리
+    if 'search_history' in st.session_state and st.session_state.search_history:
+        st.markdown("---")
+        st.subheader("🕐 최근 검색")
+        for item in st.session_state.search_history:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.text(item)
+            with col2:
+                if st.button("↻", key=f"history_{item}", help="다시 검색"):
+                    # 종목 코드 추출
+                    symbol = item.split('(')[-1].rstrip(')')
+                    # 입력창에 자동 입력 효과를 위해 페이지 새로고침
+                    st.session_state.search_from_history = symbol
+                    st.rerun()
 
     # 디버깅용 - 세션 상태 확인
     st.write("세션 상태 확인:")
