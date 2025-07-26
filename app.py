@@ -266,6 +266,8 @@ with st.sidebar:
     if 'search_history' not in st.session_state:
         st.session_state.search_history = []
     
+    stock_input = st.text_input("종목명 또는 종목코드", placeholder="삼성전자 또는 005930")
+    
     # 히스토리에서 선택한 경우 자동 입력
     if 'search_from_history' in st.session_state:
         default_value = st.session_state.search_from_history
