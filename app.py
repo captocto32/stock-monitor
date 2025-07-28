@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 # 페이지 설정
 st.set_page_config(
     page_title="주식 하락률 모니터링",
-    page_icon="📉",
+    page_icon="🍣",
     layout="wide"
 )
 
@@ -212,17 +212,17 @@ class StockAnalyzer:
             return None
 
 # Streamlit 앱 시작
-st.title("📉 주식 하락률 모니터링 시스템")
+st.title("🍣 주식 하락률 모니터링 시스템")
 st.markdown("---")
 
 # 사이드바
 with st.sidebar:
-    st.header("📊 주식 시그마 분석")
+    st.header("🦁 주식 시그마 분석")
     
     st.markdown("---")
     
     # 저장된 종목 불러오기
-    st.header("💾 저장된 종목")
+    st.header("🍚 저장된 종목")
     saved_stocks = load_saved_stocks()
 
     if saved_stocks and not st.session_state.stocks_loaded:
@@ -365,7 +365,7 @@ with st.sidebar:
 
 # 메인 영역 - 실시간 모니터링을 위로
 # 실시간 모니터링 상태 표시
-st.header("🚀 실시간 모니터링")
+st.header("🍙 실시간 모니터링")
     
 # 텔레그램 모니터링 안내
 st.info("""
