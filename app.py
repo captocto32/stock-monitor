@@ -98,6 +98,9 @@ class StockAnalyzer:
             return df
         except Exception as e:
             st.error(f"데이터 가져오기 실패: {e}")
+            st.write(f"Debug - Symbol: {symbol}, Type: {stock_type}")
+            st.write(f"Debug - Error type: {type(e).__name__}")
+            st.write(f"Debug - Error details: {str(e)}")
             return None
     
     def calculate_sigma_levels(self, df):
