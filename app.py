@@ -580,6 +580,55 @@ with col1:
                     level = "정상"
                     delta_color = "normal"
                 st.metric("현재 상태", level, f"{change_pct:+.2f}%", delta_color=delta_color)
+
+            # 시그마 하락시 가격 표시
+        st.markdown("---")
+        st.subheader("💰 시그마 하락시 목표 가격")
+        
+        # 어제 종가
+        yesterday_close = analysis['stats']['last_close']
+        
+        # 1년 시그마 값들
+        sigma_1_1y = analysis['stats'].get('1sigma_1y', analysis['stats']['1sigma'])
+        sigma_2_1y = analysis['stats'].get('2sigma_1y', analysis['stats']['2sigma'])
+        sigma_3_1y = analysis['stats'].get('3sigma_1y', analysis['stats']['3sigma'])
+        
+        # 시그마 하락시 가격 계산
+        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+        
+        # 통화 단위 설정
+        if analysis['type'] == 'KR':
+            currency = '원'
+            price_format = "{:,.0f}"
+        else:
+            currency = '$'
+            price_format = "{:,.2f}"
+        
+        # 컬럼으로 표시
+        price_col1, price_col2, price_col3 = st.columns(3)
+        
+        with price_col1:
+            st.metric(
+                f"1σ ({sigma_1_1y:.2f}%) 하락시",
+                f"{currency}{price_format.format(price_at_1sigma)}"
+            )
+        
+        with price_col2:
+            st.metric(
+                f"2σ ({sigma_2_1y:.2f}%) 하락시",
+                f"{currency}{price_format.format(price_at_2sigma)}"
+            )
+        
+        with price_col3:
+            st.metric(
+                f"3σ ({sigma_3_1y:.2f}%) 하락시",
+                f"{currency}{price_format.format(price_at_3sigma)}"
+            )
+        
+        # 어제 종가 정보
+        st.caption(f"* 어제 종가 기준: {currency}{price_format.format(yesterday_close)}")
         
         # 시그마 레벨
         st.subheader("🎯 하락 알림 기준")
