@@ -561,13 +561,6 @@ with col1:
                 st.metric("전일 종가", f"{analysis['stats']['last_close']:,.4f}원")
         with col_b:
             st.metric("평균 수익률", f"{analysis['stats']['mean']:.2f}%")
-            # 평균 수익률에 따른 설명
-            if mean_return > 0:
-                st.caption("📈 상승 추세")
-            elif mean_return < 0:
-                st.caption("📉 하락 추세")
-            else:
-                st.caption("➡️ 횡보")
         with col_c:
             st.metric("표준편차", f"{analysis['stats']['std']:.2f}%")
         with col_d:
