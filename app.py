@@ -1285,16 +1285,21 @@ with tab3:
                         # 매월 10일 찾기 (정확히 12개월 또는 60개월)
                         target_months = period_months
                         found_months = 0
+                        last_month = -1
                         
                         for i in range(len(df_data)):
                             current_date = df_data.index[i]
-                            if current_date.day == 10 and found_months < target_months:  # 매월 10일
+                            current_month = current_date.month
+                            
+                            # 매월 10일 또는 10일 이후 첫 거래일
+                            if (current_date.day >= 10 and current_month != last_month and found_months < target_months):
                                 current_price = df_data['Close'].iloc[i]
                                 shares = monthly_amount / current_price
                                 dca_investment += monthly_amount
                                 dca_shares += shares
                                 dca_buy_count += 1
                                 found_months += 1
+                                last_month = current_month
                         
                         # 현재 가격
                         current_price = df_data['Close'].iloc[-1]
@@ -1383,10 +1388,14 @@ with tab3:
                                     df_1year = analysis['df'].tail(252)
                                     monthly_amount = comparison_1y['dca']['monthly_amount']
                                     found_months = 0
+                                    last_month = -1
                                     
                                     for i in range(len(df_1year)):
                                         current_date = df_1year.index[i]
-                                        if current_date.day == 10 and found_months < 12:  # 매월 10일
+                                        current_month = current_date.month
+                                        
+                                        # 매월 10일 또는 10일 이후 첫 거래일
+                                        if (current_date.day >= 10 and current_month != last_month and found_months < 12):
                                             current_price = df_1year['Close'].iloc[i]
                                             shares = monthly_amount / current_price
                                             dca_buy_history.append({
@@ -1396,6 +1405,7 @@ with tab3:
                                                 'shares': shares
                                             })
                                             found_months += 1
+                                            last_month = current_month
                                     
                                     if dca_buy_history:
                                         dca_df = pd.DataFrame(dca_buy_history)
@@ -1498,10 +1508,14 @@ with tab3:
                                     df_5year = analysis['df']
                                     monthly_amount_5y = comparison_5y['dca']['monthly_amount']
                                     found_months_5y = 0
+                                    last_month_5y = -1
                                     
                                     for i in range(len(df_5year)):
                                         current_date = df_5year.index[i]
-                                        if current_date.day == 10 and found_months_5y < 60:  # 매월 10일
+                                        current_month = current_date.month
+                                        
+                                        # 매월 10일 또는 10일 이후 첫 거래일
+                                        if (current_date.day >= 10 and current_month != last_month_5y and found_months_5y < 60):
                                             current_price = df_5year['Close'].iloc[i]
                                             shares = monthly_amount_5y / current_price
                                             dca_buy_history_5y.append({
@@ -1511,6 +1525,7 @@ with tab3:
                                                 'shares': shares
                                             })
                                             found_months_5y += 1
+                                            last_month_5y = current_month
                                     
                                     if dca_buy_history_5y:
                                         dca_df_5y = pd.DataFrame(dca_buy_history_5y)
@@ -1563,57 +1578,65 @@ with tab3:
                 st.markdown("---")
                 st.markdown("#### 📊 수익률 비교 그래프")
                 
-                # 1년 결과 그래프
-                if results_1year['buy_count'] > 0:
-                    st.markdown("**1년 결과 수익률 비교**")
-                    
-                    # 1년 수익률 데이터
-                    sigma_return_1y = results_1year['total_return']
-                    dca_return_1y = comparison_1y['dca']['total_return']
-                    lump_sum_return_1y = comparison_1y['lump_sum']['total_return']
-                    
-                    # 1년 그래프
-                    fig_1y = go.Figure()
-                    fig_1y.add_trace(go.Bar(
-                        x=['시그마 하락시', 'DCA', '일시불'],
-                        y=[sigma_return_1y, dca_return_1y, lump_sum_return_1y],
-                        text=[f'{sigma_return_1y:+.2f}%', f'{dca_return_1y:+.2f}%', f'{lump_sum_return_1y:+.2f}%'],
-                        textposition='auto',
-                        marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
-                    ))
-                    fig_1y.update_layout(
-                        title="1년 수익률 비교",
-                        xaxis_title="투자 전략",
-                        yaxis_title="수익률 (%)",
-                        height=400
-                    )
-                    st.plotly_chart(fig_1y, use_container_width=True)
+                col_graph_1y, col_graph_5y = st.columns(2)
                 
-                # 5년 결과 그래프
-                if results_5year['buy_count'] > 0:
-                    st.markdown("**5년 결과 수익률 비교**")
-                    
-                    # 5년 수익률 데이터
-                    sigma_return_5y = results_5year['total_return']
-                    dca_return_5y = comparison_5y['dca']['total_return']
-                    lump_sum_return_5y = comparison_5y['lump_sum']['total_return']
-                    
-                    # 5년 그래프
-                    fig_5y = go.Figure()
-                    fig_5y.add_trace(go.Bar(
-                        x=['시그마 하락시', 'DCA', '일시불'],
-                        y=[sigma_return_5y, dca_return_5y, lump_sum_return_5y],
-                        text=[f'{sigma_return_5y:+.2f}%', f'{dca_return_5y:+.2f}%', f'{lump_sum_return_5y:+.2f}%'],
-                        textposition='auto',
-                        marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
-                    ))
-                    fig_5y.update_layout(
-                        title="5년 수익률 비교",
-                        xaxis_title="투자 전략",
-                        yaxis_title="수익률 (%)",
-                        height=400
-                    )
-                    st.plotly_chart(fig_5y, use_container_width=True)
+                # 1년 결과 그래프 (왼쪽)
+                with col_graph_1y:
+                    if results_1year['buy_count'] > 0:
+                        st.markdown("**1년 결과 수익률 비교**")
+                        
+                        # 1년 수익률 데이터
+                        sigma_return_1y = results_1year['total_return']
+                        dca_return_1y = comparison_1y['dca']['total_return']
+                        lump_sum_return_1y = comparison_1y['lump_sum']['total_return']
+                        
+                        # 1년 그래프
+                        fig_1y = go.Figure()
+                        fig_1y.add_trace(go.Bar(
+                            x=['시그마 하락시', 'DCA', '일시불'],
+                            y=[sigma_return_1y, dca_return_1y, lump_sum_return_1y],
+                            text=[f'{sigma_return_1y:+.2f}%', f'{dca_return_1y:+.2f}%', f'{lump_sum_return_1y:+.2f}%'],
+                            textposition='auto',
+                            marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
+                        ))
+                        fig_1y.update_layout(
+                            title="1년 수익률 비교",
+                            xaxis_title="투자 전략",
+                            yaxis_title="수익률 (%)",
+                            height=400
+                        )
+                        st.plotly_chart(fig_1y, use_container_width=True)
+                    else:
+                        st.info("1년 매수 내역 없음")
+                
+                # 5년 결과 그래프 (오른쪽)
+                with col_graph_5y:
+                    if results_5year['buy_count'] > 0:
+                        st.markdown("**5년 결과 수익률 비교**")
+                        
+                        # 5년 수익률 데이터
+                        sigma_return_5y = results_5year['total_return']
+                        dca_return_5y = comparison_5y['dca']['total_return']
+                        lump_sum_return_5y = comparison_5y['lump_sum']['total_return']
+                        
+                        # 5년 그래프
+                        fig_5y = go.Figure()
+                        fig_5y.add_trace(go.Bar(
+                            x=['시그마 하락시', 'DCA', '일시불'],
+                            y=[sigma_return_5y, dca_return_5y, lump_sum_return_5y],
+                            text=[f'{sigma_return_5y:+.2f}%', f'{dca_return_5y:+.2f}%', f'{lump_sum_return_5y:+.2f}%'],
+                            textposition='auto',
+                            marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
+                        ))
+                        fig_5y.update_layout(
+                            title="5년 수익률 비교",
+                            xaxis_title="투자 전략",
+                            yaxis_title="수익률 (%)",
+                            height=400
+                        )
+                        st.plotly_chart(fig_5y, use_container_width=True)
+                    else:
+                        st.info("5년 매수 내역 없음")
             
             # 이전 구조 (단일 결과) 처리
             else:
