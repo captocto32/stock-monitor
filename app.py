@@ -202,30 +202,7 @@ class StockAnalyzer:
             tickers = stock.get_market_ticker_list()
             query_upper = query.upper()
             
-            # 디버깅: NAVER 관련 검색 시 상세 정보 출력
-            if query_upper in ['NAVER', '네이버']:
-                st.write(f"🔍 NAVER 검색 디버깅:")
-                st.write(f"검색어: '{query}' -> '{query_upper}'")
-                st.write(f"전체 종목 수: {len(tickers)}")
-                
-                # 035420 종목코드 직접 확인
-                try:
-                    name_035420 = stock.get_market_ticker_name('035420')
-                    st.write(f"035420 종목명: {name_035420}")
-                except Exception as e:
-                    st.write(f"035420 오류: {e}")
-                
-                # NAVER 관련 종목 찾기
-                navers = []
-                for ticker in tickers:
-                    try:
-                        name = stock.get_market_ticker_name(ticker)
-                        if name and ('네이버' in name or 'NAVER' in name.upper()):
-                            navers.append((ticker, name))
-                    except Exception as e:
-                        st.write(f"종목 {ticker} 오류: {e}")
-                
-                st.write(f"NAVER 관련 종목: {navers}")
+
             
             # 전체 검색
             for ticker in tickers:
@@ -465,8 +442,7 @@ with st.sidebar:
             # 한국 주식 검색
             kr_code, kr_name = analyzer.search_korean_stock(stock_input)
             
-            # 디버깅용 출력
-            st.write(f"검색 결과: kr_code={kr_code}, kr_name={kr_name}")
+
             
             if kr_code:
                 symbol, name, stock_type = kr_code, kr_name, 'KR'
