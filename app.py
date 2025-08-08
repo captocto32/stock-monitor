@@ -955,11 +955,11 @@ with tab3:
         col1_1, col1_2, col1_3 = st.columns(3)
         
         with col1_1:
-            amount_1sigma = st.number_input("1σ 하락시 (만원)", min_value=0, value=100, disabled=(strategy=="2σ 이상 하락시 매수"))
+            amount_1sigma = st.number_input("1σ 하락시", min_value=0, value=100, disabled=(strategy=="2σ 이상 하락시 매수"))
         with col1_2:
-            amount_2sigma = st.number_input("2σ 하락시 (만원)", min_value=0, value=200)
+            amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=200)
         with col1_3:
-            amount_3sigma = st.number_input("3σ 하락시 (만원)", min_value=0, value=200)
+            amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=200)
         
         # 테스트 기간
         test_period = st.radio("테스트 기간", ["최근 1년", "최근 5년"])
