@@ -1718,38 +1718,49 @@ with tab3:
                             # 장단기 비교
                             if results_1y['buy_count'] > 0:
                                 st.markdown("")
-                                st.markdown("#### 📊 장단기 비교")
+                                st.markdown("#### 📊 장단기 분석")
                                 
-                                col_short, col_long = st.columns(2)
-                                
-                                with col_short:
-                                    st.markdown("**📈 단기 투자 (1년)**")
+                                # 단기 투자 분석
+                                st.markdown("**📈 단기 투자 (1년) 분석**")
+                                col_short1, col_short2, col_short3 = st.columns(3)
+                                with col_short1:
                                     st.metric("최고 성과", f"{best_1y:+.2f}%")
+                                with col_short2:
                                     if best_1y > best_5y:
-                                        st.success("단기 투자가 유리")
+                                        st.metric("투자 유형", "단기 투자 유리", delta="우수")
                                     else:
-                                        st.info("장기 투자보다 낮음")
+                                        st.metric("투자 유형", "장기 투자보다 낮음", delta="보통")
+                                with col_short3:
+                                    volatility_1y = max(sigma_1y, dca_1y, lump_1y) - min(sigma_1y, dca_1y, lump_1y)
+                                    st.metric("변동성", f"{volatility_1y:.2f}%")
                                 
-                                with col_long:
-                                    st.markdown("**📊 장기 투자 (5년)**")
+                                # 장기 투자 분석
+                                st.markdown("**📊 장기 투자 (5년) 분석**")
+                                col_long1, col_long2, col_long3 = st.columns(3)
+                                with col_long1:
                                     st.metric("최고 성과", f"{best_5y:+.2f}%")
+                                with col_long2:
                                     if best_5y > best_1y * 2:
-                                        st.success("장기 투자가 매우 유리")
+                                        st.metric("투자 유형", "장기 투자 매우 유리", delta="매우 우수")
                                     elif best_5y > best_1y:
-                                        st.success("장기 투자가 유리")
+                                        st.metric("투자 유형", "장기 투자 유리", delta="우수")
                                     else:
-                                        st.info("단기 투자보다 낮음")
+                                        st.metric("투자 유형", "단기 투자보다 낮음", delta="보통")
+                                with col_long3:
+                                    volatility_5y = max(sigma_5y, dca_5y, lump_5y) - min(sigma_5y, dca_5y, lump_5y)
+                                    st.metric("변동성", f"{volatility_5y:.2f}%")
                                 
                                 # 장단기 비교 요약
                                 st.markdown("")
+                                st.markdown("**📋 장단기 투자 비교 요약**")
                                 if best_5y > best_1y * 2:
-                                    st.markdown("✅ **장기 투자가 매우 유리**: 5년 성과가 1년보다 2배 이상 우수")
+                                    st.success("✅ **장기 투자가 매우 유리**: 5년 성과가 1년보다 2배 이상 우수한 성과를 보여 장기 투자를 강력히 권장합니다.")
                                 elif best_5y > best_1y:
-                                    st.markdown("✅ **장기 투자가 유리**: 5년 성과가 1년보다 우수")
+                                    st.success("✅ **장기 투자가 유리**: 5년 성과가 1년보다 우수하여 장기 투자를 권장합니다.")
                                 elif best_1y > best_5y:
-                                    st.markdown("⚠️ **단기 투자가 유리**: 1년 성과가 5년보다 우수")
+                                    st.warning("⚠️ **단기 투자가 유리**: 1년 성과가 5년보다 우수하여 단기 투자를 고려해볼 수 있습니다.")
                                 else:
-                                    st.markdown("📊 **안정적 성과**: 장단기 성과가 비슷")
+                                    st.info("📊 **안정적 성과**: 장단기 성과가 비슷하여 투자 기간 선택에 있어 유연성을 가질 수 있습니다.")
                         else:
                             st.info("5년 매수 내역 없음")
                     
