@@ -1719,31 +1719,7 @@ with tab3:
                         else:
                             st.info("5년 매수 내역 없음")
                             
-                            # 장단기 분석 추가
-                            if results_1y['buy_count'] > 0 and results_5y['buy_count'] > 0:
-                                st.markdown("---")
-                                st.markdown("#### 📊 장단기 분석")
-                                
-                                # 1년과 5년 결과에서 최고 성과 계산
-                                sigma_1y = results_1y['total_return']
-                                dca_1y = comparison_1y['dca']['total_return']
-                                lump_1y = comparison_1y['lump_sum']['total_return']
-                                best_1y = max(sigma_1y, dca_1y, lump_1y)
-                                
-                                sigma_5y = results_5y['total_return']
-                                dca_5y = comparison_5y['dca']['total_return']
-                                lump_5y = comparison_5y['lump_sum']['total_return']
-                                best_5y = max(sigma_5y, dca_5y, lump_5y)
-                                
-                                # 장단기 비교 요약
-                                if best_5y > best_1y * 2:
-                                    st.success("✅ 장기 투자가 매우 유리: 5년 성과가 1년보다 2배 이상 우수한 성과를 보여 장기 투자를 강력히 권장합니다.")
-                                elif best_5y > best_1y:
-                                    st.success("✅ 장기 투자가 유리: 5년 성과가 1년보다 우수하여 장기 투자를 권장합니다.")
-                                elif best_1y > best_5y:
-                                    st.warning("⚠️ 단기 투자가 유리: 1년 성과가 5년보다 우수하여 단기 투자를 고려해볼 수 있습니다.")
-                                else:
-                                    st.info("📊 안정적 성과: 장단기 성과가 비슷하여 투자 기간 선택에 있어 유연성을 가질 수 있습니다.")
+                            # 장단기 분석은 함수 밖으로 이동
                     
                     report.append("")
                     
@@ -1881,6 +1857,32 @@ with tab3:
                         analysis
                     )
                     st.markdown(chatgpt_analysis)
+                    
+                    # 장단기 분석 추가
+                    if results_1year['buy_count'] > 0 and results_5year['buy_count'] > 0:
+                        st.markdown("---")
+                        st.markdown("#### 📊 장단기 분석")
+                        
+                        # 1년과 5년 결과에서 최고 성과 계산
+                        sigma_1y = results_1year['total_return']
+                        dca_1y = comparison_1y['dca']['total_return']
+                        lump_1y = comparison_1y['lump_sum']['total_return']
+                        best_1y = max(sigma_1y, dca_1y, lump_1y)
+                        
+                        sigma_5y = results_5year['total_return']
+                        dca_5y = comparison_5y['dca']['total_return']
+                        lump_5y = comparison_5y['lump_sum']['total_return']
+                        best_5y = max(sigma_5y, dca_5y, lump_5y)
+                        
+                        # 장단기 비교 요약
+                        if best_5y > best_1y * 2:
+                            st.success("✅ 장기 투자가 매우 유리: 5년 성과가 1년보다 2배 이상 우수한 성과를 보여 장기 투자를 강력히 권장합니다.")
+                        elif best_5y > best_1y:
+                            st.success("✅ 장기 투자가 유리: 5년 성과가 1년보다 우수하여 장기 투자를 권장합니다.")
+                        elif best_1y > best_5y:
+                            st.warning("⚠️ 단기 투자가 유리: 1년 성과가 5년보다 우수하여 단기 투자를 고려해볼 수 있습니다.")
+                        else:
+                            st.info("📊 안정적 성과: 장단기 성과가 비슷하여 투자 기간 선택에 있어 유연성을 가질 수 있습니다.")
                 else:
                     st.info("매수 내역이 없어 분석 보고서를 생성할 수 없습니다.")
             
