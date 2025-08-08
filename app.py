@@ -775,7 +775,9 @@ with tab2:
         with tab_kr:
             if kr_stocks:
                 current_prices_kr = []
-                for symbol, info in kr_stocks.items():
+                # 한국 주식은 이름순으로 정렬
+                sorted_kr_stocks = sorted(kr_stocks.items(), key=lambda x: x[1]['name'])
+                for symbol, info in sorted_kr_stocks:
                     try:
                         # 어제 종가
                         yesterday_close = info['stats']['last_close']
@@ -820,18 +822,30 @@ with tab2:
                         selected_stock = df_current_kr.iloc[selected_idx]
                         symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
                         
-                        if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
-                            for sym, info in st.session_state.monitoring_stocks.items():
-                                if sym == symbol:
-                                    st.session_state.current_analysis = {
-                                        'symbol': sym,
-                                        'name': info['name'],
-                                        'type': info['type'],
-                                        'stats': info['stats'],
-                                        'df': info['df']
-                                    }
+                        # 삭제 버튼과 분석 버튼을 나란히 배치
+                        col1, col2 = st.columns([1, 3])
+                        with col1:
+                            if st.button(f"🗑️ 삭제", key=f"delete_kr_{symbol}"):
+                                if symbol in st.session_state.monitoring_stocks:
+                                    del st.session_state.monitoring_stocks[symbol]
+                                    save_stocks_to_sheets()
+                                    st.success(f"{selected_stock['종목']} 삭제 완료!")
                                     st.rerun()
-                                    break
+                        
+                        with col2:
+                            if st.button(f"📊 분석 보기", key=f"analyze_kr_{symbol}"):
+                                if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                                    for sym, info in st.session_state.monitoring_stocks.items():
+                                        if sym == symbol:
+                                            st.session_state.current_analysis = {
+                                                'symbol': sym,
+                                                'name': info['name'],
+                                                'type': info['type'],
+                                                'stats': info['stats'],
+                                                'df': info['df']
+                                            }
+                                            st.rerun()
+                                            break
             else:
                 st.info("저장된 한국 주식이 없습니다.")
         
@@ -839,7 +853,9 @@ with tab2:
         with tab_us:
             if us_stocks:
                 current_prices_us = []
-                for symbol, info in us_stocks.items():
+                # 미국 주식은 심볼순으로 정렬
+                sorted_us_stocks = sorted(us_stocks.items(), key=lambda x: x[0])
+                for symbol, info in sorted_us_stocks:
                     try:
                         # 어제 종가
                         yesterday_close = info['stats']['last_close']
