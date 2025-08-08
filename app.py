@@ -1075,10 +1075,18 @@ with tab3:
             with col_a:
                 st.metric("매수 횟수", f"{results['buy_count']}회")
             with col_b:
-                st.metric("총 투자금", f"₩{results['total_investment']:,.0f}")
+                # 미국 주식인지 확인
+                if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                    st.metric("총 투자금", f"${results['total_investment']:,.0f}")
+                else:
+                    st.metric("총 투자금", f"₩{results['total_investment']:,.0f}")
             with col_c:
                 if results['buy_count'] > 0:
-                    st.metric("평균 매수 단가", f"₩{results['avg_price']:,.0f}")
+                    # 미국 주식인지 확인
+                    if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                        st.metric("평균 매수 단가", f"${results['avg_price']:,.2f}")
+                    else:
+                        st.metric("평균 매수 단가", f"₩{results['avg_price']:,.0f}")
                 else:
                     st.metric("평균 매수 단가", "매수 없음")
             
@@ -1087,10 +1095,19 @@ with tab3:
                 st.markdown("#### 📈 매수 내역")
                 buy_df = pd.DataFrame(results['buy_history'])
                 buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
-                buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                
+                # 미국 주식인지 확인하여 통화 설정
+                is_us_stock = 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US'
+                
+                if is_us_stock:
+                    buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
+                    buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
+                else:
+                    buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                    buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                
                 buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
                 buy_df['시그마 레벨'] = buy_df['sigma_level']
-                buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
                 buy_df['주식수'] = buy_df['shares'].apply(lambda x: f"{x:.2f}주")
                 
                 display_df = buy_df[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
