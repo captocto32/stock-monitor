@@ -805,7 +805,33 @@ with tab2:
                 
                 if current_prices_kr:
                     df_current_kr = pd.DataFrame(current_prices_kr)
-                    st.dataframe(df_current_kr, use_container_width=True, hide_index=True)
+                    # 선택 가능한 DataFrame으로 표시
+                    selected_kr = st.dataframe(
+                        df_current_kr, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        on_select="rerun",
+                        selection_mode="single-row"
+                    )
+                    
+                    # 선택된 행이 있으면 분석 실행
+                    if selected_kr and len(selected_kr.selection.rows) > 0:
+                        selected_idx = selected_kr.selection.rows[0]
+                        selected_stock = df_current_kr.iloc[selected_idx]
+                        symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
+                        
+                        if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                            for sym, info in st.session_state.monitoring_stocks.items():
+                                if sym == symbol:
+                                    st.session_state.current_analysis = {
+                                        'symbol': sym,
+                                        'name': info['name'],
+                                        'type': info['type'],
+                                        'stats': info['stats'],
+                                        'df': info['df']
+                                    }
+                                    st.rerun()
+                                    break
             else:
                 st.info("저장된 한국 주식이 없습니다.")
         
@@ -843,7 +869,33 @@ with tab2:
                 
                 if current_prices_us:
                     df_current_us = pd.DataFrame(current_prices_us)
-                    st.dataframe(df_current_us, use_container_width=True, hide_index=True)
+                    # 선택 가능한 DataFrame으로 표시
+                    selected_us = st.dataframe(
+                        df_current_us, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        on_select="rerun",
+                        selection_mode="single-row"
+                    )
+                    
+                    # 선택된 행이 있으면 분석 실행
+                    if selected_us and len(selected_us.selection.rows) > 0:
+                        selected_idx = selected_us.selection.rows[0]
+                        selected_stock = df_current_us.iloc[selected_idx]
+                        symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
+                        
+                        if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                            for sym, info in st.session_state.monitoring_stocks.items():
+                                if sym == symbol:
+                                    st.session_state.current_analysis = {
+                                        'symbol': sym,
+                                        'name': info['name'],
+                                        'type': info['type'],
+                                        'stats': info['stats'],
+                                        'df': info['df']
+                                    }
+                                    st.rerun()
+                                    break
             else:
                 st.info("저장된 미국 주식이 없습니다.")
     else:
