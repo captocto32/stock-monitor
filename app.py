@@ -1668,29 +1668,29 @@ with tab3:
                             best_1y = max(sigma_1y, dca_1y, lump_1y)
                             worst_1y = min(sigma_1y, dca_1y, lump_1y)
                             
-                            report.append(f"**최고 성과**: {best_1y:+.2f}%")
-                            report.append(f"**최저 성과**: {worst_1y:+.2f}%")
-                            report.append(f"**성과 차이**: {best_1y - worst_1y:.2f}%p")
-                            report.append("")
+                            st.markdown(f"**최고 성과**: {best_1y:+.2f}%")
+                            st.markdown(f"**최저 성과**: {worst_1y:+.2f}%")
+                            st.markdown(f"**성과 차이**: {best_1y - worst_1y:.2f}%p")
+                            st.markdown("")
                             
                             # 전략별 분석
                             if sigma_1y == best_1y:
-                                report.append("🎯 **시그마 하락시 매수**가 가장 우수한 성과")
+                                st.markdown("🎯 **시그마 하락시 매수**가 가장 우수한 성과")
                             elif dca_1y == best_1y:
-                                report.append("📈 **DCA 투자**가 가장 우수한 성과")
+                                st.markdown("📈 **DCA 투자**가 가장 우수한 성과")
                             else:
-                                report.append("💰 **일시불 투자**가 가장 우수한 성과")
+                                st.markdown("💰 **일시불 투자**가 가장 우수한 성과")
                             
                             # 변동성 분석
                             performance_diff_1y = best_1y - worst_1y
                             if performance_diff_1y > 50:
-                                report.append("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
+                                st.markdown("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
                             elif performance_diff_1y > 30:
-                                report.append("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
+                                st.markdown("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
                             elif performance_diff_1y > 15:
-                                report.append("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
+                                st.markdown("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
                             else:
-                                report.append("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
+                                st.markdown("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
                         else:
                             st.info("1년 매수 내역 없음")
                     
@@ -1707,41 +1707,34 @@ with tab3:
                             best_5y = max(sigma_5y, dca_5y, lump_5y)
                             worst_5y = min(sigma_5y, dca_5y, lump_5y)
                             
-                            report.append(f"**최고 성과**: {best_5y:+.2f}%")
-                            report.append(f"**최저 성과**: {worst_5y:+.2f}%")
-                            report.append(f"**성과 차이**: {best_5y - worst_5y:.2f}%p")
-                            report.append("")
+                            st.markdown(f"**최고 성과**: {best_5y:+.2f}%")
+                            st.markdown(f"**최저 성과**: {worst_5y:+.2f}%")
+                            st.markdown(f"**성과 차이**: {best_5y - worst_5y:.2f}%p")
+                            st.markdown("")
                             
                             # 전략별 분석
                             if sigma_5y == best_5y:
-                                report.append("🎯 **시그마 하락시 매수**가 장기적으로 가장 우수한 성과")
+                                st.markdown("🎯 **시그마 하락시 매수**가 장기적으로 가장 우수한 성과")
                             elif dca_5y == best_5y:
-                                report.append("📈 **DCA 투자**가 장기적으로 가장 우수한 성과")
+                                st.markdown("📈 **DCA 투자**가 장기적으로 가장 우수한 성과")
                             else:
-                                report.append("💰 **일시불 투자**가 장기적으로 가장 우수한 성과")
+                                st.markdown("💰 **일시불 투자**가 장기적으로 가장 우수한 성과")
                             
                             # 변동성 분석
                             performance_diff_5y = best_5y - worst_5y
                             if performance_diff_5y > 50:
-                                report.append("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
+                                st.markdown("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
                             elif performance_diff_5y > 30:
-                                report.append("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
+                                st.markdown("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
                             elif performance_diff_5y > 15:
-                                report.append("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
+                                st.markdown("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
                             else:
-                                report.append("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
-                            
-                            # 장단기 비교는 컬럼 밖으로 이동
+                                st.markdown("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
                         else:
                             st.info("5년 매수 내역 없음")
-                            
-                            # 장단기 분석은 함수 밖으로 이동
                     
-                    report.append("")
                     
                     # 투자 권장사항
-                    report.append("#### 💡 투자 권장사항")
-                    
                     if results_1y['buy_count'] > 0 and results_5y['buy_count'] > 0:
                         # 1년과 5년 모두 있는 경우
                         if best_1y > best_5y:
