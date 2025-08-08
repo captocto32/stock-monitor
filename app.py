@@ -934,10 +934,7 @@ with tab2:
 with tab3:
     st.subheader("📈 백테스팅")
     
-    # 백테스팅 입력 섹션
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
+    # 백테스팅 입력 섹션 (전체 너비 사용)
         # 종목 선택 - 분석 결과 종목과 연동
         if 'current_analysis' in st.session_state:
             analysis = st.session_state.current_analysis
