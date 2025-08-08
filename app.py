@@ -316,7 +316,7 @@ st.subheader("🍣 주식 하락률 모니터링 시스템")
 st.markdown("---")
 
 # 탭 생성
-tab1, tab2 = st.tabs(["📊 실시간 모니터링", "📈 백테스팅"])
+tab1, tab2, tab3 = st.tabs(["📊 분석 결과", "📋 저장된 종목", "📈 백테스팅"])
 
 # 사이드바
 with st.sidebar:
@@ -427,114 +427,15 @@ with st.sidebar:
             else:
                 st.error("주식 데이터를 가져올 수 없습니다.")
 
-# 탭 1: 실시간 모니터링
+# 탭 1: 분석 결과
 with tab1:
-    # 실시간 모니터링 상태 표시
-    st.subheader("🍙 실시간 모니터링")
-        
-    # 텔레그램 모니터링 안내
-    st.info("""
-    📱 **텔레그램 알림**
-    1. 로컬 컴퓨터에서 stock_monitor.py 실행 시 저장된 종목들 자동으로 모니터링 시작
-    2. 시그마 레벨 도달 시 텔레그램 알림
-    """)
-
-    # 새로고침 버튼
-    if st.button("🔄 새로고침", use_container_width=True):
-        st.rerun()
-        
-    # 현재가 표시 - 새로운 표 형식
-    if st.session_state.monitoring_stocks:
-        # 한국/미국 종목 분리
-        kr_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'KR'}
-        us_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'US'}
-        
-        # 탭 생성
-        tab_kr, tab_us = st.tabs([f"🇰🇷 한국 주식 ({len(kr_stocks)})", f"🇺🇸 미국 주식 ({len(us_stocks)})"])
-        
-        analyzer = StockAnalyzer()
-        
-        # 한국 주식 탭
-        with tab_kr:
-            if kr_stocks:
-                current_prices_kr = []
-                for symbol, info in kr_stocks.items():
-                    try:
-                        # 어제 종가
-                        yesterday_close = info['stats']['last_close']
-                        
-                        # 1년 시그마 값들 (퍼센트)
-                        sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
-                        sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
-                        sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
-                        
-                        # 시그마 하락시 가격 계산
-                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
-                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
-                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
-                        
-                        current_prices_kr.append({
-                            '종목': f"{info['name']} ({symbol})",
-                            '어제 종가': f"₩{yesterday_close:,.0f}",
-                            '1σ(1년)': f"{sigma_1_1y:.2f}%",
-                            '1σ 하락시 가격': f"₩{price_at_1sigma:,.0f}",
-                            '2σ(1년)': f"{sigma_2_1y:.2f}%",
-                            '2σ 하락시 가격': f"₩{price_at_2sigma:,.0f}",
-                            '3σ(1년)': f"{sigma_3_1y:.2f}%",
-                            '3σ 하락시 가격': f"₩{price_at_3sigma:,.0f}"
-                        })
-                    except Exception as e:
-                        st.error(f"{symbol} 오류: {str(e)}")
-                
-                if current_prices_kr:
-                    df_current_kr = pd.DataFrame(current_prices_kr)
-                    st.dataframe(df_current_kr, use_container_width=True, hide_index=True)
-            else:
-                st.info("저장된 한국 주식이 없습니다.")
-        
-        # 미국 주식 탭
-        with tab_us:
-            if us_stocks:
-                current_prices_us = []
-                for symbol, info in us_stocks.items():
-                    try:
-                        # 어제 종가
-                        yesterday_close = info['stats']['last_close']
-                        
-                        # 1년 시그마 값들 (퍼센트)
-                        sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
-                        sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
-                        sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
-                        
-                        # 시그마 하락시 가격 계산
-                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
-                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
-                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
-                        
-                        current_prices_us.append({
-                            '종목': f"{info['name']} ({symbol})",
-                            '어제 종가': f"${yesterday_close:,.2f}",
-                            '1σ(1년)': f"{sigma_1_1y:.2f}%",
-                            '1σ 하락시 가격': f"${price_at_1sigma:,.2f}",
-                            '2σ(1년)': f"{sigma_2_1y:.2f}%",
-                            '2σ 하락시 가격': f"${price_at_2sigma:,.2f}",
-                            '3σ(1년)': f"{sigma_3_1y:.2f}%",
-                            '3σ 하락시 가격': f"${price_at_3sigma:,.2f}"
-                        })
-                    except Exception as e:
-                        st.error(f"{symbol} 오류: {str(e)}")
-                
-                if current_prices_us:
-                    df_current_us = pd.DataFrame(current_prices_us)
-                    st.dataframe(df_current_us, use_container_width=True, hide_index=True)
-            else:
-                st.info("저장된 미국 주식이 없습니다.")
-    else:
-        st.info("📝 저장된 종목이 없습니다. 사이드바에서 종목을 추가해보세요!")
+    # 분석기 초기화
+    analyzer = StockAnalyzer()
+    
+    st.subheader("📊 주식 분석 결과")
     
     # 분석 결과 표시
     if 'current_analysis' in st.session_state:
-        st.markdown("---")
         analysis = st.session_state.current_analysis
         
         # 분석 결과 제목과 추가 버튼을 한 줄에 배치
@@ -635,9 +536,310 @@ with tab1:
         
         # 어제 종가 정보
         st.caption(f"* 어제 종가 기준: {currency}{price_format.format(yesterday_close)}")
+        
+        # 시그마 레벨 상세 정보
+        st.markdown("---")
+        st.subheader("🎯 하락 알림 기준")
+        
+        # 5년과 1년 비교 탭
+        tab_5y, tab_1y = st.tabs(["5년 기준", "1년 기준"])
+        
+        with tab_5y:
+            # 5년 데이터로 실제 발생 확률 계산
+            returns_5y = analysis['stats']['returns']
+            sigma_1_5y = analysis['stats']['1sigma']
+            sigma_2_5y = analysis['stats']['2sigma']
+            sigma_3_5y = analysis['stats']['3sigma']
+            
+            actual_prob_1_5y = (np.array(returns_5y) <= sigma_1_5y).sum() / len(returns_5y) * 100
+            actual_prob_2_5y = (np.array(returns_5y) <= sigma_2_5y).sum() / len(returns_5y) * 100
+            actual_prob_3_5y = (np.array(returns_5y) <= sigma_3_5y).sum() / len(returns_5y) * 100
+            
+            sigma_df_5y = pd.DataFrame({
+                '레벨': ['1시그마', '2시그마', '3시그마'],
+                '하락률': [f"{sigma_1_5y:.2f}%", f"{sigma_2_5y:.2f}%", f"{sigma_3_5y:.2f}%"],
+                '이론적 확률': ['15.87%', '2.28%', '0.13%'],
+                '실제 발생률': [f"{actual_prob_1_5y:.2f}%", f"{actual_prob_2_5y:.2f}%", f"{actual_prob_3_5y:.2f}%"]
+            })
+            st.dataframe(sigma_df_5y, use_container_width=True, hide_index=True)
+        
+        with tab_1y:
+            # 1년 데이터로 실제 발생 확률 계산
+            if len(analysis['stats']['returns']) >= 252:
+                returns_1y = analysis['stats']['returns'][-252:]
+                sigma_1_1y = analysis['stats'].get('1sigma_1y', sigma_1_5y)
+                sigma_2_1y = analysis['stats'].get('2sigma_1y', sigma_2_5y)
+                sigma_3_1y = analysis['stats'].get('3sigma_1y', sigma_3_5y)
+                
+                actual_prob_1_1y = (np.array(returns_1y) <= sigma_1_1y).sum() / len(returns_1y) * 100
+                actual_prob_2_1y = (np.array(returns_1y) <= sigma_2_1y).sum() / len(returns_1y) * 100
+                actual_prob_3_1y = (np.array(returns_1y) <= sigma_3_1y).sum() / len(returns_1y) * 100
+            else:
+                actual_prob_1_1y, actual_prob_2_1y, actual_prob_3_1y = actual_prob_1_5y, actual_prob_2_5y, actual_prob_3_5y
+                sigma_1_1y, sigma_2_1y, sigma_3_1y = sigma_1_5y, sigma_2_5y, sigma_3_5y
+            
+            sigma_df_1y = pd.DataFrame({
+                '레벨': ['1시그마', '2시그마', '3시그마'],
+                '하락률': [f"{sigma_1_1y:.2f}%", f"{sigma_2_1y:.2f}%", f"{sigma_3_1y:.2f}%"],
+                '이론적 확률': ['15.87%', '2.28%', '0.13%'],
+                '실제 발생률': [f"{actual_prob_1_1y:.2f}%", f"{actual_prob_2_1y:.2f}%", f"{actual_prob_3_1y:.2f}%"]
+            })
+            st.dataframe(sigma_df_1y, use_container_width=True, hide_index=True)
+        
+        # 연도별 발생 횟수
+        st.markdown("---")
+        st.subheader("📅 연도별 시그마 하락 발생 횟수")
+        
+        # 연도별 통계 계산
+        df_analysis = analysis['df'].copy()
+        df_analysis['Returns'] = df_analysis['Close'].pct_change() * 100
+        df_analysis['연도'] = df_analysis.index.year
+        
+        yearly_stats = {}
+        for year in sorted(df_analysis['연도'].unique()):
+            year_data = df_analysis[df_analysis['연도'] == year]
+            returns_year = year_data['Returns'].dropna()
+            
+            yearly_stats[year] = {
+                '1sigma': ((returns_year <= sigma_1_5y) & (returns_year > sigma_2_5y)).sum(),
+                '2sigma': ((returns_year <= sigma_2_5y) & (returns_year > sigma_3_5y)).sum(),
+                '3sigma': (returns_year <= sigma_3_5y).sum(),
+                'total_days': len(returns_year)
+            }
+        
+        yearly_data = []
+        for year, data in yearly_stats.items():
+            yearly_data.append({
+                '연도': year,
+                '거래일수': data['total_days'],
+                '1σ 발생': data['1sigma'],
+                '2σ 발생': data['2sigma'],
+                '3σ 발생': data['3sigma']
+            })
+        yearly_df = pd.DataFrame(yearly_data)
+        st.dataframe(yearly_df, use_container_width=True, hide_index=True)
+        
+        # 최근 발생일 및 연속 발생 정보
+        st.markdown("---")
+        st.subheader("📊 최근 시그마 하락 발생일")
+        
+        # 각 시그마 구간별 발생일 찾기
+        df_analysis_clean = df_analysis.dropna()
+        sigma_1_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_1_5y) & 
+                                        (df_analysis_clean['Returns'] > sigma_2_5y)].index
+        sigma_2_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_2_5y) & 
+                                        (df_analysis_clean['Returns'] > sigma_3_5y)].index
+        sigma_3_dates = df_analysis_clean[df_analysis_clean['Returns'] <= sigma_3_5y].index
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if len(sigma_1_dates) > 0:
+                last_date = sigma_1_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("1σ 구간 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("1σ 구간 최근 발생", "없음")
+                
+        with col2:
+            if len(sigma_2_dates) > 0:
+                last_date = sigma_2_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("2σ 구간 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("2σ 구간 최근 발생", "없음")
+                
+        with col3:
+            if len(sigma_3_dates) > 0:
+                last_date = sigma_3_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("3σ 이하 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("3σ 이하 최근 발생", "없음")
+        
+        # 상세 발생일 목록 (expander)
+        with st.expander("📅 시그마 하락 발생일 상세"):
+            tab1_detail, tab2_detail, tab3_detail = st.tabs(["2σ 구간 발생일", "3σ 이하 발생일", "극단적 하락 TOP 10"])
+            
+            with tab1_detail:
+                if len(sigma_2_dates) > 0:
+                    recent_2sigma = []
+                    for date in sigma_2_dates[-20:]:  # 최근 20개
+                        return_pct = df_analysis_clean.loc[date, 'Returns']
+                        recent_2sigma.append({
+                            '날짜': date.strftime('%Y-%m-%d'),
+                            '수익률': f"{return_pct:.2f}%"
+                        })
+                    st.dataframe(pd.DataFrame(recent_2sigma), use_container_width=True, hide_index=True)
+                    st.caption(f"2σ 구간: {sigma_3_5y:.2f}% < 하락률 ≤ {sigma_2_5y:.2f}%")
+                else:
+                    st.info("2σ 구간 하락 발생 이력이 없습니다.")
+                    
+            with tab2_detail:
+                if len(sigma_3_dates) > 0:
+                    recent_3sigma = []
+                    for date in sigma_3_dates:  # 3σ는 모두 표시
+                        return_pct = df_analysis_clean.loc[date, 'Returns']
+                        recent_3sigma.append({
+                            '날짜': date.strftime('%Y-%m-%d'),
+                            '수익률': f"{return_pct:.2f}%"
+                        })
+                    st.dataframe(pd.DataFrame(recent_3sigma), use_container_width=True, hide_index=True)
+                    st.caption(f"3σ 이하: 하락률 ≤ {sigma_3_5y:.2f}%")
+                else:
+                    st.info("3σ 이하 하락 발생 이력이 없습니다.")
+                    
+            with tab3_detail:
+                # 최악의 하락일 TOP 10
+                worst_days = df_analysis_clean.nsmallest(10, 'Returns')[['Returns']].copy()
+                worst_days['날짜'] = worst_days.index.strftime('%Y-%m-%d')
+                worst_days['수익률'] = worst_days['Returns'].apply(lambda x: f"{x:.2f}%")
+                st.dataframe(worst_days[['날짜', '수익률']], use_container_width=True, hide_index=True)
+        
+        # 수익률 분포 차트
+        st.markdown("---")
+        st.subheader("📈 일일 수익률 분포 (5년)")
+        
+        fig = go.Figure()
+        
+        # 히스토그램
+        fig.add_trace(go.Histogram(
+            x=analysis['stats']['returns'],
+            nbinsx=50,
+            name='수익률 분포',
+            marker_color='lightblue',
+            opacity=0.7
+        ))
+        
+        # 시그마 레벨 선
+        colors = ['green', 'orange', 'red']
+        for i, (level, value) in enumerate([
+            ('1σ', analysis['stats']['1sigma']),
+            ('2σ', analysis['stats']['2sigma']),
+            ('3σ', analysis['stats']['3sigma'])
+        ]):
+            fig.add_vline(x=value, line_dash="dash", line_color=colors[i], 
+                         annotation_text=f"{level}: {value:.1f}%")
+        
+        # 평균선
+        fig.add_vline(x=analysis['stats']['mean'], line_dash="dash", 
+                     line_color="blue", annotation_text=f"평균: {analysis['stats']['mean']:.1f}%")
+        
+        fig.update_layout(
+            xaxis_title="일일 수익률 (%)",
+            yaxis_title="빈도",
+            showlegend=False,
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
 
-# 탭 2: 백테스팅
+# 탭 2: 저장된 종목
 with tab2:
+    st.subheader("📋 저장된 종목 목록")
+    
+    # 텔레그램 모니터링 안내
+    st.info("""
+    📱 **텔레그램 알림**
+    1. 로컬 컴퓨터에서 stock_monitor.py 실행 시 저장된 종목들 자동으로 모니터링 시작
+    2. 시그마 레벨 도달 시 텔레그램 알림
+    """)
+
+    # 새로고침 버튼
+    if st.button("🔄 새로고침", use_container_width=True):
+        st.rerun()
+        
+    # 현재가 표시 - 새로운 표 형식
+    if st.session_state.monitoring_stocks:
+        # 한국/미국 종목 분리
+        kr_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'KR'}
+        us_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'US'}
+        
+        # 탭 생성
+        tab_kr, tab_us = st.tabs([f"🇰🇷 한국 주식 ({len(kr_stocks)})", f"🇺🇸 미국 주식 ({len(us_stocks)})"])
+        
+        analyzer = StockAnalyzer()
+        
+        # 한국 주식 탭
+        with tab_kr:
+            if kr_stocks:
+                current_prices_kr = []
+                for symbol, info in kr_stocks.items():
+                    try:
+                        # 어제 종가
+                        yesterday_close = info['stats']['last_close']
+                        
+                        # 1년 시그마 값들 (퍼센트)
+                        sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
+                        sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
+                        sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
+                        
+                        # 시그마 하락시 가격 계산
+                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                        
+                        current_prices_kr.append({
+                            '종목': f"{info['name']} ({symbol})",
+                            '어제 종가': f"₩{yesterday_close:,.0f}",
+                            '1σ(1년)': f"{sigma_1_1y:.2f}%",
+                            '1σ 하락시 가격': f"₩{price_at_1sigma:,.0f}",
+                            '2σ(1년)': f"{sigma_2_1y:.2f}%",
+                            '2σ 하락시 가격': f"₩{price_at_2sigma:,.0f}",
+                            '3σ(1년)': f"{sigma_3_1y:.2f}%",
+                            '3σ 하락시 가격': f"₩{price_at_3sigma:,.0f}"
+                        })
+                    except Exception as e:
+                        st.error(f"{symbol} 오류: {str(e)}")
+                
+                if current_prices_kr:
+                    df_current_kr = pd.DataFrame(current_prices_kr)
+                    st.dataframe(df_current_kr, use_container_width=True, hide_index=True)
+            else:
+                st.info("저장된 한국 주식이 없습니다.")
+        
+        # 미국 주식 탭
+        with tab_us:
+            if us_stocks:
+                current_prices_us = []
+                for symbol, info in us_stocks.items():
+                    try:
+                        # 어제 종가
+                        yesterday_close = info['stats']['last_close']
+                        
+                        # 1년 시그마 값들 (퍼센트)
+                        sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
+                        sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
+                        sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
+                        
+                        # 시그마 하락시 가격 계산
+                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                        
+                        current_prices_us.append({
+                            '종목': f"{info['name']} ({symbol})",
+                            '어제 종가': f"${yesterday_close:,.2f}",
+                            '1σ(1년)': f"{sigma_1_1y:.2f}%",
+                            '1σ 하락시 가격': f"${price_at_1sigma:,.2f}",
+                            '2σ(1년)': f"{sigma_2_1y:.2f}%",
+                            '2σ 하락시 가격': f"${price_at_2sigma:,.2f}",
+                            '3σ(1년)': f"{sigma_3_1y:.2f}%",
+                            '3σ 하락시 가격': f"${price_at_3sigma:,.2f}"
+                        })
+                    except Exception as e:
+                        st.error(f"{symbol} 오류: {str(e)}")
+                
+                if current_prices_us:
+                    df_current_us = pd.DataFrame(current_prices_us)
+                    st.dataframe(df_current_us, use_container_width=True, hide_index=True)
+            else:
+                st.info("저장된 미국 주식이 없습니다.")
+    else:
+        st.info("📝 저장된 종목이 없습니다. 사이드바에서 종목을 추가해보세요!")
+
+# 탭 3: 백테스팅
+with tab3:
     st.subheader("📈 백테스팅")
     st.markdown("시그마 하락 전략의 과거 성과를 분석합니다.")
     
