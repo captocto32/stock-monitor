@@ -1077,7 +1077,6 @@ with tab3:
     with col2:
         if st.session_state.get('backtest_triggered', False) and 'backtest_results' in st.session_state:
             results = st.session_state.backtest_results
-            
             st.markdown("### 📊 백테스팅 결과")
             
             # 매수 내역 및 횟수
