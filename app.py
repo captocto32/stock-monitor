@@ -124,13 +124,35 @@ def load_stocks_from_sheets():
         
         # 헤더 제외하고 데이터 처리
         saved_stocks = {}
+        analyzer = StockAnalyzer()
+        
         for row in all_values[1:]:  # 첫 번째 행(헤더) 제외
             if len(row) >= 3:
                 symbol, name, stock_type = row[0], row[1], row[2]
-                saved_stocks[symbol] = {
-                    'name': name,
-                    'type': stock_type
-                }
+                
+                # 기본 정보만 있는 경우 (Google Sheets에서 직접 입력한 경우)
+                if stock_type in ['KR', 'US']:
+                    # 현재가 정보 가져오기
+                    try:
+                        current_price = analyzer.get_current_price(symbol, stock_type)
+                        if current_price:
+                            saved_stocks[symbol] = {
+                                'name': name,
+                                'type': stock_type,
+                                'current_price': current_price
+                            }
+                        else:
+                            # 현재가를 가져올 수 없는 경우에도 기본 정보는 저장
+                            saved_stocks[symbol] = {
+                                'name': name,
+                                'type': stock_type
+                            }
+                    except:
+                        # 오류가 발생해도 기본 정보는 저장
+                        saved_stocks[symbol] = {
+                            'name': name,
+                            'type': stock_type
+                        }
         
         return saved_stocks
         
