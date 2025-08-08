@@ -1757,11 +1757,8 @@ with tab3:
                 
                 # ChatGPT 스타일 해석 생성 함수
                 def generate_chatgpt_analysis(results_1y, results_5y, comparison_1y, comparison_5y, analysis):
-                    stock_name = analysis['name']
-                    stock_symbol = analysis['symbol']
-                    
                     analysis_text = []
-                    analysis_text.append(f"### 🤖 {stock_name} ({stock_symbol}) AI 해석")
+                    analysis_text.append("### 📊 종합 분석")
                     analysis_text.append("")
                     
                     if results_1y['buy_count'] > 0 and results_5y['buy_count'] > 0:
@@ -1774,101 +1771,61 @@ with tab3:
                         dca_5y = comparison_5y['dca']['total_return']
                         lump_5y = comparison_5y['lump_sum']['total_return']
                         
-                        # 종합 분석
-                        analysis_text.append("**📊 종합 분석**")
-                        
                         # 변동성 분석
                         volatility_1y = max(sigma_1y, dca_1y, lump_1y) - min(sigma_1y, dca_1y, lump_1y)
                         volatility_5y = max(sigma_5y, dca_5y, lump_5y) - min(sigma_5y, dca_5y, lump_5y)
                         
                         if volatility_1y > 30 or volatility_5y > 30:
-                            analysis_text.append("이 종목은 **매우 높은 변동성**을 보이는 레버리지/인버스 ETF입니다. ")
-                            analysis_text.append("단기간에 큰 수익과 손실이 발생할 수 있어 리스크 관리가 매우 중요합니다.")
+                            analysis_text.append("**⚠️ 고위험 종목**")
+                            analysis_text.append("레버리지/인버스 ETF 특성으로 단기간 큰 변동성")
+                            analysis_text.append("투자 금액 10% 이하로 제한 권장")
                         elif volatility_1y > 15 or volatility_5y > 15:
-                            analysis_text.append("이 종목은 **높은 변동성**을 보이는 성장주/섹터 ETF입니다. ")
-                            analysis_text.append("장기 투자 시 리스크 분산 효과를 기대할 수 있습니다.")
+                            analysis_text.append("**📊 중위험 종목**")
+                            analysis_text.append("성장주/섹터 ETF로 적당한 변동성")
+                            analysis_text.append("포트폴리오 20-30% 비중으로 분산 투자")
                         else:
-                            analysis_text.append("이 종목은 **상대적으로 안정적**인 성과를 보입니다. ")
-                            analysis_text.append("변동성이 낮아 예측 가능한 투자가 가능합니다.")
+                            analysis_text.append("**✅ 저위험 종목**")
+                            analysis_text.append("안정적인 성과로 예측 가능한 투자")
+                            analysis_text.append("핵심 자산으로 적극 활용 가능")
                         
                         analysis_text.append("")
                         
-                        # 투자 전략별 해석
-                        analysis_text.append("**🎯 투자 전략별 해석**")
-                        
-                        # 시그마 하락시 매수 분석
-                        if sigma_1y > dca_1y and sigma_1y > lump_1y:
-                            analysis_text.append("• **시그마 하락시 매수**가 단기적으로 우수한 성과를 보였습니다. ")
-                            analysis_text.append("이는 시장의 과매도 상황을 잘 포착했다는 의미입니다.")
-                        elif sigma_5y > dca_5y and sigma_5y > lump_5y:
-                            analysis_text.append("• **시그마 하락시 매수**가 장기적으로 우수한 성과를 보였습니다. ")
-                            analysis_text.append("장기적으로는 시장의 하락을 기회로 활용하는 전략이 효과적이었습니다.")
-                        
-                        # DCA 분석
-                        if dca_1y > sigma_1y and dca_1y > lump_1y:
-                            analysis_text.append("• **DCA 투자**가 단기적으로 우수한 성과를 보였습니다. ")
-                            analysis_text.append("정기적인 투자로 평균 매수 단가를 낮추는 효과가 있었습니다.")
-                        elif dca_5y > sigma_5y and dca_5y > lump_5y:
-                            analysis_text.append("• **DCA 투자**가 장기적으로 우수한 성과를 보였습니다. ")
-                            analysis_text.append("장기적으로는 꾸준한 투자가 복리 효과를 발휘했습니다.")
-                        
-                        # 일시불 투자 분석
-                        if lump_1y > sigma_1y and lump_1y > dca_1y:
-                            analysis_text.append("• **일시불 투자**가 단기적으로 우수한 성과를 보였습니다. ")
-                            analysis_text.append("초기 투자 시점이 좋았거나 상승장에서 효과적이었습니다.")
-                        elif lump_5y > sigma_5y and lump_5y > dca_5y:
-                            analysis_text.append("• **일시불 투자**가 장기적으로 우수한 성과를 보였습니다. ")
-                            analysis_text.append("장기 상승장에서 초기 투자 시점이 매우 좋았습니다.")
-                        
-                        analysis_text.append("")
-                        
-                        # 장단기 비교 해석
-                        analysis_text.append("**📈 장단기 성과 해석**")
-                        
+                        # 최적 전략 분석
                         best_1y = max(sigma_1y, dca_1y, lump_1y)
                         best_5y = max(sigma_5y, dca_5y, lump_5y)
                         
-                        if best_5y > best_1y * 2:
-                            analysis_text.append("5년 성과가 1년 성과의 2배 이상으로, **장기 투자가 매우 유리**합니다. ")
-                            analysis_text.append("복리 효과와 장기 상승 트렌드를 잘 활용한 결과입니다.")
-                        elif best_5y > best_1y:
-                            analysis_text.append("5년 성과가 1년보다 우수하여 **장기 투자가 유리**합니다. ")
-                            analysis_text.append("시간을 두고 투자하는 것이 효과적입니다.")
-                        elif best_1y > best_5y:
-                            analysis_text.append("1년 성과가 5년보다 우수하여 **단기 투자가 유리**합니다. ")
-                            analysis_text.append("최근 시장 상황이 특별히 좋았거나 단기 변동성이 컸습니다.")
+                        analysis_text.append("**🎯 최적 투자 전략**")
+                        
+                        if sigma_1y == best_1y and sigma_5y == best_5y:
+                            analysis_text.append("시그마 하락시 매수 전략 우수")
+                            analysis_text.append("시장 하락을 기회로 활용하는 능동적 투자")
+                        elif dca_1y == best_1y and dca_5y == best_5y:
+                            analysis_text.append("DCA 투자 전략 우수")
+                            analysis_text.append("꾸준한 정기 투자로 리스크 분산 및 복리 효과")
+                        elif lump_1y == best_1y and lump_5y == best_5y:
+                            analysis_text.append("일시불 투자 전략 우수")
+                            analysis_text.append("적절한 시점에 대량 투자하는 전략")
                         else:
-                            analysis_text.append("장단기 성과가 비슷하여 **안정적인 투자 환경**입니다. ")
-                            analysis_text.append("예측 가능한 성과를 기대할 수 있습니다.")
+                            analysis_text.append("혼합 전략 권장")
+                            analysis_text.append("기간별로 다른 전략이 효과적")
                         
                         analysis_text.append("")
                         
-                        # 투자 권장사항
-                        analysis_text.append("**💡 투자 권장사항**")
+                        # 투자 기간 권장
+                        analysis_text.append("**📈 투자 기간 권장**")
                         
-                        if volatility_1y > 30 or volatility_5y > 30:
-                            analysis_text.append("⚠️ **고위험 투자**: 매우 높은 변동성으로 인해 투자 금액의 10% 이하로 제한하는 것을 권장합니다.")
-                            analysis_text.append("손실을 감당할 수 있는 범위 내에서만 투자하세요.")
-                        elif volatility_1y > 15 or volatility_5y > 15:
-                            analysis_text.append("📊 **중위험 투자**: 적당한 변동성으로 포트폴리오의 20-30% 비중으로 투자 가능합니다.")
-                            analysis_text.append("다른 안정적인 자산과 함께 분산 투자하는 것을 권장합니다.")
+                        if best_5y > best_1y * 2:
+                            analysis_text.append("장기 투자 매우 유리")
+                            analysis_text.append("복리 효과와 장기 상승 트렌드 활용")
+                        elif best_5y > best_1y:
+                            analysis_text.append("장기 투자 유리")
+                            analysis_text.append("시간을 두고 투자하는 것이 효과적")
+                        elif best_1y > best_5y:
+                            analysis_text.append("단기 투자 유리")
+                            analysis_text.append("최근 시장 상황이 특별히 좋음")
                         else:
-                            analysis_text.append("✅ **저위험 투자**: 안정적인 성과로 포트폴리오의 핵심 자산으로 활용 가능합니다.")
-                            analysis_text.append("장기 투자 목적으로 적극적으로 고려해볼 수 있습니다.")
-                        
-                        # 최적 전략 추천
-                        if sigma_1y == best_1y and sigma_5y == best_5y:
-                            analysis_text.append("🎯 **시그마 하락시 매수 전략을 적극 권장**합니다. ")
-                            analysis_text.append("시장의 하락을 기회로 활용하는 능동적 투자가 효과적입니다.")
-                        elif dca_1y == best_1y and dca_5y == best_5y:
-                            analysis_text.append("📈 **DCA 투자 전략을 적극 권장**합니다. ")
-                            analysis_text.append("꾸준한 정기 투자로 리스크를 분산하고 복리 효과를 얻을 수 있습니다.")
-                        elif lump_1y == best_1y and lump_5y == best_5y:
-                            analysis_text.append("💰 **일시불 투자 전략을 적극 권장**합니다. ")
-                            analysis_text.append("적절한 시점에 대량 투자하는 것이 효과적입니다.")
-                        else:
-                            analysis_text.append("🔄 **혼합 전략을 권장**합니다. ")
-                            analysis_text.append("기간별로 다른 전략이 효과적이므로 상황에 맞는 유연한 접근이 필요합니다.")
+                            analysis_text.append("안정적 투자 환경")
+                            analysis_text.append("예측 가능한 성과 기대")
                     
                     return "\n".join(analysis_text)
                 
