@@ -1081,21 +1081,5 @@ with tab3:
                     st.metric("평균 매수 단가", f"₩{results['avg_price']:,.0f}")
                 else:
                     st.metric("평균 매수 단가", "매수 없음")
-            
-                            # 매수 내역 상세
-                if results['buy_history']:
-                    st.markdown("#### 📈 매수 내역")
-                    buy_df = pd.DataFrame(results['buy_history'])
-                    buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
-                    buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
-                    buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
-                    buy_df['시그마 레벨'] = buy_df['sigma_level']
-                    buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
-                    buy_df['주식수'] = buy_df['shares'].apply(lambda x: f"{x:.2f}주")
-                    
-                    display_df = buy_df[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
-                    st.dataframe(display_df, use_container_width=True, hide_index=True)
-                else:
-                    st.info("매수 내역이 없습니다.")
         else:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
