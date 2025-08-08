@@ -937,4 +937,243 @@ with col1:
         )
         
         st.plotly_chart(fig, use_container_width=True)
+
+# 탭 1: 실시간 모니터링
+with tab1:
+    # 실시간 모니터링 상태 표시
+    st.subheader("🍙 실시간 모니터링")
         
+    # 텔레그램 모니터링 안내
+    st.info("""
+    📱 **텔레그램 알림**
+    1. 로컬 컴퓨터에서 stock_monitor.py 실행 시 저장된 종목들 자동으로 모니터링 시작
+    2. 시그마 레벨 도달 시 텔레그램 알림
+    """)
+
+    # 새로고침 버튼만 유지
+    if st.button("🔄 새로고침", use_container_width=True):
+        st.rerun()
+        
+    # 현재가 표시 - 새로운 표 형식
+    if st.session_state.monitoring_stocks:
+        # 한국/미국 종목 분리
+        kr_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'KR'}
+        us_stocks = {k: v for k, v in st.session_state.monitoring_stocks.items() if v['type'] == 'US'}
+        
+        # 탭 생성
+        tab_kr, tab_us = st.tabs([f"🇰🇷 한국 주식 ({len(kr_stocks)})", f"🇺🇸 미국 주식 ({len(us_stocks)})"])
+        
+        analyzer = StockAnalyzer()
+        
+        # 한국 주식 탭
+        with tab_kr:
+            if kr_stocks:
+                current_prices_kr = []
+                for symbol, info in kr_stocks.items():
+                    try:
+                        # 어제 종가 (last_close가 실제로는 가장 최근 거래일의 종가)
+                        yesterday_close = info['stats']['last_close']
+                        
+                        # 1년 시그마 값들 (퍼센트)
+                        sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
+                        sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
+                        sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
+                        
+                        # 시그마 하락시 가격 계산
+                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                        
+                        # 통화 단위 설정
+                        currency = '₩'
+                        price_format = "{:,.0f}"
+                        
+                        current_prices_kr.append({
+                            '종목': f"{info['name']} ({symbol})",
+                            '어제 종가': f"₩{price_format.format(yesterday_close)}",
+                            '1σ(1년)': f"{sigma_1_1y:.2f}%",
+                            '1σ 하락시 가격': f"₩{price_format.format(price_at_1sigma)}",
+                            '2σ(1년)': f"{sigma_2_1y:.2f}%",
+                            '2σ 하락시 가격': f"₩{price_format.format(price_at_2sigma)}",
+                            '3σ(1년)': f"{sigma_3_1y:.2f}%",
+                            '3σ 하락시 가격': f"₩{price_format.format(price_at_3sigma)}"
+                        })
+                    except Exception as e:
+                        st.error(f"{symbol} 오류: {str(e)}")
+                
+                if current_prices_kr:
+                    # DataFrame 생성 및 정렬
+                    df_current_kr = pd.DataFrame(current_prices_kr)
+                    df_current_kr['정렬키'] = df_current_kr['종목'].apply(lambda x: x.split('(')[0].strip())
+                    df_current_kr = df_current_kr.sort_values(by='정렬키').drop(columns=['정렬키']).reset_index(drop=True)
+                    
+                    # 선택 가능한 DataFrame으로 표시
+                    selected_kr = st.dataframe(
+                        df_current_kr, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        on_select="rerun",
+                        selection_mode="single-row"
+                    )
+                    
+                    # 선택된 행이 있으면 분석 실행
+                    if selected_kr and len(selected_kr.selection.rows) > 0:
+                        selected_idx = selected_kr.selection.rows[0]
+                        selected_stock = df_current_kr.iloc[selected_idx]
+                        symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
+                        
+                        if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                            for sym, info in st.session_state.monitoring_stocks.items():
+                                if sym == symbol:
+                                    st.session_state.current_analysis = {
+                                        'symbol': sym,
+                                        'name': info['name'],
+                                        'type': info['type'],
+                                        'stats': info['stats'],
+                                        'df': info['df']
+                                    }
+                                    st.rerun()
+                                    break
+            else:
+                st.info("저장된 한국 주식이 없습니다.")
+        
+        # 미국 주식 탭
+        with tab_us:
+            if us_stocks:
+                current_prices_us = []
+                for symbol, info in us_stocks.items():
+                    try:
+                        # 어제 종가
+                        yesterday_close = info['stats']['last_close']
+                        
+                        # 1년 시그마 값들 (퍼센트)
+                        sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
+                        sigma_2_1y = info['stats'].get('2sigma_1y', info['stats']['2sigma'])
+                        sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
+                        
+                        # 시그마 하락시 가격 계산
+                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                        
+                        # 통화 단위 설정
+                        currency = '$'
+                        price_format = "{:,.2f}"
+                        
+                        current_prices_us.append({
+                            '종목': f"{info['name']} ({symbol})",
+                            '어제 종가': f"${price_format.format(yesterday_close)}",
+                            '1σ(1년)': f"{sigma_1_1y:.2f}%",
+                            '1σ 하락시 가격': f"${price_format.format(price_at_1sigma)}",
+                            '2σ(1년)': f"{sigma_2_1y:.2f}%",
+                            '2σ 하락시 가격': f"${price_format.format(price_at_2sigma)}",
+                            '3σ(1년)': f"{sigma_3_1y:.2f}%",
+                            '3σ 하락시 가격': f"${price_format.format(price_at_3sigma)}"
+                        })
+                    except Exception as e:
+                        st.error(f"{symbol} 오류: {str(e)}")
+                
+                if current_prices_us:
+                    # DataFrame 생성 및 정렬
+                    df_current_us = pd.DataFrame(current_prices_us)
+                    df_current_us['정렬키'] = df_current_us['종목'].apply(lambda x: x.split('(')[0].strip())
+                    df_current_us = df_current_us.sort_values(by='정렬키').drop(columns=['정렬키']).reset_index(drop=True)
+                    
+                    # 선택 가능한 DataFrame으로 표시
+                    selected_us = st.dataframe(
+                        df_current_us, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        on_select="rerun",
+                        selection_mode="single-row"
+                    )
+                    
+                    # 선택된 행이 있으면 분석 실행
+                    if selected_us and len(selected_us.selection.rows) > 0:
+                        selected_idx = selected_us.selection.rows[0]
+                        selected_stock = df_current_us.iloc[selected_idx]
+                        symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
+                        
+                        if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
+                            for sym, info in st.session_state.monitoring_stocks.items():
+                                if sym == symbol:
+                                    st.session_state.current_analysis = {
+                                        'symbol': sym,
+                                        'name': info['name'],
+                                        'type': info['type'],
+                                        'stats': info['stats'],
+                                        'df': info['df']
+                                    }
+                                    st.rerun()
+                                    break
+            else:
+                st.info("저장된 미국 주식이 없습니다.")
+    else:
+        st.info("📝 저장된 종목이 없습니다. 사이드바에서 종목을 추가해보세요!")
+
+# 탭 2: 백테스팅
+with tab2:
+    st.subheader("📈 백테스팅")
+    st.markdown("시그마 하락 전략의 과거 성과를 분석합니다.")
+    
+    # 백테스팅 입력 섹션
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### 📥 입력 섹션")
+        
+        # 종목 선택
+        if st.session_state.monitoring_stocks:
+            stock_options = {f"{info['name']} ({symbol})": symbol 
+                           for symbol, info in st.session_state.monitoring_stocks.items()}
+            selected_stock = st.selectbox("종목 선택", list(stock_options.keys()))
+            selected_symbol = stock_options[selected_stock]
+        else:
+            st.warning("먼저 모니터링 탭에서 종목을 추가해주세요.")
+            selected_symbol = None
+        
+        # 투자 전략
+        strategy = st.radio("투자 전략", ["1σ 이상 하락시 매수", "2σ 이상 하락시 매수"])
+        
+        # 투자 금액 설정
+        st.markdown("**투자 금액 설정**")
+        col1_1, col1_2, col1_3 = st.columns(3)
+        
+        with col1_1:
+            amount_1sigma = st.number_input("1σ 하락시 (만원)", min_value=0, value=100, disabled=(strategy=="2σ 이상 하락시 매수"))
+        with col1_2:
+            amount_2sigma = st.number_input("2σ 하락시 (만원)", min_value=0, value=200)
+        with col1_3:
+            amount_3sigma = st.number_input("3σ 하락시 (만원)", min_value=0, value=200)
+        
+        # 테스트 기간
+        test_period = st.radio("테스트 기간", ["최근 1년", "최근 5년"])
+        
+        # 백테스팅 실행 버튼
+        if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
+            if selected_symbol:
+                st.session_state.backtest_triggered = True
+                st.session_state.backtest_params = {
+                    'symbol': selected_symbol,
+                    'strategy': strategy,
+                    'amount_1sigma': amount_1sigma,
+                    'amount_2sigma': amount_2sigma,
+                    'amount_3sigma': amount_3sigma,
+                    'test_period': test_period
+                }
+    
+    with col2:
+        st.markdown("### 📊 결과 섹션")
+        
+        if st.session_state.get('backtest_triggered', False):
+            st.info("백테스팅 기능은 개발 중입니다. 곧 업데이트될 예정입니다!")
+            st.markdown("""
+            **예상 결과:**
+            - 매수 내역 및 횟수
+            - 평균 매수 단가
+            - 총 투자금 및 현재 평가금액
+            - 수익률 분석
+            - 비교 분석 (정액 적립 vs 일시불 매수)
+            """)
+        else:
+            st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
