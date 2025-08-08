@@ -1115,7 +1115,7 @@ with tab3:
             
             # 새로운 구조 (1년, 5년 분리)인지 확인
             if '1year' in results and '5year' in results:
-                # 1년과 5년 결과를 한 행에 배치 (전체 너비 활용)
+                # 1년과 5년 결과를 한 행에 배치 (전체 너비 최대 활용)
                 results_1year = results['1year']
                 results_5year = results['5year']
                 
@@ -1124,7 +1124,7 @@ with tab3:
                 # 1년 결과
                 with col_1year:
                     st.markdown("#### 📈 최근 1년 분석")
-                    col_a1, col_b1, col_c1, col_d1, col_e1 = st.columns(5)
+                    col_a1, col_b1, col_c1, col_d1, col_e1, col_f1, col_g1 = st.columns(7)
                     with col_a1:
                         st.metric("매수 횟수", f"{results_1year['buy_count']}회")
                     with col_b1:
@@ -1153,9 +1153,6 @@ with tab3:
                             st.metric("현재 평가금액", f"${results_1year['current_value']:,.0f}")
                         else:
                             st.metric("현재 평가금액", f"₩{results_1year['current_value']:,.0f}")
-                    
-                    # 1년 수익률 분석
-                    col_f1, col_g1 = st.columns(2)
                     with col_f1:
                         st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
                     with col_g1:
@@ -1164,7 +1161,7 @@ with tab3:
                 # 5년 결과
                 with col_5year:
                     st.markdown("#### 📈 최근 5년 분석")
-                    col_a5, col_b5, col_c5, col_d5, col_e5 = st.columns(5)
+                    col_a5, col_b5, col_c5, col_d5, col_e5, col_f5, col_g5 = st.columns(7)
                     with col_a5:
                         st.metric("매수 횟수", f"{results_5year['buy_count']}회")
                     with col_b5:
@@ -1193,9 +1190,6 @@ with tab3:
                             st.metric("현재 평가금액", f"${results_5year['current_value']:,.0f}")
                         else:
                             st.metric("현재 평가금액", f"₩{results_5year['current_value']:,.0f}")
-                    
-                    # 5년 수익률 분석
-                    col_f5, col_g5 = st.columns(2)
                     with col_f5:
                         st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
                     with col_g5:
