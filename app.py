@@ -39,16 +39,14 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive'
 ]
 
-SERVICE_ACCOUNT_FILE = 'gen-lang-client-0213805963-b103cc47143a.json'
+SERVICE_ACCOUNT_FILE = 'gen-lang-client-0213805963-0075cd83c680.json'
 SPREADSHEET_NAME = 'stock-monitoring'
 
 def get_google_sheets_client():
     """Google Sheets 클라이언트 생성"""
     try:
-        # Streamlit Secrets에서 서비스 계정 정보 가져오기
-        service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
-        creds = Credentials.from_service_account_info(
-            service_account_info, scopes=SCOPES
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
         client = gspread.authorize(creds)
         return client
@@ -124,35 +122,13 @@ def load_stocks_from_sheets():
         
         # 헤더 제외하고 데이터 처리
         saved_stocks = {}
-        analyzer = StockAnalyzer()
-        
         for row in all_values[1:]:  # 첫 번째 행(헤더) 제외
             if len(row) >= 3:
                 symbol, name, stock_type = row[0], row[1], row[2]
-                
-                # 기본 정보만 있는 경우 (Google Sheets에서 직접 입력한 경우)
-                if stock_type in ['KR', 'US']:
-                    # 현재가 정보 가져오기
-                    try:
-                        current_price = analyzer.get_current_price(symbol, stock_type)
-                        if current_price:
-                            saved_stocks[symbol] = {
-                                'name': name,
-                                'type': stock_type,
-                                'current_price': current_price
-                            }
-                        else:
-                            # 현재가를 가져올 수 없는 경우에도 기본 정보는 저장
-                            saved_stocks[symbol] = {
-                                'name': name,
-                                'type': stock_type
-                            }
-                    except:
-                        # 오류가 발생해도 기본 정보는 저장
-                        saved_stocks[symbol] = {
-                            'name': name,
-                            'type': stock_type
-                        }
+                saved_stocks[symbol] = {
+                    'name': name,
+                    'type': stock_type
+                }
         
         return saved_stocks
         
@@ -348,11 +324,9 @@ st.markdown("---")
 # 탭 생성
 tab1, tab2 = st.tabs(["📊 실시간 모니터링", "📈 백테스팅"])
 
-# 탭 1: 실시간 모니터링
-with tab1:
-    # 사이드바
-    with st.sidebar:
-        st.header("🦁 주식 시그마 분석")
+# 사이드바
+with st.sidebar:
+    st.header("🦁 주식 시그마 분석")
     
     st.markdown("---")
     
@@ -866,31 +840,25 @@ with col1:
             if len(sigma_1_dates) > 0:
                 last_date = sigma_1_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.markdown("1σ 구간 최근 발생")
-                st.write(f"**{days_ago}일 전**")
+                st.metric("1σ 구간 최근 발생", f"{days_ago}일 전")
             else:
-                st.markdown("1σ 구간 최근 발생")
-                st.write("**없음**")
+                st.metric("1σ 구간 최근 발생", "없음")
                 
         with col2:
             if len(sigma_2_dates) > 0:
                 last_date = sigma_2_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.markdown("2σ 구간 최근 발생")
-                st.write(f"**{days_ago}일 전**")
+                st.metric("2σ 구간 최근 발생", f"{days_ago}일 전")
             else:
-                st.markdown("2σ 구간 최근 발생")
-                st.write("**없음**")
+                st.metric("2σ 구간 최근 발생", "없음")
                 
         with col3:
             if len(sigma_3_dates) > 0:
                 last_date = sigma_3_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.markdown("3σ 이하 최근 발생")
-                st.write(f"**{days_ago}일 전**")
+                st.metric("3σ 이하 최근 발생", f"{days_ago}일 전")
             else:
-                st.markdown("3σ 이하 최근 발생")
-                st.write("**없음**")
+                st.metric("3σ 이하 최근 발생", "없음")
         
         # 상세 발생일 목록 (expander)
         with st.expander("📅 시그마 하락 발생일 상세"):
@@ -967,6 +935,11 @@ with col1:
         )
         
         st.plotly_chart(fig, use_container_width=True)
+
+# 탭 1: 실시간 모니터링
+with tab1:
+    # 기존 내용은 그대로 유지 (사이드바는 이미 탭 밖에 있음)
+    pass
 
 # 탭 2: 백테스팅
 with tab2:
