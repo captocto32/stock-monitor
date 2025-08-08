@@ -198,16 +198,47 @@ class StockAnalyzer:
                 if name:
                     return query, name
             
-            # 종목명으로 검색 - NAVER, 삼성전자 등
+            # 종목명으로 검색 - 더 정확한 매칭
             tickers = stock.get_market_ticker_list()
+            query_upper = query.upper().strip()
+            
+            # 정확한 매칭 먼저 시도
             for ticker in tickers:
                 name = stock.get_market_ticker_name(ticker)
-                if name and query.upper() in name.upper():
+                if name and query_upper == name.upper():
                     return ticker, name
             
-            # NAVER 특별 처리 (임시)
-            if query.upper() == "NAVER":
-                return "035420", "NAVER"
+            # 부분 매칭 시도
+            for ticker in tickers:
+                name = stock.get_market_ticker_name(ticker)
+                if name and query_upper in name.upper():
+                    return ticker, name
+            
+            # 영어 검색어를 한글로 변환 시도 (일반적인 경우들)
+            english_to_korean = {
+                'NAVER': '네이버',
+                'SAMSUNG': '삼성',
+                'LG': '엘지',
+                'SK': '에스케이',
+                'HYUNDAI': '현대',
+                'KIA': '기아',
+                'POSCO': '포스코',
+                'KB': '케이비',
+                'SHINHAN': '신한',
+                'HANA': '하나',
+                'WOORI': '우리',
+                'NH': '엔에이치',
+                'DAEGU': '대구',
+                'BUSAN': '부산',
+                'JEJU': '제주'
+            }
+            
+            if query_upper in english_to_korean:
+                korean_name = english_to_korean[query_upper]
+                for ticker in tickers:
+                    name = stock.get_market_ticker_name(ticker)
+                    if name and korean_name in name:
+                        return ticker, name
             
             return None, None
         except Exception as e:
