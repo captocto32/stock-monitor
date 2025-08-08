@@ -39,7 +39,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive'
 ]
 
-SERVICE_ACCOUNT_FILE = 'gen-lang-client-0213805963-ce3cb3dbd649.json'
+SERVICE_ACCOUNT_FILE = 'gen-lang-client-0213805963-b103cc47143a.json'
 SPREADSHEET_NAME = 'stock-monitoring'
 
 def get_google_sheets_client():
