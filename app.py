@@ -1152,28 +1152,28 @@ with tab3:
             else:
                 st.info("수익률 분석을 위해 백테스팅을 다시 실행해주세요.")
             
-            # 매수 내역 상세
+            # 매수 내역 상세 (접었다 펼쳤다 가능)
             if results['buy_history']:
-                st.markdown("#### 📈 매수 내역")
-                buy_df = pd.DataFrame(results['buy_history'])
-                buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
-                
-                # 미국 주식인지 확인하여 통화 설정
-                is_us_stock = 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US'
-                
-                if is_us_stock:
-                    buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
-                    buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
-                else:
-                    buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
-                    buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
-                
-                buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
-                buy_df['시그마 레벨'] = buy_df['sigma_level']
-                buy_df['주식수'] = buy_df['shares'].apply(lambda x: f"{x:.2f}주")
-                
-                display_df = buy_df[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                with st.expander(f"📈 매수 내역 ({len(results['buy_history'])}건)", expanded=False):
+                    buy_df = pd.DataFrame(results['buy_history'])
+                    buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
+                    
+                    # 미국 주식인지 확인하여 통화 설정
+                    is_us_stock = 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US'
+                    
+                    if is_us_stock:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
+                    else:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                    
+                    buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
+                    buy_df['시그마 레벨'] = buy_df['sigma_level']
+                    buy_df['주식수'] = buy_df['shares'].apply(lambda x: f"{x:.2f}주")
+                    
+                    display_df = buy_df[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
             else:
                 st.info("매수 내역이 없습니다.")
         else:
