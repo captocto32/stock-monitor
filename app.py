@@ -967,28 +967,134 @@ with tab3:
         # 백테스팅 실행 버튼
         if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
             if selected_symbol:
-                st.session_state.backtest_triggered = True
-                st.session_state.backtest_params = {
-                    'symbol': selected_symbol,
-                    'strategy': strategy,
-                    'amount_1sigma': amount_1sigma,
-                    'amount_2sigma': amount_2sigma,
-                    'amount_3sigma': amount_3sigma,
-                    'test_period': test_period
+                # 백테스팅 실행
+                analyzer = StockAnalyzer()
+                
+                # 데이터 가져오기
+                if 'current_analysis' in st.session_state:
+                    df = st.session_state.current_analysis['df']
+                    analysis = st.session_state.current_analysis
+                else:
+                    st.error("분석 데이터가 없습니다.")
+                    st.stop()
+                
+                # 백테스팅 기간 설정
+                if test_period == "최근 1년":
+                    df_backtest = df.tail(252)  # 1년 데이터
+                else:
+                    df_backtest = df  # 5년 데이터
+                
+                # 시그마 레벨 가져오기
+                stats = analysis['stats']
+                sigma_1 = stats['1sigma']
+                sigma_2 = stats['2sigma']
+                sigma_3 = stats['3sigma']
+                
+                # 매수 내역 계산
+                buy_history = []
+                total_investment = 0
+                total_shares = 0
+                
+                for i in range(1, len(df_backtest)):
+                    current_return = df_backtest['Returns'].iloc[i]
+                    current_price = df_backtest['Close'].iloc[i]
+                    current_date = df_backtest.index[i]
+                    
+                    # 3σ 하락 시
+                    if current_return <= sigma_3:
+                        investment = amount_3sigma * 10000  # 만원 단위
+                        shares = investment / current_price
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': '3σ',
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                    
+                    # 2σ 하락 시
+                    elif current_return <= sigma_2:
+                        investment = amount_2sigma * 10000
+                        shares = investment / current_price
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': '2σ',
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                    
+                    # 1σ 하락 시 (1σ 전략일 때만)
+                    elif strategy == "1σ 이상 하락시 매수" and current_return <= sigma_1:
+                        investment = amount_1sigma * 10000
+                        shares = investment / current_price
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': '1σ',
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                
+                # 평균 매수 단가 계산
+                if buy_history:
+                    avg_price = total_investment / total_shares
+                else:
+                    avg_price = 0
+                
+                # 결과 저장
+                st.session_state.backtest_results = {
+                    'buy_history': buy_history,
+                    'total_investment': total_investment,
+                    'total_shares': total_shares,
+                    'avg_price': avg_price,
+                    'buy_count': len(buy_history)
                 }
+                
+                st.session_state.backtest_triggered = True
     
     with col2:
         st.markdown("### 📊 결과 섹션")
         
-        if st.session_state.get('backtest_triggered', False):
-            st.info("백테스팅 기능은 개발 중입니다. 곧 업데이트될 예정입니다!")
-            st.markdown("""
-            **예상 결과:**
-            - 매수 내역 및 횟수
-            - 평균 매수 단가
-            - 총 투자금 및 현재 평가금액
-            - 수익률 분석
-            - 비교 분석 (정액 적립 vs 일시불 매수)
-            """)
+        if st.session_state.get('backtest_triggered', False) and 'backtest_results' in st.session_state:
+            results = st.session_state.backtest_results
+            
+            st.markdown("### 📊 백테스팅 결과")
+            
+            # 매수 내역 및 횟수
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                st.metric("매수 횟수", f"{results['buy_count']}회")
+            with col_b:
+                st.metric("총 투자금", f"₩{results['total_investment']:,.0f}")
+            with col_c:
+                if results['buy_count'] > 0:
+                    st.metric("평균 매수 단가", f"₩{results['avg_price']:,.0f}")
+                else:
+                    st.metric("평균 매수 단가", "매수 없음")
+            
+            # 매수 내역 상세
+            if results['buy_history']:
+                st.markdown("#### 📈 매수 내역")
+                buy_df = pd.DataFrame(results['buy_history'])
+                buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
+                buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
+                buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                buy_df['주식수'] = buy_df['shares'].apply(lambda x: f"{x:.2f}주")
+                
+                display_df = buy_df[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("매수 내역이 없습니다.")
         else:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
