@@ -1668,29 +1668,29 @@ with tab3:
                             best_1y = max(sigma_1y, dca_1y, lump_1y)
                             worst_1y = min(sigma_1y, dca_1y, lump_1y)
                             
-                            st.markdown(f"**최고 성과**: {best_1y:+.2f}%")
-                            st.markdown(f"**최저 성과**: {worst_1y:+.2f}%")
-                            st.markdown(f"**성과 차이**: {best_1y - worst_1y:.2f}%p")
-                            st.markdown("")
+                            report.append(f"**최고 성과**: {best_1y:+.2f}%")
+                            report.append(f"**최저 성과**: {worst_1y:+.2f}%")
+                            report.append(f"**성과 차이**: {best_1y - worst_1y:.2f}%p")
+                            report.append("")
                             
                             # 전략별 분석
                             if sigma_1y == best_1y:
-                                st.markdown("🎯 **시그마 하락시 매수**가 가장 우수한 성과")
+                                report.append("🎯 **시그마 하락시 매수**가 가장 우수한 성과")
                             elif dca_1y == best_1y:
-                                st.markdown("📈 **DCA 투자**가 가장 우수한 성과")
+                                report.append("📈 **DCA 투자**가 가장 우수한 성과")
                             else:
-                                st.markdown("💰 **일시불 투자**가 가장 우수한 성과")
+                                report.append("💰 **일시불 투자**가 가장 우수한 성과")
                             
                             # 변동성 분석
                             performance_diff_1y = best_1y - worst_1y
                             if performance_diff_1y > 50:
-                                st.markdown("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
+                                report.append("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
                             elif performance_diff_1y > 30:
-                                st.markdown("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
+                                report.append("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
                             elif performance_diff_1y > 15:
-                                st.markdown("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
+                                report.append("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
                             else:
-                                st.markdown("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
+                                report.append("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
                         else:
                             st.info("1년 매수 내역 없음")
                     
@@ -1707,29 +1707,29 @@ with tab3:
                             best_5y = max(sigma_5y, dca_5y, lump_5y)
                             worst_5y = min(sigma_5y, dca_5y, lump_5y)
                             
-                            st.markdown(f"**최고 성과**: {best_5y:+.2f}%")
-                            st.markdown(f"**최저 성과**: {worst_5y:+.2f}%")
-                            st.markdown(f"**성과 차이**: {best_5y - worst_5y:.2f}%p")
-                            st.markdown("")
+                            report.append(f"**최고 성과**: {best_5y:+.2f}%")
+                            report.append(f"**최저 성과**: {worst_5y:+.2f}%")
+                            report.append(f"**성과 차이**: {best_5y - worst_5y:.2f}%p")
+                            report.append("")
                             
                             # 전략별 분석
                             if sigma_5y == best_5y:
-                                st.markdown("🎯 **시그마 하락시 매수**가 장기적으로 가장 우수한 성과")
+                                report.append("🎯 **시그마 하락시 매수**가 장기적으로 가장 우수한 성과")
                             elif dca_5y == best_5y:
-                                st.markdown("📈 **DCA 투자**가 장기적으로 가장 우수한 성과")
+                                report.append("📈 **DCA 투자**가 장기적으로 가장 우수한 성과")
                             else:
-                                st.markdown("💰 **일시불 투자**가 장기적으로 가장 우수한 성과")
+                                report.append("💰 **일시불 투자**가 장기적으로 가장 우수한 성과")
                             
                             # 변동성 분석
                             performance_diff_5y = best_5y - worst_5y
                             if performance_diff_5y > 50:
-                                st.markdown("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
+                                report.append("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
                             elif performance_diff_5y > 30:
-                                st.markdown("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
+                                report.append("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
                             elif performance_diff_5y > 15:
-                                st.markdown("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
+                                report.append("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
                             else:
-                                st.markdown("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
+                                report.append("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
                             
                             # 장단기 비교는 컬럼 밖으로 이동
                         else:
@@ -1870,31 +1870,7 @@ with tab3:
                     )
                     st.markdown(report_text)
                     
-                    # 장단기 분석 추가 (1년과 5년 투자성과 바로 아래)
-                    if results_1year['buy_count'] > 0 and results_5year['buy_count'] > 0:
-                        st.markdown("---")
-                        st.markdown("#### 📊 장단기 분석")
-                        
-                        # 1년과 5년 결과에서 최고 성과 계산
-                        sigma_1y = results_1year['total_return']
-                        dca_1y = comparison_1y['dca']['total_return']
-                        lump_1y = comparison_1y['lump_sum']['total_return']
-                        best_1y = max(sigma_1y, dca_1y, lump_1y)
-                        
-                        sigma_5y = results_5year['total_return']
-                        dca_5y = comparison_5y['dca']['total_return']
-                        lump_5y = comparison_5y['lump_sum']['total_return']
-                        best_5y = max(sigma_5y, dca_5y, lump_5y)
-                        
-                        # 장단기 비교 요약
-                        if best_5y > best_1y * 2:
-                            st.success("✅ 장기 투자가 매우 유리: 5년 성과가 1년보다 2배 이상 우수한 성과를 보여 장기 투자를 강력히 권장합니다.")
-                        elif best_5y > best_1y:
-                            st.success("✅ 장기 투자가 유리: 5년 성과가 1년보다 우수하여 장기 투자를 권장합니다.")
-                        elif best_1y > best_5y:
-                            st.warning("⚠️ 단기 투자가 유리: 1년 성과가 5년보다 우수하여 단기 투자를 고려해볼 수 있습니다.")
-                        else:
-                            st.info("📊 안정적 성과: 장단기 성과가 비슷하여 투자 기간 선택에 있어 유연성을 가질 수 있습니다.")
+
                     
                     # ChatGPT 스타일 해석 추가
                     chatgpt_analysis = generate_chatgpt_analysis(
