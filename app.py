@@ -1063,13 +1063,44 @@ with tab3:
                 else:
                     avg_price = 0
                 
+                # 현재가 가져오기
+                current_price = None
+                if 'current_analysis' in st.session_state:
+                    analyzer = StockAnalyzer()
+                    current_price, _ = analyzer.get_current_price(analysis['symbol'], analysis['type'])
+                
+                # 현재가가 없으면 최근 종가 사용
+                if current_price is None:
+                    current_price = df_backtest['Close'].iloc[-1]
+                
+                # 현재 평가금액 계산
+                current_value = total_shares * current_price
+                
+                # 수익률 계산
+                if total_investment > 0:
+                    total_return = ((current_value - total_investment) / total_investment) * 100
+                else:
+                    total_return = 0
+                
+                # 연간 수익률 계산
+                if test_period == "최근 1년":
+                    years = 1
+                else:
+                    years = 5
+                
+                annual_return = total_return / years if years > 0 else 0
+                
                 # 결과 저장
                 st.session_state.backtest_results = {
                     'buy_history': buy_history,
                     'total_investment': total_investment,
                     'total_shares': total_shares,
                     'avg_price': avg_price,
-                    'buy_count': len(buy_history)
+                    'buy_count': len(buy_history),
+                    'current_price': current_price,
+                    'current_value': current_value,
+                    'total_return': total_return,
+                    'annual_return': annual_return
                 }
                 
                 st.session_state.backtest_triggered = True
@@ -1098,6 +1129,20 @@ with tab3:
                         st.metric("평균 매수 단가", f"₩{results['avg_price']:,.0f}")
                 else:
                     st.metric("평균 매수 단가", "매수 없음")
+            
+            # 수익률 분석
+            st.markdown("#### 📊 수익률 분석")
+            col_d, col_e, col_f = st.columns(3)
+            with col_d:
+                # 미국 주식인지 확인
+                if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                    st.metric("현재 평가금액", f"${results['current_value']:,.0f}")
+                else:
+                    st.metric("현재 평가금액", f"₩{results['current_value']:,.0f}")
+            with col_e:
+                st.metric("총 수익률", f"{results['total_return']:+.2f}%")
+            with col_f:
+                st.metric("연간 수익률", f"{results['annual_return']:+.2f}%")
             
             # 매수 내역 상세
             if results['buy_history']:
