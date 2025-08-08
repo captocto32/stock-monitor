@@ -39,14 +39,16 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive'
 ]
 
-SERVICE_ACCOUNT_FILE = 'gen-lang-client-0213805963-0075cd83c680.json'
+SERVICE_ACCOUNT_FILE = 'gen-lang-client-0213805963-b103cc47143a.json'
 SPREADSHEET_NAME = 'stock-monitoring'
 
 def get_google_sheets_client():
     """Google Sheets 클라이언트 생성"""
     try:
-        creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        # Streamlit Secrets에서 서비스 계정 정보 가져오기
+        service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+        creds = Credentials.from_service_account_info(
+            service_account_info, scopes=SCOPES
         )
         client = gspread.authorize(creds)
         return client
