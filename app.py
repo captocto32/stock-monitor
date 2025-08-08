@@ -1261,6 +1261,18 @@ with tab3:
                     st.markdown("---")
                     st.markdown("#### 💰 DCA vs 일시불 투자 비교")
                     
+                    # CSS로 값 글자 크기 축소
+                    st.markdown("""
+                    <style>
+                    .stMetric [data-testid="metric-container"] div[data-testid="metric-container"] {
+                        font-size: 0.8em !important;
+                    }
+                    .stMetric [data-testid="metric-container"] div[data-testid="metric-container"] span {
+                        font-size: 0.8em !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    
                     col_dca_1y, col_dca_5y = st.columns(2)
                     
                     # DCA vs 일시불 비교 함수
@@ -1301,7 +1313,8 @@ with tab3:
                         return {
                             'dca': {
                                 'buy_count': dca_buy_count,
-                                'total_investment': dca_investment,
+                                'total_investment': total_investment,  # 시그마 하락시의 총투자금과 동일
+                                'monthly_amount': monthly_amount,
                                 'avg_price': dca_avg_price,
                                 'total_shares': dca_shares,
                                 'current_value': dca_current_value,
@@ -1331,7 +1344,7 @@ with tab3:
                             
                             # DCA 결과
                             st.markdown("### 📈 DCA (매월 정액)")
-                            # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                            # 첫 번째 행: 매수횟수, 총 투자금, 매월 투자금, 평균매수단가
                             col_dca1_1, col_dca1_2, col_dca1_3, col_dca1_4 = st.columns(4)
                             with col_dca1_1:
                                 st.metric("매수 횟수", f"{comparison_1y['dca']['buy_count']}회", delta=None)
@@ -1342,21 +1355,28 @@ with tab3:
                                     st.metric("총 투자금", f"₩{comparison_1y['dca']['total_investment']:,.0f}", delta=None)
                             with col_dca1_3:
                                 if is_us_stock:
+                                    st.metric("매월 투자금", f"${comparison_1y['dca']['monthly_amount']:,.0f}", delta=None)
+                                else:
+                                    st.metric("매월 투자금", f"₩{comparison_1y['dca']['monthly_amount']:,.0f}", delta=None)
+                            with col_dca1_4:
+                                if is_us_stock:
                                     st.metric("평균 매수 단가", f"${comparison_1y['dca']['avg_price']:,.2f}", delta=None)
                                 else:
                                     st.metric("평균 매수 단가", f"₩{comparison_1y['dca']['avg_price']:,.0f}", delta=None)
-                            with col_dca1_4:
-                                st.metric("보유 주식수", f"{comparison_1y['dca']['total_shares']:.2f}주", delta=None)
                             
-                            # 두 번째 행: 현재 평가금액, 총 수익률
-                            col_dca1_5, col_dca1_6 = st.columns(2)
+                            # 두 번째 행: 보유 주식수, 현재 평가금액, 총 수익률
+                            col_dca1_5, col_dca1_6, col_dca1_7 = st.columns(3)
                             with col_dca1_5:
+                                st.metric("보유 주식수", f"{comparison_1y['dca']['total_shares']:.2f}주", delta=None)
+                            with col_dca1_6:
                                 if is_us_stock:
                                     st.metric("현재 평가금액", f"${comparison_1y['dca']['current_value']:,.0f}", delta=None)
                                 else:
                                     st.metric("현재 평가금액", f"₩{comparison_1y['dca']['current_value']:,.0f}", delta=None)
-                            with col_dca1_6:
+                            with col_dca1_7:
                                 st.metric("총 수익률", f"{comparison_1y['dca']['total_return']:+.2f}%", delta=None)
+                            
+
                             
                             # 일시불 결과
                             st.markdown("### 💰 일시불 (첫날)")
@@ -1403,7 +1423,7 @@ with tab3:
                             
                             # DCA 결과
                             st.markdown("### 📈 DCA (매월 정액)")
-                            # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                            # 첫 번째 행: 매수횟수, 총 투자금, 매월 투자금, 평균매수단가
                             col_dca5_1, col_dca5_2, col_dca5_3, col_dca5_4 = st.columns(4)
                             with col_dca5_1:
                                 st.metric("매수 횟수", f"{comparison_5y['dca']['buy_count']}회", delta=None)
@@ -1414,20 +1434,25 @@ with tab3:
                                     st.metric("총 투자금", f"₩{comparison_5y['dca']['total_investment']:,.0f}", delta=None)
                             with col_dca5_3:
                                 if is_us_stock:
+                                    st.metric("매월 투자금", f"${comparison_5y['dca']['monthly_amount']:,.0f}", delta=None)
+                                else:
+                                    st.metric("매월 투자금", f"₩{comparison_5y['dca']['monthly_amount']:,.0f}", delta=None)
+                            with col_dca5_4:
+                                if is_us_stock:
                                     st.metric("평균 매수 단가", f"${comparison_5y['dca']['avg_price']:,.2f}", delta=None)
                                 else:
                                     st.metric("평균 매수 단가", f"₩{comparison_5y['dca']['avg_price']:,.0f}", delta=None)
-                            with col_dca5_4:
-                                st.metric("보유 주식수", f"{comparison_5y['dca']['total_shares']:.2f}주", delta=None)
                             
-                            # 두 번째 행: 현재 평가금액, 총 수익률
-                            col_dca5_5, col_dca5_6 = st.columns(2)
+                            # 두 번째 행: 보유 주식수, 현재 평가금액, 총 수익률
+                            col_dca5_5, col_dca5_6, col_dca5_7 = st.columns(3)
                             with col_dca5_5:
+                                st.metric("보유 주식수", f"{comparison_5y['dca']['total_shares']:.2f}주", delta=None)
+                            with col_dca5_6:
                                 if is_us_stock:
                                     st.metric("현재 평가금액", f"${comparison_5y['dca']['current_value']:,.0f}", delta=None)
                                 else:
                                     st.metric("현재 평가금액", f"₩{comparison_5y['dca']['current_value']:,.0f}", delta=None)
-                            with col_dca5_6:
+                            with col_dca5_7:
                                 st.metric("총 수익률", f"{comparison_5y['dca']['total_return']:+.2f}%", delta=None)
                             
                             # 일시불 결과
