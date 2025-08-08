@@ -45,6 +45,8 @@ SPREADSHEET_NAME = 'stock-monitoring'
 def get_google_sheets_client():
     """Google Sheets 클라이언트 생성"""
     try:
+        st.write(f"파일 경로: {SERVICE_ACCOUNT_FILE}")
+        st.write(f"파일 존재 여부: {os.path.exists(SERVICE_ACCOUNT_FILE)}")
         creds = Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
