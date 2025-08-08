@@ -1652,77 +1652,84 @@ with tab3:
                     report.append(f"### 📊 {stock_name} ({stock_symbol}) 투자 분석")
                     report.append("")
                     
-                    # 1년 결과 분석
-                    if results_1y['buy_count'] > 0:
-                        report.append("#### 📈 1년 투자 성과")
-                        
-                        # 수익률 비교
-                        sigma_1y = results_1y['total_return']
-                        dca_1y = comparison_1y['dca']['total_return']
-                        lump_1y = comparison_1y['lump_sum']['total_return']
-                        
-                        best_1y = max(sigma_1y, dca_1y, lump_1y)
-                        worst_1y = min(sigma_1y, dca_1y, lump_1y)
-                        
-                        report.append(f"**최고 성과**: {best_1y:+.2f}%")
-                        report.append(f"**최저 성과**: {worst_1y:+.2f}%")
-                        report.append(f"**성과 차이**: {best_1y - worst_1y:.2f}%p")
-                        report.append("")
-                        
-                        # 전략별 분석
-                        if sigma_1y == best_1y:
-                            report.append("🎯 **시그마 하락시 매수**가 가장 우수한 성과")
-                        elif dca_1y == best_1y:
-                            report.append("📈 **DCA 투자**가 가장 우수한 성과")
-                        else:
-                            report.append("💰 **일시불 투자**가 가장 우수한 성과")
-                        
-                        # 변동성 분석
-                        if abs(sigma_1y - dca_1y) > 10:
-                            report.append("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
-                        else:
-                            report.append("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
-                        
-                        report.append("")
+                    # 1년과 5년 결과를 컬럼으로 나누기
+                    col_1y, col_5y = st.columns(2)
                     
-                    # 5년 결과 분석
-                    if results_5y['buy_count'] > 0:
-                        report.append("#### 📈 5년 투자 성과")
-                        
-                        # 수익률 비교
-                        sigma_5y = results_5y['total_return']
-                        dca_5y = comparison_5y['dca']['total_return']
-                        lump_5y = comparison_5y['lump_sum']['total_return']
-                        
-                        best_5y = max(sigma_5y, dca_5y, lump_5y)
-                        worst_5y = min(sigma_5y, dca_5y, lump_5y)
-                        
-                        report.append(f"**최고 성과**: {best_5y:+.2f}%")
-                        report.append(f"**최저 성과**: {worst_5y:+.2f}%")
-                        report.append(f"**성과 차이**: {best_5y - worst_5y:.2f}%p")
-                        report.append("")
-                        
-                        # 전략별 분석
-                        if sigma_5y == best_5y:
-                            report.append("🎯 **시그마 하락시 매수**가 장기적으로 가장 우수한 성과")
-                        elif dca_5y == best_5y:
-                            report.append("📈 **DCA 투자**가 장기적으로 가장 우수한 성과")
-                        else:
-                            report.append("💰 **일시불 투자**가 장기적으로 가장 우수한 성과")
-                        
-                        # 장단기 비교
+                    # 1년 결과 분석 (왼쪽)
+                    with col_1y:
                         if results_1y['buy_count'] > 0:
-                            report.append("")
-                            report.append("#### 📊 장단기 비교")
+                            st.markdown("#### 📈 1년 투자 성과")
                             
-                            if best_5y > best_1y:
-                                report.append("✅ **장기 투자가 유리**: 5년 성과가 1년보다 우수")
-                            elif best_5y < best_1y:
-                                report.append("⚠️ **단기 투자가 유리**: 1년 성과가 5년보다 우수")
+                            # 수익률 비교
+                            sigma_1y = results_1y['total_return']
+                            dca_1y = comparison_1y['dca']['total_return']
+                            lump_1y = comparison_1y['lump_sum']['total_return']
+                            
+                            best_1y = max(sigma_1y, dca_1y, lump_1y)
+                            worst_1y = min(sigma_1y, dca_1y, lump_1y)
+                            
+                            st.markdown(f"**최고 성과**: {best_1y:+.2f}%")
+                            st.markdown(f"**최저 성과**: {worst_1y:+.2f}%")
+                            st.markdown(f"**성과 차이**: {best_1y - worst_1y:.2f}%p")
+                            st.markdown("")
+                            
+                            # 전략별 분석
+                            if sigma_1y == best_1y:
+                                st.markdown("🎯 **시그마 하락시 매수**가 가장 우수한 성과")
+                            elif dca_1y == best_1y:
+                                st.markdown("📈 **DCA 투자**가 가장 우수한 성과")
                             else:
-                                report.append("📊 **안정적 성과**: 장단기 성과가 비슷")
-                        
-                        report.append("")
+                                st.markdown("💰 **일시불 투자**가 가장 우수한 성과")
+                            
+                            # 변동성 분석
+                            if abs(sigma_1y - dca_1y) > 10:
+                                st.markdown("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
+                            else:
+                                st.markdown("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
+                        else:
+                            st.info("1년 매수 내역 없음")
+                    
+                    # 5년 결과 분석 (오른쪽)
+                    with col_5y:
+                        if results_5y['buy_count'] > 0:
+                            st.markdown("#### 📈 5년 투자 성과")
+                            
+                            # 수익률 비교
+                            sigma_5y = results_5y['total_return']
+                            dca_5y = comparison_5y['dca']['total_return']
+                            lump_5y = comparison_5y['lump_sum']['total_return']
+                            
+                            best_5y = max(sigma_5y, dca_5y, lump_5y)
+                            worst_5y = min(sigma_5y, dca_5y, lump_5y)
+                            
+                            st.markdown(f"**최고 성과**: {best_5y:+.2f}%")
+                            st.markdown(f"**최저 성과**: {worst_5y:+.2f}%")
+                            st.markdown(f"**성과 차이**: {best_5y - worst_5y:.2f}%p")
+                            st.markdown("")
+                            
+                            # 전략별 분석
+                            if sigma_5y == best_5y:
+                                st.markdown("🎯 **시그마 하락시 매수**가 장기적으로 가장 우수한 성과")
+                            elif dca_5y == best_5y:
+                                st.markdown("📈 **DCA 투자**가 장기적으로 가장 우수한 성과")
+                            else:
+                                st.markdown("💰 **일시불 투자**가 장기적으로 가장 우수한 성과")
+                            
+                            # 장단기 비교
+                            if results_1y['buy_count'] > 0:
+                                st.markdown("")
+                                st.markdown("#### 📊 장단기 비교")
+                                
+                                if best_5y > best_1y:
+                                    st.markdown("✅ **장기 투자가 유리**: 5년 성과가 1년보다 우수")
+                                elif best_5y < best_1y:
+                                    st.markdown("⚠️ **단기 투자가 유리**: 1년 성과가 5년보다 우수")
+                                else:
+                                    st.markdown("📊 **안정적 성과**: 장단기 성과가 비슷")
+                        else:
+                            st.info("5년 매수 내역 없음")
+                    
+                    report.append("")
                     
                     # 투자 권장사항
                     report.append("#### 💡 투자 권장사항")
