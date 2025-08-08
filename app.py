@@ -445,8 +445,6 @@ with tab1:
     # 분석기 초기화
     analyzer = StockAnalyzer()
     
-    st.subheader("📊 주식 분석 결과")
-    
     # 분석 결과 표시
     if 'current_analysis' in st.session_state:
         analysis = st.session_state.current_analysis
