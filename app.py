@@ -399,7 +399,11 @@ with st.sidebar:
             # 한국 주식 검색
             kr_code, kr_name = analyzer.search_korean_stock(stock_input)
             
-            if kr_code:
+            # NAVER 직접 매칭 (임시)
+            if stock_input.upper() == "NAVER":
+                symbol, name, stock_type = "035420", "NAVER", 'KR'
+                st.success(f"한국 주식: {name} ({symbol})")
+            elif kr_code:
                 symbol, name, stock_type = kr_code, kr_name, 'KR'
                 st.success(f"한국 주식: {name} ({kr_code})")
             else:
