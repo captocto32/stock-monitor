@@ -938,8 +938,6 @@ with tab3:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.markdown("### 📥 입력 섹션")
-        
         # 종목 선택 - 분석 결과 종목과 연동
         if 'current_analysis' in st.session_state:
             analysis = st.session_state.current_analysis
