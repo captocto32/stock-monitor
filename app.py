@@ -329,6 +329,9 @@ st.subheader("🍣 주식 하락률 모니터링 시스템")
 st.markdown("---")
 
 # 탭 생성
+if 'active_tab' not in st.session_state:
+    st.session_state.active_tab = 0
+
 tab1, tab2, tab3 = st.tabs(["📊 분석 결과", "📋 저장된 종목", "📈 백테스팅"])
 
 # 사이드바
@@ -844,6 +847,8 @@ with tab2:
                                                 'stats': info['stats'],
                                                 'df': info['df']
                                             }
+                                            # 탭 1로 이동하기 위해 탭 인덱스 저장
+                                            st.session_state.active_tab = 0
                                             st.rerun()
                                             break
             else:
@@ -922,6 +927,8 @@ with tab2:
                                                 'stats': info['stats'],
                                                 'df': info['df']
                                             }
+                                            # 탭 1로 이동하기 위해 탭 인덱스 저장
+                                            st.session_state.active_tab = 0
                                             st.rerun()
                                             break
             else:
