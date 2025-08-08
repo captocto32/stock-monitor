@@ -860,34 +860,39 @@ with tab2:
                         # 선택된 종목 정보 표시
                         st.markdown(f"**선택된 종목: {selected_stock['종목']}**")
                         
-                        # 분석 결과 탭으로 이동 버튼
-                        if st.button("📊 분석 결과 보기", key=f"analyze_kr_{symbol}"):
-                            # 선택된 종목의 데이터를 분석 결과에 설정
-                            if symbol in st.session_state.monitoring_stocks:
-                                stock_info = st.session_state.monitoring_stocks[symbol]
-                                analyzer = StockAnalyzer()
-                                
-                                # 종목 데이터 가져오기
-                                df = analyzer.get_stock_data(symbol, stock_info['type'])
-                                if df is not None:
-                                    # 분석 결과를 세션에 저장
-                                    st.session_state.current_analysis = {
-                                        'symbol': symbol,
-                                        'name': stock_info['name'],
-                                        'type': stock_info['type'],
-                                        'df': df,
-                                        'stats': stock_info['stats']
-                                    }
-                                    st.success(f"{selected_stock['종목']} 분석 데이터가 로드되었습니다!")
-                                    st.rerun()
+                        # 버튼을 동일한 행에 배치
+                        col_analyze, col_delete = st.columns(2)
                         
-                        # 삭제 버튼
-                        if st.button(f"🗑️ 삭제", key=f"delete_kr_{symbol}"):
-                            if symbol in st.session_state.monitoring_stocks:
-                                del st.session_state.monitoring_stocks[symbol]
-                                save_stocks_to_sheets()
-                                st.success(f"{selected_stock['종목']} 삭제 완료!")
-                                st.rerun()
+                        with col_analyze:
+                            # 분석 결과 탭으로 이동 버튼
+                            if st.button("📊 분석 결과 보기", key=f"analyze_kr_{symbol}", use_container_width=True):
+                                # 선택된 종목의 데이터를 분석 결과에 설정
+                                if symbol in st.session_state.monitoring_stocks:
+                                    stock_info = st.session_state.monitoring_stocks[symbol]
+                                    analyzer = StockAnalyzer()
+                                    
+                                    # 종목 데이터 가져오기
+                                    df = analyzer.get_stock_data(symbol, stock_info['type'])
+                                    if df is not None:
+                                        # 분석 결과를 세션에 저장
+                                        st.session_state.current_analysis = {
+                                            'symbol': symbol,
+                                            'name': stock_info['name'],
+                                            'type': stock_info['type'],
+                                            'df': df,
+                                            'stats': stock_info['stats']
+                                        }
+                                        st.success(f"{selected_stock['종목']} 분석 데이터가 로드되었습니다!")
+                                        st.rerun()
+                        
+                        with col_delete:
+                            # 삭제 버튼
+                            if st.button(f"🗑️ 삭제", key=f"delete_kr_{symbol}", use_container_width=True):
+                                if symbol in st.session_state.monitoring_stocks:
+                                    del st.session_state.monitoring_stocks[symbol]
+                                    save_stocks_to_sheets()
+                                    st.success(f"{selected_stock['종목']} 삭제 완료!")
+                                    st.rerun()
             else:
                 st.info("저장된 한국 주식이 없습니다.")
         
@@ -945,34 +950,39 @@ with tab2:
                         # 선택된 종목 정보 표시
                         st.markdown(f"**선택된 종목: {selected_stock['종목']}**")
                         
-                        # 분석 결과 탭으로 이동 버튼
-                        if st.button("📊 분석 결과 보기", key=f"analyze_us_{symbol}"):
-                            # 선택된 종목의 데이터를 분석 결과에 설정
-                            if symbol in st.session_state.monitoring_stocks:
-                                stock_info = st.session_state.monitoring_stocks[symbol]
-                                analyzer = StockAnalyzer()
-                                
-                                # 종목 데이터 가져오기
-                                df = analyzer.get_stock_data(symbol, stock_info['type'])
-                                if df is not None:
-                                    # 분석 결과를 세션에 저장
-                                    st.session_state.current_analysis = {
-                                        'symbol': symbol,
-                                        'name': stock_info['name'],
-                                        'type': stock_info['type'],
-                                        'df': df,
-                                        'stats': stock_info['stats']
-                                    }
-                                    st.success(f"{selected_stock['종목']} 분석 데이터가 로드되었습니다!")
-                                    st.rerun()
+                        # 버튼을 동일한 행에 배치
+                        col_analyze, col_delete = st.columns(2)
                         
-                        # 삭제 버튼
-                        if st.button(f"🗑️ 삭제", key=f"delete_us_{symbol}"):
-                            if symbol in st.session_state.monitoring_stocks:
-                                del st.session_state.monitoring_stocks[symbol]
-                                save_stocks_to_sheets()
-                                st.success(f"{selected_stock['종목']} 삭제 완료!")
-                                st.rerun()
+                        with col_analyze:
+                            # 분석 결과 탭으로 이동 버튼
+                            if st.button("📊 분석 결과 보기", key=f"analyze_us_{symbol}", use_container_width=True):
+                                # 선택된 종목의 데이터를 분석 결과에 설정
+                                if symbol in st.session_state.monitoring_stocks:
+                                    stock_info = st.session_state.monitoring_stocks[symbol]
+                                    analyzer = StockAnalyzer()
+                                    
+                                    # 종목 데이터 가져오기
+                                    df = analyzer.get_stock_data(symbol, stock_info['type'])
+                                    if df is not None:
+                                        # 분석 결과를 세션에 저장
+                                        st.session_state.current_analysis = {
+                                            'symbol': symbol,
+                                            'name': stock_info['name'],
+                                            'type': stock_info['type'],
+                                            'df': df,
+                                            'stats': stock_info['stats']
+                                        }
+                                        st.success(f"{selected_stock['종목']} 분석 데이터가 로드되었습니다!")
+                                        st.rerun()
+                        
+                        with col_delete:
+                            # 삭제 버튼
+                            if st.button(f"🗑️ 삭제", key=f"delete_us_{symbol}", use_container_width=True):
+                                if symbol in st.session_state.monitoring_stocks:
+                                    del st.session_state.monitoring_stocks[symbol]
+                                    save_stocks_to_sheets()
+                                    st.success(f"{selected_stock['종목']} 삭제 완료!")
+                                    st.rerun()
             else:
                 st.info("저장된 미국 주식이 없습니다.")
     else:
