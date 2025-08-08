@@ -1099,35 +1099,69 @@ with tab3:
                 
                 with col_a:
                     st.markdown("**최근 1년 결과**")
-                    st.metric("매수 횟수", f"{results_1year['buy_count']}회")
                     if results_1year['buy_count'] > 0:
-                        if is_us_stock:
-                            st.metric("총 투자금", f"${results_1year['total_investment']:,.0f}")
-                            st.metric("평균 매수 단가", f"${results_1year['avg_price']:,.2f}")
-                            st.metric("현재 평가금액", f"${results_1year['current_value']:,.0f}")
-                        else:
-                            st.metric("총 투자금", f"₩{results_1year['total_investment']:,.0f}")
-                            st.metric("평균 매수 단가", f"₩{results_1year['avg_price']:,.0f}")
-                            st.metric("현재 평가금액", f"₩{results_1year['current_value']:,.0f}")
-                        st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
-                        st.metric("연간 수익률", f"{results_1year['annual_return']:+.2f}%")
+                        # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                        col_a1, col_a2, col_a3, col_a4 = st.columns(4)
+                        with col_a1:
+                            st.metric("매수 횟수", f"{results_1year['buy_count']}회")
+                        with col_a2:
+                            if is_us_stock:
+                                st.metric("총 투자금", f"${results_1year['total_investment']:,.0f}")
+                            else:
+                                st.metric("총 투자금", f"₩{results_1year['total_investment']:,.0f}")
+                        with col_a3:
+                            if is_us_stock:
+                                st.metric("평균 매수 단가", f"${results_1year['avg_price']:,.2f}")
+                            else:
+                                st.metric("평균 매수 단가", f"₩{results_1year['avg_price']:,.0f}")
+                        with col_a4:
+                            st.metric("보유 주식수", f"{results_1year['total_shares']:.2f}주")
+                        
+                        # 두 번째 행: 현재 평가금액, 총 수익률, 연간 수익률
+                        col_a5, col_a6, col_a7 = st.columns(3)
+                        with col_a5:
+                            if is_us_stock:
+                                st.metric("현재 평가금액", f"${results_1year['current_value']:,.0f}")
+                            else:
+                                st.metric("현재 평가금액", f"₩{results_1year['current_value']:,.0f}")
+                        with col_a6:
+                            st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
+                        with col_a7:
+                            st.metric("연간 수익률", f"{results_1year['annual_return']:+.2f}%")
                     else:
                         st.info("매수 내역 없음")
                 
                 with col_b:
                     st.markdown("**최근 5년 결과**")
-                    st.metric("매수 횟수", f"{results_5year['buy_count']}회")
                     if results_5year['buy_count'] > 0:
-                        if is_us_stock:
-                            st.metric("총 투자금", f"${results_5year['total_investment']:,.0f}")
-                            st.metric("평균 매수 단가", f"${results_5year['avg_price']:,.2f}")
-                            st.metric("현재 평가금액", f"${results_5year['current_value']:,.0f}")
-                        else:
-                            st.metric("총 투자금", f"₩{results_5year['total_investment']:,.0f}")
-                            st.metric("평균 매수 단가", f"₩{results_5year['avg_price']:,.0f}")
-                            st.metric("현재 평가금액", f"₩{results_5year['current_value']:,.0f}")
-                        st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
-                        st.metric("연간 수익률", f"{results_5year['annual_return']:+.2f}%")
+                        # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                        col_b1, col_b2, col_b3, col_b4 = st.columns(4)
+                        with col_b1:
+                            st.metric("매수 횟수", f"{results_5year['buy_count']}회")
+                        with col_b2:
+                            if is_us_stock:
+                                st.metric("총 투자금", f"${results_5year['total_investment']:,.0f}")
+                            else:
+                                st.metric("총 투자금", f"₩{results_5year['total_investment']:,.0f}")
+                        with col_b3:
+                            if is_us_stock:
+                                st.metric("평균 매수 단가", f"${results_5year['avg_price']:,.2f}")
+                            else:
+                                st.metric("평균 매수 단가", f"₩{results_5year['avg_price']:,.0f}")
+                        with col_b4:
+                            st.metric("보유 주식수", f"{results_5year['total_shares']:.2f}주")
+                        
+                        # 두 번째 행: 현재 평가금액, 총 수익률, 연간 수익률
+                        col_b5, col_b6, col_b7 = st.columns(3)
+                        with col_b5:
+                            if is_us_stock:
+                                st.metric("현재 평가금액", f"${results_5year['current_value']:,.0f}")
+                            else:
+                                st.metric("현재 평가금액", f"₩{results_5year['current_value']:,.0f}")
+                        with col_b6:
+                            st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
+                        with col_b7:
+                            st.metric("연간 수익률", f"{results_5year['annual_return']:+.2f}%")
                     else:
                         st.info("매수 내역 없음")
                 
