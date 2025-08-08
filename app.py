@@ -222,8 +222,18 @@ class StockAnalyzer:
                 if df.empty:
                     return None
                 
-                # 컬럼명 변경
-                df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                # 컬럼명 확인 후 변경
+                if len(df.columns) == 6:
+                    # 시가, 고가, 저가, 종가, 거래량, 거래대금
+                    df.columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'Value']
+                    df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+                elif len(df.columns) == 5:
+                    # 시가, 고가, 저가, 종가, 거래량
+                    df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                else:
+                    # 기본 컬럼명 사용
+                    pass
+                
                 df['Returns'] = df['Close'].pct_change() * 100
                 
             else:
@@ -399,11 +409,7 @@ with st.sidebar:
             # 한국 주식 검색
             kr_code, kr_name = analyzer.search_korean_stock(stock_input)
             
-            # NAVER 직접 매칭 (임시)
-            if stock_input.upper() == "NAVER":
-                symbol, name, stock_type = "035420", "NAVER", 'KR'
-                st.success(f"한국 주식: {name} ({symbol})")
-            elif kr_code:
+            if kr_code:
                 symbol, name, stock_type = kr_code, kr_name, 'KR'
                 st.success(f"한국 주식: {name} ({kr_code})")
             else:
