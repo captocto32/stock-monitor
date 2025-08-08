@@ -825,32 +825,13 @@ with tab2:
                         selected_stock = df_current_kr.iloc[selected_idx]
                         symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
                         
-                        # 삭제 버튼과 분석 버튼을 나란히 배치
-                        col1, col2 = st.columns([1, 3])
-                        with col1:
-                            if st.button(f"🗑️ 삭제", key=f"delete_kr_{symbol}"):
-                                if symbol in st.session_state.monitoring_stocks:
-                                    del st.session_state.monitoring_stocks[symbol]
-                                    save_stocks_to_sheets()
-                                    st.success(f"{selected_stock['종목']} 삭제 완료!")
-                                    st.rerun()
-                        
-                        with col2:
-                            if st.button(f"📊 분석 보기", key=f"analyze_kr_{symbol}"):
-                                if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
-                                    for sym, info in st.session_state.monitoring_stocks.items():
-                                        if sym == symbol:
-                                            st.session_state.current_analysis = {
-                                                'symbol': sym,
-                                                'name': info['name'],
-                                                'type': info['type'],
-                                                'stats': info['stats'],
-                                                'df': info['df']
-                                            }
-                                            # 탭 1로 이동하기 위해 탭 인덱스 저장
-                                            st.session_state.active_tab = 0
-                                            st.rerun()
-                                            break
+                        # 삭제 버튼만 표시
+                        if st.button(f"🗑️ 삭제", key=f"delete_kr_{symbol}"):
+                            if symbol in st.session_state.monitoring_stocks:
+                                del st.session_state.monitoring_stocks[symbol]
+                                save_stocks_to_sheets()
+                                st.success(f"{selected_stock['종목']} 삭제 완료!")
+                                st.rerun()
             else:
                 st.info("저장된 한국 주식이 없습니다.")
         
@@ -905,32 +886,13 @@ with tab2:
                         selected_stock = df_current_us.iloc[selected_idx]
                         symbol = selected_stock['종목'].split('(')[-1].rstrip(')')
                         
-                        # 삭제 버튼과 분석 버튼을 나란히 배치
-                        col1, col2 = st.columns([1, 3])
-                        with col1:
-                            if st.button(f"🗑️ 삭제", key=f"delete_us_{symbol}"):
-                                if symbol in st.session_state.monitoring_stocks:
-                                    del st.session_state.monitoring_stocks[symbol]
-                                    save_stocks_to_sheets()
-                                    st.success(f"{selected_stock['종목']} 삭제 완료!")
-                                    st.rerun()
-                        
-                        with col2:
-                            if st.button(f"📊 분석 보기", key=f"analyze_us_{symbol}"):
-                                if 'current_analysis' not in st.session_state or st.session_state.current_analysis.get('symbol') != symbol:
-                                    for sym, info in st.session_state.monitoring_stocks.items():
-                                        if sym == symbol:
-                                            st.session_state.current_analysis = {
-                                                'symbol': sym,
-                                                'name': info['name'],
-                                                'type': info['type'],
-                                                'stats': info['stats'],
-                                                'df': info['df']
-                                            }
-                                            # 탭 1로 이동하기 위해 탭 인덱스 저장
-                                            st.session_state.active_tab = 0
-                                            st.rerun()
-                                            break
+                        # 삭제 버튼만 표시
+                        if st.button(f"🗑️ 삭제", key=f"delete_us_{symbol}"):
+                            if symbol in st.session_state.monitoring_stocks:
+                                del st.session_state.monitoring_stocks[symbol]
+                                save_stocks_to_sheets()
+                                st.success(f"{selected_stock['종목']} 삭제 완료!")
+                                st.rerun()
             else:
                 st.info("저장된 미국 주식이 없습니다.")
     else:
