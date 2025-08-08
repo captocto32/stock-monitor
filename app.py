@@ -1637,6 +1637,138 @@ with tab3:
                         st.plotly_chart(fig_5y, use_container_width=True)
                     else:
                         st.info("5년 매수 내역 없음")
+                
+                # AI 투자 보고서
+                st.markdown("---")
+                st.markdown("#### 📋 AI 투자 분석 보고서")
+                
+                # 보고서 생성 함수
+                def generate_investment_report(results_1y, results_5y, comparison_1y, comparison_5y, analysis):
+                    report = []
+                    
+                    # 기본 정보
+                    stock_name = analysis['name']
+                    stock_symbol = analysis['symbol']
+                    report.append(f"**📊 {stock_name} ({stock_symbol}) 투자 전략 분석 보고서**")
+                    report.append("")
+                    
+                    # 1년 결과 분석
+                    if results_1y['buy_count'] > 0:
+                        report.append("**📈 1년 투자 성과 분석**")
+                        
+                        # 수익률 비교
+                        sigma_1y = results_1y['total_return']
+                        dca_1y = comparison_1y['dca']['total_return']
+                        lump_1y = comparison_1y['lump_sum']['total_return']
+                        
+                        best_1y = max(sigma_1y, dca_1y, lump_1y)
+                        worst_1y = min(sigma_1y, dca_1y, lump_1y)
+                        
+                        report.append(f"• **최고 성과**: {best_1y:+.2f}%")
+                        report.append(f"• **최저 성과**: {worst_1y:+.2f}%")
+                        report.append(f"• **성과 차이**: {best_1y - worst_1y:.2f}%p")
+                        
+                        # 전략별 분석
+                        report.append("")
+                        report.append("**전략별 분석:**")
+                        
+                        if sigma_1y == best_1y:
+                            report.append("• 🎯 **시그마 하락시 매수**가 가장 우수한 성과를 보였습니다.")
+                        elif dca_1y == best_1y:
+                            report.append("• 📈 **DCA 투자**가 가장 우수한 성과를 보였습니다.")
+                        else:
+                            report.append("• 💰 **일시불 투자**가 가장 우수한 성과를 보였습니다.")
+                        
+                        # 변동성 분석
+                        if abs(sigma_1y - dca_1y) > 10:
+                            report.append("• 📊 **높은 변동성**: 전략 간 성과 차이가 큽니다.")
+                        else:
+                            report.append("• 📊 **안정적 성과**: 전략 간 성과 차이가 적습니다.")
+                        
+                        report.append("")
+                    
+                    # 5년 결과 분석
+                    if results_5y['buy_count'] > 0:
+                        report.append("**📈 5년 투자 성과 분석**")
+                        
+                        # 수익률 비교
+                        sigma_5y = results_5y['total_return']
+                        dca_5y = comparison_5y['dca']['total_return']
+                        lump_5y = comparison_5y['lump_sum']['total_return']
+                        
+                        best_5y = max(sigma_5y, dca_5y, lump_5y)
+                        worst_5y = min(sigma_5y, dca_5y, lump_5y)
+                        
+                        report.append(f"• **최고 성과**: {best_5y:+.2f}%")
+                        report.append(f"• **최저 성과**: {worst_5y:+.2f}%")
+                        report.append(f"• **성과 차이**: {best_5y - worst_5y:.2f}%p")
+                        
+                        # 전략별 분석
+                        report.append("")
+                        report.append("**전략별 분석:**")
+                        
+                        if sigma_5y == best_5y:
+                            report.append("• 🎯 **시그마 하락시 매수**가 장기적으로 가장 우수한 성과를 보였습니다.")
+                        elif dca_5y == best_5y:
+                            report.append("• 📈 **DCA 투자**가 장기적으로 가장 우수한 성과를 보였습니다.")
+                        else:
+                            report.append("• 💰 **일시불 투자**가 장기적으로 가장 우수한 성과를 보였습니다.")
+                        
+                        # 장단기 비교
+                        if results_1y['buy_count'] > 0:
+                            report.append("")
+                            report.append("**📊 장단기 성과 비교:**")
+                            
+                            if best_5y > best_1y:
+                                report.append("• ✅ **장기 투자가 유리**: 5년 성과가 1년 성과보다 우수합니다.")
+                            elif best_5y < best_1y:
+                                report.append("• ⚠️ **단기 투자가 유리**: 1년 성과가 5년 성과보다 우수합니다.")
+                            else:
+                                report.append("• 📊 **안정적 성과**: 장단기 성과가 비슷합니다.")
+                        
+                        report.append("")
+                    
+                    # 투자 권장사항
+                    report.append("**💡 투자 권장사항**")
+                    
+                    if results_1y['buy_count'] > 0 and results_5y['buy_count'] > 0:
+                        # 1년과 5년 모두 있는 경우
+                        if best_1y > best_5y:
+                            report.append("• 🎯 **단기 투자 권장**: 1년 성과가 5년 성과보다 우수합니다.")
+                        else:
+                            report.append("• 📈 **장기 투자 권장**: 5년 성과가 1년 성과보다 우수합니다.")
+                        
+                        # 변동성에 따른 권장사항
+                        volatility_1y = max(sigma_1y, dca_1y, lump_1y) - min(sigma_1y, dca_1y, lump_1y)
+                        volatility_5y = max(sigma_5y, dca_5y, lump_5y) - min(sigma_5y, dca_5y, lump_5y)
+                        
+                        if volatility_1y > 20 or volatility_5y > 20:
+                            report.append("• ⚠️ **높은 변동성**: 리스크 관리에 주의가 필요합니다.")
+                        else:
+                            report.append("• ✅ **안정적 성과**: 비교적 안정적인 투자 환경입니다.")
+                        
+                        # 최적 전략 추천
+                        if sigma_1y == best_1y and sigma_5y == best_5y:
+                            report.append("• 🎯 **시그마 하락시 매수 전략 추천**: 단기/장기 모두 우수한 성과")
+                        elif dca_1y == best_1y and dca_5y == best_5y:
+                            report.append("• 📈 **DCA 투자 전략 추천**: 단기/장기 모두 우수한 성과")
+                        elif lump_1y == best_1y and lump_5y == best_5y:
+                            report.append("• 💰 **일시불 투자 전략 추천**: 단기/장기 모두 우수한 성과")
+                        else:
+                            report.append("• 🔄 **혼합 전략 고려**: 기간별로 다른 전략이 우수한 성과를 보입니다.")
+                    
+                    return "\n".join(report)
+                
+                # 보고서 생성 및 표시
+                if (results_1year['buy_count'] > 0 or results_5year['buy_count'] > 0):
+                    report_text = generate_investment_report(
+                        results_1year, results_5year, 
+                        comparison_1y, comparison_5y, 
+                        analysis
+                    )
+                    st.markdown(report_text)
+                else:
+                    st.info("매수 내역이 없어 분석 보고서를 생성할 수 없습니다.")
             
             # 이전 구조 (단일 결과) 처리
             else:
