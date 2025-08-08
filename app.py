@@ -200,9 +200,23 @@ class StockAnalyzer:
             
             # 종목명으로 검색 - NAVER, 삼성전자 등
             tickers = stock.get_market_ticker_list()
+            query_upper = query.upper()
+            
+            # 디버깅: 몇 개의 종목을 확인해보기
+            count = 0
+            for ticker in tickers:
+                if count < 10:  # 처음 10개만 확인
+                    name = stock.get_market_ticker_name(ticker)
+                    if name and query_upper in name.upper():
+                        return ticker, name
+                    count += 1
+                else:
+                    break
+            
+            # 전체 검색 (디버깅 후 제거)
             for ticker in tickers:
                 name = stock.get_market_ticker_name(ticker)
-                if name and query.upper() in name.upper():
+                if name and query_upper in name.upper():
                     return ticker, name
             
             return None, None
