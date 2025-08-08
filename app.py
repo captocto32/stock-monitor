@@ -202,22 +202,14 @@ class StockAnalyzer:
             tickers = stock.get_market_ticker_list()
             query_upper = query.upper()
             
-            # 디버깅: 몇 개의 종목을 확인해보기
-            count = 0
+            # 전체 검색
             for ticker in tickers:
-                if count < 10:  # 처음 10개만 확인
+                try:
                     name = stock.get_market_ticker_name(ticker)
                     if name and query_upper in name.upper():
                         return ticker, name
-                    count += 1
-                else:
-                    break
-            
-            # 전체 검색 (디버깅 후 제거)
-            for ticker in tickers:
-                name = stock.get_market_ticker_name(ticker)
-                if name and query_upper in name.upper():
-                    return ticker, name
+                except Exception:
+                    continue  # 개별 종목 오류는 무시하고 계속 진행
             
             return None, None
         except Exception as e:
@@ -233,7 +225,10 @@ class StockAnalyzer:
                     todate=datetime.now().strftime('%Y%m%d'),
                     ticker=symbol
                 )
-                if df.empty:
+                
+                # 빈 DataFrame 체크
+                if df is None or df.empty:
+                    st.warning(f"종목코드 {symbol}에 대한 데이터가 없습니다.")
                     return None
                 
                 # 컬럼명 확인 후 변경
@@ -247,6 +242,11 @@ class StockAnalyzer:
                 else:
                     # 기본 컬럼명 사용
                     pass
+                
+                # 데이터가 충분한지 확인
+                if len(df) < 10:
+                    st.warning(f"종목코드 {symbol}의 데이터가 부족합니다.")
+                    return None
                 
                 df['Returns'] = df['Close'].pct_change() * 100
                 
