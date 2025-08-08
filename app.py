@@ -950,6 +950,7 @@ with tab3:
             if st.session_state.monitoring_stocks:
                 stock_options = {f"{info['name']} ({symbol})": symbol 
                                for symbol, info in st.session_state.monitoring_stocks.items()}
+                
                 selected_stock = st.selectbox("종목 선택", list(stock_options.keys()), 
                                             index=list(stock_options.keys()).index(default_stock) if default_stock in stock_options else 0)
                 selected_symbol = stock_options[selected_stock]
