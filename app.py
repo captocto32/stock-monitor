@@ -1113,132 +1113,203 @@ with tab3:
             results = st.session_state.backtest_results
             st.markdown("### 📊 백테스팅 결과")
             
-            # 1년 결과
-            results_1year = results['1year']
-            st.markdown("#### 📈 최근 1년 분석")
-            col_a1, col_b1, col_c1, col_d1 = st.columns(4)
-            with col_a1:
-                st.metric("매수 횟수", f"{results_1year['buy_count']}회")
-            with col_b1:
-                # 미국 주식인지 확인
-                if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
-                    st.metric("총 투자금", f"${results_1year['total_investment']:,.0f}")
-                else:
-                    st.metric("총 투자금", f"₩{results_1year['total_investment']:,.0f}")
-            with col_c1:
-                if results_1year['buy_count'] > 0:
+            # 새로운 구조 (1년, 5년 분리)인지 확인
+            if '1year' in results and '5year' in results:
+                # 1년 결과
+                results_1year = results['1year']
+                st.markdown("#### 📈 최근 1년 분석")
+                col_a1, col_b1, col_c1, col_d1 = st.columns(4)
+                with col_a1:
+                    st.metric("매수 횟수", f"{results_1year['buy_count']}회")
+                with col_b1:
                     # 미국 주식인지 확인
                     if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
-                        st.metric("평균 매수 단가", f"${results_1year['avg_price']:,.2f}")
+                        st.metric("총 투자금", f"${results_1year['total_investment']:,.0f}")
                     else:
-                        st.metric("평균 매수 단가", f"₩{results_1year['avg_price']:,.0f}")
-                else:
-                    st.metric("평균 매수 단가", "매수 없음")
-            with col_d1:
-                if results_1year['buy_count'] > 0:
-                    st.metric("총 보유 주식수", f"{results_1year['total_shares']:.2f}주")
-                else:
-                    st.metric("총 보유 주식수", "0주")
-            
-            # 1년 수익률 분석
-            col_e1, col_f1, col_g1 = st.columns(3)
-            with col_e1:
-                # 미국 주식인지 확인
-                if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
-                    st.metric("현재 평가금액", f"${results_1year['current_value']:,.0f}")
-                else:
-                    st.metric("현재 평가금액", f"₩{results_1year['current_value']:,.0f}")
-            with col_f1:
-                st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
-            with col_g1:
-                st.metric("연간 수익률", f"{results_1year['annual_return']:+.2f}%")
-            
-            # 5년 결과
-            results_5year = results['5year']
-            st.markdown("#### 📈 최근 5년 분석")
-            col_a5, col_b5, col_c5, col_d5 = st.columns(4)
-            with col_a5:
-                st.metric("매수 횟수", f"{results_5year['buy_count']}회")
-            with col_b5:
-                # 미국 주식인지 확인
-                if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
-                    st.metric("총 투자금", f"${results_5year['total_investment']:,.0f}")
-                else:
-                    st.metric("총 투자금", f"₩{results_5year['total_investment']:,.0f}")
-            with col_c5:
-                if results_5year['buy_count'] > 0:
+                        st.metric("총 투자금", f"₩{results_1year['total_investment']:,.0f}")
+                with col_c1:
+                    if results_1year['buy_count'] > 0:
+                        # 미국 주식인지 확인
+                        if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                            st.metric("평균 매수 단가", f"${results_1year['avg_price']:,.2f}")
+                        else:
+                            st.metric("평균 매수 단가", f"₩{results_1year['avg_price']:,.0f}")
+                    else:
+                        st.metric("평균 매수 단가", "매수 없음")
+                with col_d1:
+                    if results_1year['buy_count'] > 0:
+                        st.metric("총 보유 주식수", f"{results_1year['total_shares']:.2f}주")
+                    else:
+                        st.metric("총 보유 주식수", "0주")
+                
+                # 1년 수익률 분석
+                col_e1, col_f1, col_g1 = st.columns(3)
+                with col_e1:
                     # 미국 주식인지 확인
                     if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
-                        st.metric("평균 매수 단가", f"${results_5year['avg_price']:,.2f}")
+                        st.metric("현재 평가금액", f"${results_1year['current_value']:,.0f}")
                     else:
-                        st.metric("평균 매수 단가", f"₩{results_5year['avg_price']:,.0f}")
+                        st.metric("현재 평가금액", f"₩{results_1year['current_value']:,.0f}")
+                with col_f1:
+                    st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
+                with col_g1:
+                    st.metric("연간 수익률", f"{results_1year['annual_return']:+.2f}%")
+                
+                # 5년 결과
+                results_5year = results['5year']
+                st.markdown("#### 📈 최근 5년 분석")
+                col_a5, col_b5, col_c5, col_d5 = st.columns(4)
+                with col_a5:
+                    st.metric("매수 횟수", f"{results_5year['buy_count']}회")
+                with col_b5:
+                    # 미국 주식인지 확인
+                    if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                        st.metric("총 투자금", f"${results_5year['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_5year['total_investment']:,.0f}")
+                with col_c5:
+                    if results_5year['buy_count'] > 0:
+                        # 미국 주식인지 확인
+                        if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                            st.metric("평균 매수 단가", f"${results_5year['avg_price']:,.2f}")
+                        else:
+                            st.metric("평균 매수 단가", f"₩{results_5year['avg_price']:,.0f}")
+                    else:
+                        st.metric("평균 매수 단가", "매수 없음")
+                with col_d5:
+                    if results_5year['buy_count'] > 0:
+                        st.metric("총 보유 주식수", f"{results_5year['total_shares']:.2f}주")
+                    else:
+                        st.metric("총 보유 주식수", "0주")
+                
+                # 5년 수익률 분석
+                col_e5, col_f5, col_g5 = st.columns(3)
+                with col_e5:
+                    # 미국 주식인지 확인
+                    if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                        st.metric("현재 평가금액", f"${results_5year['current_value']:,.0f}")
+                    else:
+                        st.metric("현재 평가금액", f"₩{results_5year['current_value']:,.0f}")
+                with col_f5:
+                    st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
+                with col_g5:
+                    st.metric("연간 수익률", f"{results_5year['annual_return']:+.2f}%")
+                
+                # 매수 내역 상세 (접었다 펼쳤다 가능)
+                if results_1year['buy_history'] or results_5year['buy_history']:
+                    with st.expander(f"📈 매수 내역 (1년: {len(results_1year['buy_history'])}건, 5년: {len(results_5year['buy_history'])}건)", expanded=False):
+                        # 1년 매수 내역
+                        if results_1year['buy_history']:
+                            st.markdown("**최근 1년 매수 내역**")
+                            buy_df_1year = pd.DataFrame(results_1year['buy_history'])
+                            buy_df_1year['날짜'] = buy_df_1year['date'].dt.strftime('%Y.%m.%d')
+                            
+                            # 미국 주식인지 확인하여 통화 설정
+                            is_us_stock = 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US'
+                            
+                            if is_us_stock:
+                                buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"${x:,.2f}")
+                                buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"${x:,.0f}")
+                            else:
+                                buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                            
+                            buy_df_1year['수익률'] = buy_df_1year['return'].apply(lambda x: f"{x:.2f}%")
+                            buy_df_1year['시그마 레벨'] = buy_df_1year['sigma_level']
+                            buy_df_1year['주식수'] = buy_df_1year['shares'].apply(lambda x: f"{x:.2f}주")
+                            
+                            display_df_1year = buy_df_1year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                            st.dataframe(display_df_1year, use_container_width=True, hide_index=True)
+                        
+                        # 5년 매수 내역
+                        if results_5year['buy_history']:
+                            st.markdown("**최근 5년 매수 내역**")
+                            buy_df_5year = pd.DataFrame(results_5year['buy_history'])
+                            buy_df_5year['날짜'] = buy_df_5year['date'].dt.strftime('%Y.%m.%d')
+                            
+                            if is_us_stock:
+                                buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"${x:,.2f}")
+                                buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"${x:,.0f}")
+                            else:
+                                buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                            
+                            buy_df_5year['수익률'] = buy_df_5year['return'].apply(lambda x: f"{x:.2f}%")
+                            buy_df_5year['시그마 레벨'] = buy_df_5year['sigma_level']
+                            buy_df_5year['주식수'] = buy_df_5year['shares'].apply(lambda x: f"{x:.2f}주")
+                            
+                            display_df_5year = buy_df_5year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                            st.dataframe(display_df_5year, use_container_width=True, hide_index=True)
                 else:
-                    st.metric("평균 매수 단가", "매수 없음")
-            with col_d5:
-                if results_5year['buy_count'] > 0:
-                    st.metric("총 보유 주식수", f"{results_5year['total_shares']:.2f}주")
-                else:
-                    st.metric("총 보유 주식수", "0주")
+                    st.info("매수 내역이 없습니다.")
             
-            # 5년 수익률 분석
-            col_e5, col_f5, col_g5 = st.columns(3)
-            with col_e5:
-                # 미국 주식인지 확인
-                if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
-                    st.metric("현재 평가금액", f"${results_5year['current_value']:,.0f}")
+            # 이전 구조 (단일 결과) 처리
+            else:
+                # 매수 내역 및 횟수
+                col_a, col_b, col_c, col_d = st.columns(4)
+                with col_a:
+                    st.metric("매수 횟수", f"{results['buy_count']}회")
+                with col_b:
+                    # 미국 주식인지 확인
+                    if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                        st.metric("총 투자금", f"${results['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results['total_investment']:,.0f}")
+                with col_c:
+                    if results['buy_count'] > 0:
+                        # 미국 주식인지 확인
+                        if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                            st.metric("평균 매수 단가", f"${results['avg_price']:,.2f}")
+                        else:
+                            st.metric("평균 매수 단가", f"₩{results['avg_price']:,.0f}")
+                    else:
+                        st.metric("평균 매수 단가", "매수 없음")
+                with col_d:
+                    if results['buy_count'] > 0:
+                        st.metric("총 보유 주식수", f"{results['total_shares']:.2f}주")
+                    else:
+                        st.metric("총 보유 주식수", "0주")
+                
+                # 수익률 분석
+                if 'current_value' in results and 'total_return' in results and 'annual_return' in results:
+                    st.markdown("#### 📊 수익률 분석")
+                    col_e, col_f, col_g = st.columns(3)
+                    with col_e:
+                        # 미국 주식인지 확인
+                        if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                            st.metric("현재 평가금액", f"${results['current_value']:,.0f}")
+                        else:
+                            st.metric("현재 평가금액", f"₩{results['current_value']:,.0f}")
+                    with col_f:
+                        st.metric("총 수익률", f"{results['total_return']:+.2f}%")
+                    with col_g:
+                        st.metric("연간 수익률", f"{results['annual_return']:+.2f}%")
                 else:
-                    st.metric("현재 평가금액", f"₩{results_5year['current_value']:,.0f}")
-            with col_f5:
-                st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
-            with col_g5:
-                st.metric("연간 수익률", f"{results_5year['annual_return']:+.2f}%")
-            
-            # 매수 내역 상세 (접었다 펼쳤다 가능)
-            if results_1year['buy_history'] or results_5year['buy_history']:
-                with st.expander(f"📈 매수 내역 (1년: {len(results_1year['buy_history'])}건, 5년: {len(results_5year['buy_history'])}건)", expanded=False):
-                    # 1년 매수 내역
-                    if results_1year['buy_history']:
-                        st.markdown("**최근 1년 매수 내역**")
-                        buy_df_1year = pd.DataFrame(results_1year['buy_history'])
-                        buy_df_1year['날짜'] = buy_df_1year['date'].dt.strftime('%Y.%m.%d')
+                    st.info("수익률 분석을 위해 백테스팅을 다시 실행해주세요.")
+                
+                # 매수 내역 상세 (접었다 펼쳤다 가능)
+                if results['buy_history']:
+                    with st.expander(f"📈 매수 내역 ({len(results['buy_history'])}건)", expanded=False):
+                        buy_df = pd.DataFrame(results['buy_history'])
+                        buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
                         
                         # 미국 주식인지 확인하여 통화 설정
                         is_us_stock = 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US'
                         
                         if is_us_stock:
-                            buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"${x:,.0f}")
+                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
+                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
                         else:
-                            buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
                         
-                        buy_df_1year['수익률'] = buy_df_1year['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df_1year['시그마 레벨'] = buy_df_1year['sigma_level']
-                        buy_df_1year['주식수'] = buy_df_1year['shares'].apply(lambda x: f"{x:.2f}주")
+                        buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
+                        buy_df['시그마 레벨'] = buy_df['sigma_level']
+                        buy_df['주식수'] = buy_df['shares'].apply(lambda x: f"{x:.2f}주")
                         
-                        display_df_1year = buy_df_1year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
-                        st.dataframe(display_df_1year, use_container_width=True, hide_index=True)
-                    
-                    # 5년 매수 내역
-                    if results_5year['buy_history']:
-                        st.markdown("**최근 5년 매수 내역**")
-                        buy_df_5year = pd.DataFrame(results_5year['buy_history'])
-                        buy_df_5year['날짜'] = buy_df_5year['date'].dt.strftime('%Y.%m.%d')
-                        
-                        if is_us_stock:
-                            buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"${x:,.0f}")
-                        else:
-                            buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"₩{x:,.0f}")
-                        
-                        buy_df_5year['수익률'] = buy_df_5year['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df_5year['시그마 레벨'] = buy_df_5year['sigma_level']
-                        buy_df_5year['주식수'] = buy_df_5year['shares'].apply(lambda x: f"{x:.2f}주")
-                        
-                        display_df_5year = buy_df_5year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
-                        st.dataframe(display_df_5year, use_container_width=True, hide_index=True)
-            else:
-                st.info("매수 내역이 없습니다.")
+                        display_df = buy_df[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("매수 내역이 없습니다.")
         else:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
