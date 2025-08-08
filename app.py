@@ -205,6 +205,10 @@ class StockAnalyzer:
                 if name and query.upper() in name.upper():
                     return ticker, name
             
+            # NAVER 특별 처리 (임시)
+            if query.upper() == "NAVER":
+                return "035420", "NAVER"
+            
             return None, None
         except Exception as e:
             return None, None
