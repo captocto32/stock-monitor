@@ -1003,18 +1003,27 @@ with tab3:
         selected_symbol = None
     
     # 투자 전략
-    strategy = st.radio("투자 전략", ["1σ 이상 하락시 매수", "2σ 이상 하락시 매수"])
+    strategy = st.radio("투자 전략", ["1σ 이상 하락시 매수", "2σ 이상 하락시 매수", "DCA vs 일시불 투자 비교"])
     
     # 투자 금액 설정
-    st.markdown("**투자 금액 설정**")
-    col1_1, col1_2, col1_3 = st.columns(3)
-    
-    with col1_1:
-        amount_1sigma = st.number_input("1σ 하락시", min_value=0, value=100, disabled=(strategy=="2σ 이상 하락시 매수"))
-    with col1_2:
-        amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=200)
-    with col1_3:
-        amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=200)
+    if strategy != "DCA vs 일시불 투자 비교":
+        st.markdown("**투자 금액 설정**")
+        col1_1, col1_2, col1_3 = st.columns(3)
+        
+        with col1_1:
+            amount_1sigma = st.number_input("1σ 하락시", min_value=0, value=100, disabled=(strategy=="2σ 이상 하락시 매수"))
+        with col1_2:
+            amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=200)
+        with col1_3:
+            amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=200)
+    else:
+        st.markdown("**DCA vs 일시불 투자 설정**")
+        col_dca_1, col_dca_2 = st.columns(2)
+        
+        with col_dca_1:
+            monthly_amount = st.number_input("월 투자금액", min_value=0, value=100, help="매월 10일 종가로 투자할 금액")
+        with col_dca_2:
+            lump_sum_amount = st.number_input("일시불 투자금액", min_value=0, value=1200, help="첫날 일시불로 투자할 총 금액")
     
     # 백테스팅 실행 버튼
     if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
@@ -1137,14 +1146,163 @@ with tab3:
             
             # 백테스팅 실행
             with st.spinner("백테스팅 분석 중..."):
-                results_1year = run_backtest(df_1year, "1년")
-                results_5year = run_backtest(df_5year, "5년")
+                if strategy == "DCA vs 일시불 투자 비교":
+                    # DCA vs 일시불 투자 비교 함수
+                    def run_dca_vs_lump_sum(df_data, period_name):
+                        # DCA 투자 (매월 10일 종가)
+                        dca_investment = 0
+                        dca_shares = 0
+                        dca_history = []
+                        
+                        # 일시불 투자 (첫날)
+                        lump_sum_shares = lump_sum_amount / df_data['Close'].iloc[0]
+                        lump_sum_investment = lump_sum_amount
+                        
+                        # 매월 10일 찾기
+                        for i in range(len(df_data)):
+                            current_date = df_data.index[i]
+                            if current_date.day == 10:  # 매월 10일
+                                current_price = df_data['Close'].iloc[i]
+                                shares = monthly_amount / current_price
+                                dca_investment += monthly_amount
+                                dca_shares += shares
+                                dca_history.append({
+                                    'date': current_date,
+                                    'price': current_price,
+                                    'investment': monthly_amount,
+                                    'shares': shares
+                                })
+                        
+                        # 현재 가격
+                        current_price = df_data['Close'].iloc[-1]
+                        
+                        # DCA 결과
+                        dca_current_value = dca_shares * current_price
+                        dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100 if dca_investment > 0 else 0
+                        
+                        # 일시불 결과
+                        lump_sum_current_value = lump_sum_shares * current_price
+                        lump_sum_total_return = ((lump_sum_current_value - lump_sum_investment) / lump_sum_investment) * 100 if lump_sum_investment > 0 else 0
+                        
+                        return {
+                            'dca': {
+                                'total_investment': dca_investment,
+                                'total_shares': dca_shares,
+                                'current_value': dca_current_value,
+                                'total_return': dca_total_return,
+                                'history': dca_history
+                            },
+                            'lump_sum': {
+                                'total_investment': lump_sum_investment,
+                                'total_shares': lump_sum_shares,
+                                'current_value': lump_sum_current_value,
+                                'total_return': lump_sum_total_return
+                            }
+                        }
+                    
+                    # 1년과 5년 DCA vs 일시불 비교
+                    results_1year = run_dca_vs_lump_sum(df_1year, "1년")
+                    results_5year = run_dca_vs_lump_sum(df_5year, "5년")
+                else:
+                    # 기존 시그마 기반 백테스팅
+                    results_1year = run_backtest(df_1year, "1년")
+                    results_5year = run_backtest(df_5year, "5년")
             
             # 결과 표시
             st.success("✅ 백테스팅 완료!")
             
             # 결과 비교 (1년 vs 5년)
-            if results_1year['buy_count'] > 0 or results_5year['buy_count'] > 0:
+            if strategy == "DCA vs 일시불 투자 비교":
+                st.markdown("#### 📊 DCA vs 일시불 투자 비교")
+                
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    st.markdown("**최근 1년 결과**")
+                    
+                    # DCA 결과
+                    st.markdown("**📈 DCA (매월 10일)**")
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_1year['dca']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"${results_1year['dca']['current_value']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_1year['dca']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"₩{results_1year['dca']['current_value']:,.0f}")
+                    st.metric("총 수익률", f"{results_1year['dca']['total_return']:+.2f}%")
+                    
+                    # 일시불 결과
+                    st.markdown("**💰 일시불 (첫날)**")
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_1year['lump_sum']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"${results_1year['lump_sum']['current_value']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_1year['lump_sum']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"₩{results_1year['lump_sum']['current_value']:,.0f}")
+                    st.metric("총 수익률", f"{results_1year['lump_sum']['total_return']:+.2f}%")
+                
+                with col_b:
+                    st.markdown("**최근 5년 결과**")
+                    
+                    # DCA 결과
+                    st.markdown("**📈 DCA (매월 10일)**")
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_5year['dca']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"${results_5year['dca']['current_value']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_5year['dca']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"₩{results_5year['dca']['current_value']:,.0f}")
+                    st.metric("총 수익률", f"{results_5year['dca']['total_return']:+.2f}%")
+                    
+                    # 일시불 결과
+                    st.markdown("**💰 일시불 (첫날)**")
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_5year['lump_sum']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"${results_5year['lump_sum']['current_value']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_5year['lump_sum']['total_investment']:,.0f}")
+                        st.metric("현재 평가금액", f"₩{results_5year['lump_sum']['current_value']:,.0f}")
+                    st.metric("총 수익률", f"{results_5year['lump_sum']['total_return']:+.2f}%")
+                
+                # DCA 투자 내역 expander
+                if results_1year['dca']['history'] or results_5year['dca']['history']:
+                    st.markdown("#### 📈 DCA 투자 내역")
+                    
+                    # 1년 DCA 내역
+                    if results_1year['dca']['history']:
+                        with st.expander(f"📈 최근 1년 DCA 내역 ({len(results_1year['dca']['history'])}건)", expanded=False):
+                            dca_df_1year = pd.DataFrame(results_1year['dca']['history'])
+                            dca_df_1year['날짜'] = dca_df_1year['date'].dt.strftime('%Y.%m.%d')
+                            
+                            if is_us_stock:
+                                dca_df_1year['가격'] = dca_df_1year['price'].apply(lambda x: f"${x:,.2f}")
+                                dca_df_1year['투자금'] = dca_df_1year['investment'].apply(lambda x: f"${x:,.0f}")
+                            else:
+                                dca_df_1year['가격'] = dca_df_1year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                dca_df_1year['투자금'] = dca_df_1year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                            
+                            dca_df_1year['주식수'] = dca_df_1year['shares'].apply(lambda x: f"{x:.2f}주")
+                            
+                            display_dca_df_1year = dca_df_1year[['날짜', '가격', '투자금', '주식수']]
+                            st.dataframe(display_dca_df_1year, use_container_width=True, hide_index=True)
+                    
+                    # 5년 DCA 내역
+                    if results_5year['dca']['history']:
+                        with st.expander(f"📈 최근 5년 DCA 내역 ({len(results_5year['dca']['history'])}건)", expanded=False):
+                            dca_df_5year = pd.DataFrame(results_5year['dca']['history'])
+                            dca_df_5year['날짜'] = dca_df_5year['date'].dt.strftime('%Y.%m.%d')
+                            
+                            if is_us_stock:
+                                dca_df_5year['가격'] = dca_df_5year['price'].apply(lambda x: f"${x:,.2f}")
+                                dca_df_5year['투자금'] = dca_df_5year['investment'].apply(lambda x: f"${x:,.0f}")
+                            else:
+                                dca_df_5year['가격'] = dca_df_5year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                dca_df_5year['투자금'] = dca_df_5year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                            
+                            dca_df_5year['주식수'] = dca_df_5year['shares'].apply(lambda x: f"{x:.2f}주")
+                            
+                            display_dca_df_5year = dca_df_5year[['날짜', '가격', '투자금', '주식수']]
+                            st.dataframe(display_dca_df_5year, use_container_width=True, hide_index=True)
+            elif results_1year['buy_count'] > 0 or results_5year['buy_count'] > 0:
                 st.markdown("#### 📊 백테스팅 결과 비교")
                 
                 col_a, col_b = st.columns(2)
