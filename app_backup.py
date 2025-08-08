@@ -837,31 +837,25 @@ with col1:
             if len(sigma_1_dates) > 0:
                 last_date = sigma_1_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.markdown("1σ 구간 최근 발생")
-                st.write(f"**{days_ago}일 전**")
+                st.metric("1σ 구간 최근 발생", f"{days_ago}일 전")
             else:
-                st.markdown("1σ 구간 최근 발생")
-                st.write("**없음**")
+                st.metric("1σ 구간 최근 발생", "없음")
                 
         with col2:
             if len(sigma_2_dates) > 0:
                 last_date = sigma_2_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.markdown("2σ 구간 최근 발생")
-                st.write(f"**{days_ago}일 전**")
+                st.metric("2σ 구간 최근 발생", f"{days_ago}일 전")
             else:
-                st.markdown("2σ 구간 최근 발생")
-                st.write("**없음**")
+                st.metric("2σ 구간 최근 발생", "없음")
                 
         with col3:
             if len(sigma_3_dates) > 0:
                 last_date = sigma_3_dates[-1]
                 days_ago = (datetime.now().date() - last_date.date()).days
-                st.markdown("3σ 이하 최근 발생")
-                st.write(f"**{days_ago}일 전**")
+                st.metric("3σ 이하 최근 발생", f"{days_ago}일 전")
             else:
-                st.markdown("3σ 이하 최근 발생")
-                st.write("**없음**")
+                st.metric("3σ 이하 최근 발생", "없음")
         
         # 상세 발생일 목록 (expander)
         with st.expander("📅 시그마 하락 발생일 상세"):

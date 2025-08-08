@@ -6,3 +6,5 @@ numpy
 scipy
 plotly
 openpyxl
+gspread
+google-auth
