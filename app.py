@@ -1131,18 +1131,21 @@ with tab3:
                     st.metric("평균 매수 단가", "매수 없음")
             
             # 수익률 분석
-            st.markdown("#### 📊 수익률 분석")
-            col_d, col_e, col_f = st.columns(3)
-            with col_d:
-                # 미국 주식인지 확인
-                if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
-                    st.metric("현재 평가금액", f"${results['current_value']:,.0f}")
-                else:
-                    st.metric("현재 평가금액", f"₩{results['current_value']:,.0f}")
-            with col_e:
-                st.metric("총 수익률", f"{results['total_return']:+.2f}%")
-            with col_f:
-                st.metric("연간 수익률", f"{results['annual_return']:+.2f}%")
+            if 'current_value' in results and 'total_return' in results and 'annual_return' in results:
+                st.markdown("#### 📊 수익률 분석")
+                col_d, col_e, col_f = st.columns(3)
+                with col_d:
+                    # 미국 주식인지 확인
+                    if 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US':
+                        st.metric("현재 평가금액", f"${results['current_value']:,.0f}")
+                    else:
+                        st.metric("현재 평가금액", f"₩{results['current_value']:,.0f}")
+                with col_e:
+                    st.metric("총 수익률", f"{results['total_return']:+.2f}%")
+                with col_f:
+                    st.metric("연간 수익률", f"{results['annual_return']:+.2f}%")
+            else:
+                st.info("수익률 분석을 위해 백테스팅을 다시 실행해주세요.")
             
             # 매수 내역 상세
             if results['buy_history']:
