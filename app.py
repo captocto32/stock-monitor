@@ -1128,6 +1128,26 @@ with tab3:
                             st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
                         with col_a7:
                             st.metric("연간 수익률", f"{results_1year['annual_return']:+.2f}%")
+                        
+                        # 1년 매수 내역 expander
+                        if results_1year['buy_history']:
+                            with st.expander(f"📈 최근 1년 매수 내역 ({len(results_1year['buy_history'])}건)", expanded=False):
+                                buy_df_1year = pd.DataFrame(results_1year['buy_history'])
+                                buy_df_1year['날짜'] = buy_df_1year['date'].dt.strftime('%Y.%m.%d')
+                                
+                                if is_us_stock:
+                                    buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"${x:,.2f}")
+                                    buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"${x:,.0f}")
+                                else:
+                                    buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                    buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                                
+                                buy_df_1year['수익률'] = buy_df_1year['return'].apply(lambda x: f"{x:.2f}%")
+                                buy_df_1year['시그마 레벨'] = buy_df_1year['sigma_level']
+                                buy_df_1year['주식수'] = buy_df_1year['shares'].apply(lambda x: f"{x:.2f}주")
+                                
+                                display_df_1year = buy_df_1year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                                st.dataframe(display_df_1year, use_container_width=True, hide_index=True)
                     else:
                         st.info("매수 내역 없음")
                 
@@ -1162,54 +1182,28 @@ with tab3:
                             st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
                         with col_b7:
                             st.metric("연간 수익률", f"{results_5year['annual_return']:+.2f}%")
+                        
+                        # 5년 매수 내역 expander
+                        if results_5year['buy_history']:
+                            with st.expander(f"📈 최근 5년 매수 내역 ({len(results_5year['buy_history'])}건)", expanded=False):
+                                buy_df_5year = pd.DataFrame(results_5year['buy_history'])
+                                buy_df_5year['날짜'] = buy_df_5year['date'].dt.strftime('%Y.%m.%d')
+                                
+                                if is_us_stock:
+                                    buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"${x:,.2f}")
+                                    buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"${x:,.0f}")
+                                else:
+                                    buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                    buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                                
+                                buy_df_5year['수익률'] = buy_df_5year['return'].apply(lambda x: f"{x:.2f}%")
+                                buy_df_5year['시그마 레벨'] = buy_df_5year['sigma_level']
+                                buy_df_5year['주식수'] = buy_df_5year['shares'].apply(lambda x: f"{x:.2f}주")
+                                
+                                display_df_5year = buy_df_5year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                                st.dataframe(display_df_5year, use_container_width=True, hide_index=True)
                     else:
                         st.info("매수 내역 없음")
-                
-                # 매수 내역 상세
-                if results_1year['buy_history'] or results_5year['buy_history']:
-                    st.markdown("#### 📈 매수 내역 상세")
-                    
-                    # 1년 매수 내역
-                    if results_1year['buy_history']:
-                        st.markdown("**최근 1년 매수 내역**")
-                        buy_df_1year = pd.DataFrame(results_1year['buy_history'])
-                        buy_df_1year['날짜'] = buy_df_1year['date'].dt.strftime('%Y.%m.%d')
-                        
-                        if is_us_stock:
-                            buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"${x:,.0f}")
-                        else:
-                            buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"₩{x:,.0f}")
-                        
-                        buy_df_1year['수익률'] = buy_df_1year['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df_1year['시그마 레벨'] = buy_df_1year['sigma_level']
-                        buy_df_1year['주식수'] = buy_df_1year['shares'].apply(lambda x: f"{x:.2f}주")
-                        
-                        display_df_1year = buy_df_1year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
-                        st.dataframe(display_df_1year, use_container_width=True, hide_index=True)
-                    
-                    # 5년 매수 내역
-                    if results_5year['buy_history']:
-                        st.markdown("**최근 5년 매수 내역**")
-                        buy_df_5year = pd.DataFrame(results_5year['buy_history'])
-                        buy_df_5year['날짜'] = buy_df_5year['date'].dt.strftime('%Y.%m.%d')
-                        
-                        if is_us_stock:
-                            buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"${x:,.0f}")
-                        else:
-                            buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"₩{x:,.0f}")
-                        
-                        buy_df_5year['수익률'] = buy_df_5year['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df_5year['시그마 레벨'] = buy_df_5year['sigma_level']
-                        buy_df_5year['주식수'] = buy_df_5year['shares'].apply(lambda x: f"{x:.2f}주")
-                        
-                        display_df_5year = buy_df_5year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
-                        st.dataframe(display_df_5year, use_container_width=True, hide_index=True)
-                else:
-                    st.info("매수 내역이 없습니다.")
             
             # 이전 구조 (단일 결과) 처리
             else:
