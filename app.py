@@ -39,7 +39,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive'
 ]
 
-SERVICE_ACCOUNT_FILE = os.path.join(os.getcwd(), 'gen-lang-client-0213805963-0075cd83c680.json')
+SERVICE_ACCOUNT_FILE = 'gen-lang-client-0213805963-0075cd83c680.json'
 SPREADSHEET_NAME = 'stock-monitoring'
 
 def get_google_sheets_client():
@@ -47,6 +47,8 @@ def get_google_sheets_client():
     try:
         st.write(f"파일 경로: {SERVICE_ACCOUNT_FILE}")
         st.write(f"파일 존재 여부: {os.path.exists(SERVICE_ACCOUNT_FILE)}")
+        st.write(f"현재 작업 디렉토리: {os.getcwd()}")
+        st.write(f"파일 목록: {os.listdir('.')}")
         creds = Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
