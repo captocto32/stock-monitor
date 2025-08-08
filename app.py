@@ -268,7 +268,15 @@ class StockAnalyzer:
     def calculate_sigma_levels(self, df):
         """시그마 레벨 계산"""
         try:
+            # 빈 DataFrame 체크
+            if df is None or df.empty:
+                return None
+            
             returns = df['Returns'].dropna()
+            
+            # 충분한 데이터가 있는지 확인
+            if len(returns) < 10:
+                return None
             
             # 기본 통계
             mean = returns.mean()
@@ -279,18 +287,24 @@ class StockAnalyzer:
             sigma_2 = mean - 2 * std
             sigma_3 = mean - 3 * std
             
-            # 최근 종가
-            last_close = df['Close'].iloc[-1]
+            # 최근 종가 (안전하게)
+            if len(df) > 0:
+                last_close = df['Close'].iloc[-1]
+            else:
+                return None
             
             # 1년 데이터로 별도 계산
             if len(df) >= 252:
                 returns_1y = df['Returns'].tail(252).dropna()
-                mean_1y = returns_1y.mean()
-                std_1y = returns_1y.std()
-                
-                sigma_1_1y = mean_1y - std_1y
-                sigma_2_1y = mean_1y - 2 * std_1y
-                sigma_3_1y = mean_1y - 3 * std_1y
+                if len(returns_1y) >= 10:
+                    mean_1y = returns_1y.mean()
+                    std_1y = returns_1y.std()
+                    
+                    sigma_1_1y = mean_1y - std_1y
+                    sigma_2_1y = mean_1y - 2 * std_1y
+                    sigma_3_1y = mean_1y - 3 * std_1y
+                else:
+                    sigma_1_1y, sigma_2_1y, sigma_3_1y = sigma_1, sigma_2, sigma_3
             else:
                 sigma_1_1y, sigma_2_1y, sigma_3_1y = sigma_1, sigma_2, sigma_3
             
@@ -429,21 +443,7 @@ with st.sidebar:
             # 디버깅용 출력
             st.write(f"검색 결과: kr_code={kr_code}, kr_name={kr_name}")
             
-            # NAVER 직접 확인
-            if stock_input.upper() == "NAVER":
-                st.write("NAVER 직접 확인 중...")
-                try:
-                    navers = stock.get_market_ticker_list()
-                    st.write(f"전체 종목 수: {len(navers)}")
-                    
-                    # NAVER 관련 종목 찾기
-                    for ticker in navers:
-                        name = stock.get_market_ticker_name(ticker)
-                        if name and "네이버" in name:
-                            st.write(f"네이버 발견: {ticker} - {name}")
-                            break
-                except Exception as e:
-                    st.write(f"오류: {e}")
+
             
             if kr_code:
                 symbol, name, stock_type = kr_code, kr_name, 'KR'
