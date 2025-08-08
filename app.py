@@ -933,7 +933,6 @@ with tab2:
 # 탭 3: 백테스팅
 with tab3:
     st.subheader("📈 백테스팅")
-    st.markdown("시그마 하락 전략의 과거 성과를 분석합니다.")
     
     # 백테스팅 입력 섹션
     col1, col2 = st.columns([1, 1])
@@ -941,7 +940,7 @@ with tab3:
     with col1:
         st.markdown("### 📥 입력 섹션")
         
-            # 종목 선택 - 분석 결과 종목과 연동
+        # 종목 선택 - 분석 결과 종목과 연동
         if 'current_analysis' in st.session_state:
             analysis = st.session_state.current_analysis
             selected_symbol = analysis['symbol']
