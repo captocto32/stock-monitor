@@ -1054,10 +1054,6 @@ with tab3:
                     current_value = total_shares * current_price
                     total_return = ((current_value - total_investment) / total_investment) * 100
                     
-                    # 연간 수익률 계산 (간단한 계산)
-                    years = len(df_data) / 252
-                    annual_return = ((1 + total_return/100) ** (1/years) - 1) * 100
-                    
                     return {
                         'buy_history': buy_history,
                         'buy_count': len(buy_history),
@@ -1065,8 +1061,7 @@ with tab3:
                         'total_shares': total_shares,
                         'avg_price': avg_price,
                         'current_value': current_value,
-                        'total_return': total_return,
-                        'annual_return': annual_return
+                        'total_return': total_return
                     }
                 else:
                     return {
@@ -1076,8 +1071,7 @@ with tab3:
                         'total_shares': 0,
                         'avg_price': 0,
                         'current_value': 0,
-                        'total_return': 0,
-                        'annual_return': 0
+                        'total_return': 0
                     }
             
             # 미국 주식인지 확인
@@ -1117,8 +1111,8 @@ with tab3:
                         with col_a4:
                             st.metric("보유 주식수", f"{results_1year['total_shares']:.2f}주")
                         
-                        # 두 번째 행: 현재 평가금액, 총 수익률, 연간 수익률
-                        col_a5, col_a6, col_a7 = st.columns(3)
+                        # 두 번째 행: 현재 평가금액, 총 수익률
+                        col_a5, col_a6 = st.columns(2)
                         with col_a5:
                             if is_us_stock:
                                 st.metric("현재 평가금액", f"${results_1year['current_value']:,.0f}")
@@ -1126,8 +1120,6 @@ with tab3:
                                 st.metric("현재 평가금액", f"₩{results_1year['current_value']:,.0f}")
                         with col_a6:
                             st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
-                        with col_a7:
-                            st.metric("연간 수익률", f"{results_1year['annual_return']:+.2f}%")
                         
                         # 1년 매수 내역 expander
                         if results_1year['buy_history']:
@@ -1171,8 +1163,8 @@ with tab3:
                         with col_b4:
                             st.metric("보유 주식수", f"{results_5year['total_shares']:.2f}주")
                         
-                        # 두 번째 행: 현재 평가금액, 총 수익률, 연간 수익률
-                        col_b5, col_b6, col_b7 = st.columns(3)
+                        # 두 번째 행: 현재 평가금액, 총 수익률
+                        col_b5, col_b6 = st.columns(2)
                         with col_b5:
                             if is_us_stock:
                                 st.metric("현재 평가금액", f"${results_5year['current_value']:,.0f}")
@@ -1180,8 +1172,6 @@ with tab3:
                                 st.metric("현재 평가금액", f"₩{results_5year['current_value']:,.0f}")
                         with col_b6:
                             st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
-                        with col_b7:
-                            st.metric("연간 수익률", f"{results_5year['annual_return']:+.2f}%")
                         
                         # 5년 매수 내역 expander
                         if results_5year['buy_history']:
