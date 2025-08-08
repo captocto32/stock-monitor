@@ -995,6 +995,9 @@ with tab3:
                 total_investment = 0
                 total_shares = 0
                 
+                # 미국 주식인지 확인하여 단위 설정
+                is_us_stock = 'current_analysis' in st.session_state and st.session_state.current_analysis['type'] == 'US'
+                
                 for i in range(1, len(df_backtest)):
                     current_return = df_backtest['Returns'].iloc[i]
                     current_price = df_backtest['Close'].iloc[i]
@@ -1002,7 +1005,10 @@ with tab3:
                     
                     # 3σ 하락 시
                     if current_return <= sigma_3:
-                        investment = amount_3sigma * 10000  # 만원 단위
+                        if is_us_stock:
+                            investment = amount_3sigma  # 미국 주식은 직접 입력값 사용
+                        else:
+                            investment = amount_3sigma * 10000  # 한국 주식은 만원 단위
                         shares = investment / current_price
                         buy_history.append({
                             'date': current_date,
@@ -1017,7 +1023,10 @@ with tab3:
                     
                     # 2σ 하락 시
                     elif current_return <= sigma_2:
-                        investment = amount_2sigma * 10000
+                        if is_us_stock:
+                            investment = amount_2sigma
+                        else:
+                            investment = amount_2sigma * 10000
                         shares = investment / current_price
                         buy_history.append({
                             'date': current_date,
@@ -1032,7 +1041,10 @@ with tab3:
                     
                     # 1σ 하락 시 (1σ 전략일 때만)
                     elif strategy == "1σ 이상 하락시 매수" and current_return <= sigma_1:
-                        investment = amount_1sigma * 10000
+                        if is_us_stock:
+                            investment = amount_1sigma
+                        else:
+                            investment = amount_1sigma * 10000
                         shares = investment / current_price
                         buy_history.append({
                             'date': current_date,
