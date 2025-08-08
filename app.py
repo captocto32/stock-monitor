@@ -45,12 +45,10 @@ SPREADSHEET_NAME = 'stock-monitoring'
 def get_google_sheets_client():
     """Google Sheets 클라이언트 생성"""
     try:
-        st.write(f"파일 경로: {SERVICE_ACCOUNT_FILE}")
-        st.write(f"파일 존재 여부: {os.path.exists(SERVICE_ACCOUNT_FILE)}")
-        st.write(f"현재 작업 디렉토리: {os.getcwd()}")
-        st.write(f"파일 목록: {os.listdir('.')}")
-        creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        # Streamlit Secrets에서 서비스 계정 정보 가져오기
+        service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+        creds = Credentials.from_service_account_info(
+            service_account_info, scopes=SCOPES
         )
         client = gspread.authorize(creds)
         return client
