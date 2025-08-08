@@ -1682,8 +1682,13 @@ with tab3:
                                 st.markdown("💰 **일시불 투자**가 가장 우수한 성과")
                             
                             # 변동성 분석
-                            if abs(sigma_1y - dca_1y) > 10:
+                            performance_diff_1y = best_1y - worst_1y
+                            if performance_diff_1y > 50:
+                                st.markdown("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
+                            elif performance_diff_1y > 30:
                                 st.markdown("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
+                            elif performance_diff_1y > 15:
+                                st.markdown("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
                             else:
                                 st.markdown("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
                         else:
@@ -1714,6 +1719,17 @@ with tab3:
                                 st.markdown("📈 **DCA 투자**가 장기적으로 가장 우수한 성과")
                             else:
                                 st.markdown("💰 **일시불 투자**가 장기적으로 가장 우수한 성과")
+                            
+                            # 변동성 분석
+                            performance_diff_5y = best_5y - worst_5y
+                            if performance_diff_5y > 50:
+                                st.markdown("📊 **매우 높은 변동성**: 전략 간 성과 차이가 매우 큼")
+                            elif performance_diff_5y > 30:
+                                st.markdown("📊 **높은 변동성**: 전략 간 성과 차이가 큼")
+                            elif performance_diff_5y > 15:
+                                st.markdown("📊 **중간 변동성**: 전략 간 성과 차이가 적당함")
+                            else:
+                                st.markdown("📊 **안정적 성과**: 전략 간 성과 차이가 적음")
                             
                             # 장단기 비교는 컬럼 밖으로 이동
                         else:
@@ -1787,6 +1803,10 @@ with tab3:
                             analysis_text.append("**⚠️ 고위험 종목**")
                             analysis_text.append("레버리지/인버스 ETF 특성으로 단기간 큰 변동성")
                             analysis_text.append("투자 금액 10% 이하로 제한 권장")
+                        elif volatility_1y > 50 or volatility_5y > 50:
+                            analysis_text.append("**⚠️ 고위험 종목**")
+                            analysis_text.append("매우 높은 변동성으로 리스크 관리 매우 주의 필요")
+                            analysis_text.append("투자 금액 10% 이하로 제한 권장")
                         elif volatility_1y > 30 or volatility_5y > 30:
                             analysis_text.append("**⚠️ 고위험 종목**")
                             analysis_text.append("높은 변동성으로 리스크 관리 필요")
@@ -1850,15 +1870,7 @@ with tab3:
                     )
                     st.markdown(report_text)
                     
-                    # ChatGPT 스타일 해석 추가
-                    chatgpt_analysis = generate_chatgpt_analysis(
-                        results_1year, results_5year,
-                        comparison_1y, comparison_5y,
-                        analysis
-                    )
-                    st.markdown(chatgpt_analysis)
-                    
-                    # 장단기 분석 추가
+                    # 장단기 분석 추가 (1년과 5년 투자성과 바로 아래)
                     if results_1year['buy_count'] > 0 and results_5year['buy_count'] > 0:
                         st.markdown("---")
                         st.markdown("#### 📊 장단기 분석")
@@ -1883,6 +1895,14 @@ with tab3:
                             st.warning("⚠️ 단기 투자가 유리: 1년 성과가 5년보다 우수하여 단기 투자를 고려해볼 수 있습니다.")
                         else:
                             st.info("📊 안정적 성과: 장단기 성과가 비슷하여 투자 기간 선택에 있어 유연성을 가질 수 있습니다.")
+                    
+                    # ChatGPT 스타일 해석 추가
+                    chatgpt_analysis = generate_chatgpt_analysis(
+                        results_1year, results_5year,
+                        comparison_1y, comparison_5y,
+                        analysis
+                    )
+                    st.markdown(chatgpt_analysis)
                 else:
                     st.info("매수 내역이 없어 분석 보고서를 생성할 수 없습니다.")
             
