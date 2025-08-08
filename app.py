@@ -1330,62 +1330,62 @@ with tab3:
                             comparison_1y = run_dca_vs_lump_sum_comparison(df_1year, total_investment_1y, 12)
                             
                             # DCA 결과
-                            st.markdown("**📈 DCA (매월 정액)**")
+                            st.markdown("### 📈 DCA (매월 정액)")
                             # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
                             col_dca1_1, col_dca1_2, col_dca1_3, col_dca1_4 = st.columns(4)
                             with col_dca1_1:
-                                st.metric("매수 횟수", f"{comparison_1y['dca']['buy_count']}회")
+                                st.metric("매수 횟수", f"{comparison_1y['dca']['buy_count']}회", delta=None)
                             with col_dca1_2:
                                 if is_us_stock:
-                                    st.metric("총 투자금", f"${comparison_1y['dca']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"${comparison_1y['dca']['total_investment']:,.0f}", delta=None)
                                 else:
-                                    st.metric("총 투자금", f"₩{comparison_1y['dca']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"₩{comparison_1y['dca']['total_investment']:,.0f}", delta=None)
                             with col_dca1_3:
                                 if is_us_stock:
-                                    st.metric("평균 매수 단가", f"${comparison_1y['dca']['avg_price']:,.2f}")
+                                    st.metric("평균 매수 단가", f"${comparison_1y['dca']['avg_price']:,.2f}", delta=None)
                                 else:
-                                    st.metric("평균 매수 단가", f"₩{comparison_1y['dca']['avg_price']:,.0f}")
+                                    st.metric("평균 매수 단가", f"₩{comparison_1y['dca']['avg_price']:,.0f}", delta=None)
                             with col_dca1_4:
-                                st.metric("보유 주식수", f"{comparison_1y['dca']['total_shares']:.2f}주")
+                                st.metric("보유 주식수", f"{comparison_1y['dca']['total_shares']:.2f}주", delta=None)
                             
                             # 두 번째 행: 현재 평가금액, 총 수익률
                             col_dca1_5, col_dca1_6 = st.columns(2)
                             with col_dca1_5:
                                 if is_us_stock:
-                                    st.metric("현재 평가금액", f"${comparison_1y['dca']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"${comparison_1y['dca']['current_value']:,.0f}", delta=None)
                                 else:
-                                    st.metric("현재 평가금액", f"₩{comparison_1y['dca']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"₩{comparison_1y['dca']['current_value']:,.0f}", delta=None)
                             with col_dca1_6:
-                                st.metric("총 수익률", f"{comparison_1y['dca']['total_return']:+.2f}%")
+                                st.metric("총 수익률", f"{comparison_1y['dca']['total_return']:+.2f}%", delta=None)
                             
                             # 일시불 결과
-                            st.markdown("**💰 일시불 (첫날)**")
+                            st.markdown("### 💰 일시불 (첫날)")
                             # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
                             col_lump1_1, col_lump1_2, col_lump1_3, col_lump1_4 = st.columns(4)
                             with col_lump1_1:
-                                st.metric("매수 횟수", f"{comparison_1y['lump_sum']['buy_count']}회")
+                                st.metric("매수 횟수", f"{comparison_1y['lump_sum']['buy_count']}회", delta=None)
                             with col_lump1_2:
                                 if is_us_stock:
-                                    st.metric("총 투자금", f"${comparison_1y['lump_sum']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"${comparison_1y['lump_sum']['total_investment']:,.0f}", delta=None)
                                 else:
-                                    st.metric("총 투자금", f"₩{comparison_1y['lump_sum']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"₩{comparison_1y['lump_sum']['total_investment']:,.0f}", delta=None)
                             with col_lump1_3:
                                 if is_us_stock:
-                                    st.metric("평균 매수 단가", f"${comparison_1y['lump_sum']['avg_price']:,.2f}")
+                                    st.metric("평균 매수 단가", f"${comparison_1y['lump_sum']['avg_price']:,.2f}", delta=None)
                                 else:
-                                    st.metric("평균 매수 단가", f"₩{comparison_1y['lump_sum']['avg_price']:,.0f}")
+                                    st.metric("평균 매수 단가", f"₩{comparison_1y['lump_sum']['avg_price']:,.0f}", delta=None)
                             with col_lump1_4:
-                                st.metric("보유 주식수", f"{comparison_1y['lump_sum']['total_shares']:.2f}주")
+                                st.metric("보유 주식수", f"{comparison_1y['lump_sum']['total_shares']:.2f}주", delta=None)
                             
                             # 두 번째 행: 현재 평가금액, 총 수익률
                             col_lump1_5, col_lump1_6 = st.columns(2)
                             with col_lump1_5:
                                 if is_us_stock:
-                                    st.metric("현재 평가금액", f"${comparison_1y['lump_sum']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"${comparison_1y['lump_sum']['current_value']:,.0f}", delta=None)
                                 else:
-                                    st.metric("현재 평가금액", f"₩{comparison_1y['lump_sum']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"₩{comparison_1y['lump_sum']['current_value']:,.0f}", delta=None)
                             with col_lump1_6:
-                                st.metric("총 수익률", f"{comparison_1y['lump_sum']['total_return']:+.2f}%")
+                                st.metric("총 수익률", f"{comparison_1y['lump_sum']['total_return']:+.2f}%", delta=None)
                         else:
                             st.info("1년 매수 내역 없음")
                     
@@ -1402,62 +1402,62 @@ with tab3:
                             comparison_5y = run_dca_vs_lump_sum_comparison(df_5year, total_investment_5y, 60)
                             
                             # DCA 결과
-                            st.markdown("**📈 DCA (매월 정액)**")
+                            st.markdown("### 📈 DCA (매월 정액)")
                             # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
                             col_dca5_1, col_dca5_2, col_dca5_3, col_dca5_4 = st.columns(4)
                             with col_dca5_1:
-                                st.metric("매수 횟수", f"{comparison_5y['dca']['buy_count']}회")
+                                st.metric("매수 횟수", f"{comparison_5y['dca']['buy_count']}회", delta=None)
                             with col_dca5_2:
                                 if is_us_stock:
-                                    st.metric("총 투자금", f"${comparison_5y['dca']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"${comparison_5y['dca']['total_investment']:,.0f}", delta=None)
                                 else:
-                                    st.metric("총 투자금", f"₩{comparison_5y['dca']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"₩{comparison_5y['dca']['total_investment']:,.0f}", delta=None)
                             with col_dca5_3:
                                 if is_us_stock:
-                                    st.metric("평균 매수 단가", f"${comparison_5y['dca']['avg_price']:,.2f}")
+                                    st.metric("평균 매수 단가", f"${comparison_5y['dca']['avg_price']:,.2f}", delta=None)
                                 else:
-                                    st.metric("평균 매수 단가", f"₩{comparison_5y['dca']['avg_price']:,.0f}")
+                                    st.metric("평균 매수 단가", f"₩{comparison_5y['dca']['avg_price']:,.0f}", delta=None)
                             with col_dca5_4:
-                                st.metric("보유 주식수", f"{comparison_5y['dca']['total_shares']:.2f}주")
+                                st.metric("보유 주식수", f"{comparison_5y['dca']['total_shares']:.2f}주", delta=None)
                             
                             # 두 번째 행: 현재 평가금액, 총 수익률
                             col_dca5_5, col_dca5_6 = st.columns(2)
                             with col_dca5_5:
                                 if is_us_stock:
-                                    st.metric("현재 평가금액", f"${comparison_5y['dca']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"${comparison_5y['dca']['current_value']:,.0f}", delta=None)
                                 else:
-                                    st.metric("현재 평가금액", f"₩{comparison_5y['dca']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"₩{comparison_5y['dca']['current_value']:,.0f}", delta=None)
                             with col_dca5_6:
-                                st.metric("총 수익률", f"{comparison_5y['dca']['total_return']:+.2f}%")
+                                st.metric("총 수익률", f"{comparison_5y['dca']['total_return']:+.2f}%", delta=None)
                             
                             # 일시불 결과
-                            st.markdown("**💰 일시불 (첫날)**")
+                            st.markdown("### 💰 일시불 (첫날)")
                             # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
                             col_lump5_1, col_lump5_2, col_lump5_3, col_lump5_4 = st.columns(4)
                             with col_lump5_1:
-                                st.metric("매수 횟수", f"{comparison_5y['lump_sum']['buy_count']}회")
+                                st.metric("매수 횟수", f"{comparison_5y['lump_sum']['buy_count']}회", delta=None)
                             with col_lump5_2:
                                 if is_us_stock:
-                                    st.metric("총 투자금", f"${comparison_5y['lump_sum']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"${comparison_5y['lump_sum']['total_investment']:,.0f}", delta=None)
                                 else:
-                                    st.metric("총 투자금", f"₩{comparison_5y['lump_sum']['total_investment']:,.0f}")
+                                    st.metric("총 투자금", f"₩{comparison_5y['lump_sum']['total_investment']:,.0f}", delta=None)
                             with col_lump5_3:
                                 if is_us_stock:
-                                    st.metric("평균 매수 단가", f"${comparison_5y['lump_sum']['avg_price']:,.2f}")
+                                    st.metric("평균 매수 단가", f"${comparison_5y['lump_sum']['avg_price']:,.2f}", delta=None)
                                 else:
-                                    st.metric("평균 매수 단가", f"₩{comparison_5y['lump_sum']['avg_price']:,.0f}")
+                                    st.metric("평균 매수 단가", f"₩{comparison_5y['lump_sum']['avg_price']:,.0f}", delta=None)
                             with col_lump5_4:
-                                st.metric("보유 주식수", f"{comparison_5y['lump_sum']['total_shares']:.2f}주")
+                                st.metric("보유 주식수", f"{comparison_5y['lump_sum']['total_shares']:.2f}주", delta=None)
                             
                             # 두 번째 행: 현재 평가금액, 총 수익률
                             col_lump5_5, col_lump5_6 = st.columns(2)
                             with col_lump5_5:
                                 if is_us_stock:
-                                    st.metric("현재 평가금액", f"${comparison_5y['lump_sum']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"${comparison_5y['lump_sum']['current_value']:,.0f}", delta=None)
                                 else:
-                                    st.metric("현재 평가금액", f"₩{comparison_5y['lump_sum']['current_value']:,.0f}")
+                                    st.metric("현재 평가금액", f"₩{comparison_5y['lump_sum']['current_value']:,.0f}", delta=None)
                             with col_lump5_6:
-                                st.metric("총 수익률", f"{comparison_5y['lump_sum']['total_return']:+.2f}%")
+                                st.metric("총 수익률", f"{comparison_5y['lump_sum']['total_return']:+.2f}%", delta=None)
                         else:
                             st.info("5년 매수 내역 없음")
             
