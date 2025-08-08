@@ -192,15 +192,16 @@ class StockAnalyzer:
     def search_korean_stock(self, query):
         """한국 주식 검색"""
         try:
-            # 종목명으로 검색
-            stocks = stock.get_market_ticker_name(query)
-            if stocks:
-                return query, stocks
-            
-            # 종목코드로 검색
-            name = stock.get_market_ticker_name(query)
-            if name:
-                return query, name
+            if query.isdigit() and len(query) == 6:
+                name = stock.get_market_ticker_name(query)
+                if name:
+                    return query, name
+            else:
+                tickers = stock.get_market_ticker_list()
+                for ticker in tickers:
+                    name = stock.get_market_ticker_name(ticker)
+                    if query.upper() in name.upper():
+                        return ticker, name
             
             return None, None
         except:
