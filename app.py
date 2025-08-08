@@ -1720,9 +1720,33 @@ with tab3:
                                 st.markdown("")
                                 st.markdown("#### 📊 장단기 비교")
                                 
-                                if best_5y > best_1y:
+                                col_short, col_long = st.columns(2)
+                                
+                                with col_short:
+                                    st.markdown("**📈 단기 투자 (1년)**")
+                                    st.metric("최고 성과", f"{best_1y:+.2f}%")
+                                    if best_1y > best_5y:
+                                        st.success("단기 투자가 유리")
+                                    else:
+                                        st.info("장기 투자보다 낮음")
+                                
+                                with col_long:
+                                    st.markdown("**📊 장기 투자 (5년)**")
+                                    st.metric("최고 성과", f"{best_5y:+.2f}%")
+                                    if best_5y > best_1y * 2:
+                                        st.success("장기 투자가 매우 유리")
+                                    elif best_5y > best_1y:
+                                        st.success("장기 투자가 유리")
+                                    else:
+                                        st.info("단기 투자보다 낮음")
+                                
+                                # 장단기 비교 요약
+                                st.markdown("")
+                                if best_5y > best_1y * 2:
+                                    st.markdown("✅ **장기 투자가 매우 유리**: 5년 성과가 1년보다 2배 이상 우수")
+                                elif best_5y > best_1y:
                                     st.markdown("✅ **장기 투자가 유리**: 5년 성과가 1년보다 우수")
-                                elif best_5y < best_1y:
+                                elif best_1y > best_5y:
                                     st.markdown("⚠️ **단기 투자가 유리**: 1년 성과가 5년보다 우수")
                                 else:
                                     st.markdown("📊 **안정적 성과**: 장단기 성과가 비슷")
