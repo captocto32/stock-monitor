@@ -941,14 +941,24 @@ with tab3:
     with col1:
         st.markdown("### 📥 입력 섹션")
         
-        # 종목 선택
-        if st.session_state.monitoring_stocks:
-            stock_options = {f"{info['name']} ({symbol})": symbol 
-                           for symbol, info in st.session_state.monitoring_stocks.items()}
-            selected_stock = st.selectbox("종목 선택", list(stock_options.keys()))
-            selected_symbol = stock_options[selected_stock]
+        # 종목 선택 - 분석 결과 종목과 연동
+        if 'current_analysis' in st.session_state:
+            # 분석 결과에 있는 종목을 기본값으로 설정
+            analysis = st.session_state.current_analysis
+            default_stock = f"{analysis['name']} ({analysis['symbol']})"
+            
+            if st.session_state.monitoring_stocks:
+                stock_options = {f"{info['name']} ({symbol})": symbol 
+                               for symbol, info in st.session_state.monitoring_stocks.items()}
+                selected_stock = st.selectbox("종목 선택", list(stock_options.keys()), 
+                                            index=list(stock_options.keys()).index(default_stock) if default_stock in stock_options else 0)
+                selected_symbol = stock_options[selected_stock]
+            else:
+                st.warning("먼저 모니터링 탭에서 종목을 추가해주세요.")
+                selected_symbol = None
         else:
-            st.warning("먼저 모니터링 탭에서 종목을 추가해주세요.")
+            # 분석 결과가 없으면 드롭다운 없이 안내 메시지만 표시
+            st.info("📊 먼저 탭 1에서 종목을 검색하고 분석해주세요.")
             selected_symbol = None
         
         # 투자 전략
