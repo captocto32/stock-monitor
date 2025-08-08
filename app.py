@@ -345,9 +345,14 @@ class StockAnalyzer:
 st.subheader("🍣 주식 하락률 모니터링 시스템")
 st.markdown("---")
 
-# 사이드바
-with st.sidebar:
-    st.header("🦁 주식 시그마 분석")
+# 탭 생성
+tab1, tab2 = st.tabs(["📊 실시간 모니터링", "📈 백테스팅"])
+
+# 탭 1: 실시간 모니터링
+with tab1:
+    # 사이드바
+    with st.sidebar:
+        st.header("🦁 주식 시그마 분석")
     
     st.markdown("---")
     
@@ -962,4 +967,70 @@ with col1:
         )
         
         st.plotly_chart(fig, use_container_width=True)
+
+# 탭 2: 백테스팅
+with tab2:
+    st.subheader("📈 백테스팅")
+    st.markdown("시그마 하락 전략의 과거 성과를 분석합니다.")
+    
+    # 백테스팅 입력 섹션
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### 📥 입력 섹션")
         
+        # 종목 선택
+        if st.session_state.monitoring_stocks:
+            stock_options = {f"{info['name']} ({symbol})": symbol 
+                           for symbol, info in st.session_state.monitoring_stocks.items()}
+            selected_stock = st.selectbox("종목 선택", list(stock_options.keys()))
+            selected_symbol = stock_options[selected_stock]
+        else:
+            st.warning("먼저 모니터링 탭에서 종목을 추가해주세요.")
+            selected_symbol = None
+        
+        # 투자 전략
+        strategy = st.radio("투자 전략", ["1σ 이상 하락시 매수", "2σ 이상 하락시 매수"])
+        
+        # 투자 금액 설정
+        st.markdown("**투자 금액 설정**")
+        col1_1, col1_2, col1_3 = st.columns(3)
+        
+        with col1_1:
+            amount_1sigma = st.number_input("1σ 하락시 (만원)", min_value=0, value=100, disabled=(strategy=="2σ 이상 하락시 매수"))
+        with col1_2:
+            amount_2sigma = st.number_input("2σ 하락시 (만원)", min_value=0, value=200)
+        with col1_3:
+            amount_3sigma = st.number_input("3σ 하락시 (만원)", min_value=0, value=200)
+        
+        # 테스트 기간
+        test_period = st.radio("테스트 기간", ["최근 1년", "최근 5년"])
+        
+        # 백테스팅 실행 버튼
+        if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
+            if selected_symbol:
+                st.session_state.backtest_triggered = True
+                st.session_state.backtest_params = {
+                    'symbol': selected_symbol,
+                    'strategy': strategy,
+                    'amount_1sigma': amount_1sigma,
+                    'amount_2sigma': amount_2sigma,
+                    'amount_3sigma': amount_3sigma,
+                    'test_period': test_period
+                }
+    
+    with col2:
+        st.markdown("### 📊 결과 섹션")
+        
+        if st.session_state.get('backtest_triggered', False):
+            st.info("백테스팅 기능은 개발 중입니다. 곧 업데이트될 예정입니다!")
+            st.markdown("""
+            **예상 결과:**
+            - 매수 내역 및 횟수
+            - 평균 매수 단가
+            - 총 투자금 및 현재 평가금액
+            - 수익률 분석
+            - 비교 분석 (정액 적립 vs 일시불 매수)
+            """)
+        else:
+            st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
