@@ -1075,8 +1075,6 @@ with tab3:
                 st.session_state.backtest_triggered = True
     
     with col2:
-        st.markdown("### 📊 결과 섹션")
-        
         if st.session_state.get('backtest_triggered', False) and 'backtest_results' in st.session_state:
             results = st.session_state.backtest_results
             
