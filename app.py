@@ -404,7 +404,7 @@ with st.sidebar:
                 name, stock_type = symbol, 'US'
                 st.info(f"미국 주식: {symbol}")
         
-        # 데이터 분석
+        # 분석 결과를 세션에 저장
         with st.spinner('데이터 분석 중...'):
             df = analyzer.get_stock_data(symbol, stock_type)
             
@@ -412,60 +412,16 @@ with st.sidebar:
                 stats = analyzer.calculate_sigma_levels(df)
                 
                 if stats:
-                    # 현재가 정보
-                    current_price, price_change = analyzer.get_current_price(symbol, stock_type)
-                    
-                    # 분석 결과 표시
-                    st.markdown(f"### 📊 {name} ({symbol}) 분석 결과")
-                    
-                    # 현재가 표시
-                    if current_price:
-                        if stock_type == 'KR':
-                            st.metric("현재가", f"₩{current_price:,.0f}", f"{price_change:+.2f}%")
-                        else:
-                            st.metric("현재가", f"${current_price:,.2f}", f"{price_change:+.2f}%")
-                    else:
-                        st.info("현재가 정보를 가져올 수 없습니다.")
-                    
-                    # 전일 종가
-                    yesterday_close = stats['last_close']
-                    if stock_type == 'KR':
-                        st.metric("전일 종가", f"₩{yesterday_close:,.0f}")
-                    else:
-                        st.metric("전일 종가", f"${yesterday_close:,.2f}")
-                    
-                    # 시그마 하락시 목표가격
-                    price_at_1sigma = yesterday_close * (1 + stats['1sigma'] / 100)
-                    price_at_2sigma = yesterday_close * (1 + stats['2sigma'] / 100)
-                    price_at_3sigma = yesterday_close * (1 + stats['3sigma'] / 100)
-                    
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        if stock_type == 'KR':
-                            st.metric("1σ 하락시 목표가격", f"₩{price_at_1sigma:,.0f}")
-                        else:
-                            st.metric("1σ 하락시 목표가격", f"${price_at_1sigma:,.2f}")
-                    with col2:
-                        if stock_type == 'KR':
-                            st.metric("2σ 하락시 목표가격", f"₩{price_at_2sigma:,.0f}")
-                        else:
-                            st.metric("2σ 하락시 목표가격", f"${price_at_2sigma:,.2f}")
-                    with col3:
-                        if stock_type == 'KR':
-                            st.metric("3σ 하락시 목표가격", f"₩{price_at_3sigma:,.0f}")
-                        else:
-                            st.metric("3σ 하락시 목표가격", f"${price_at_3sigma:,.2f}")
-                    
-                    # 모니터링 목록에 추가 버튼
-                    if st.button("📈 모니터링 목록에 추가", use_container_width=True):
-                        st.session_state.monitoring_stocks[symbol] = {
-                            'name': name,
-                            'type': stock_type,
-                            'stats': stats,
-                            'df': df
-                        }
-                        st.success(f"✅ {name} ({symbol})이(가) 모니터링 목록에 추가되었습니다!")
-                        st.rerun()
+                    # 분석 결과를 세션에 저장
+                    st.session_state.current_analysis = {
+                        'symbol': symbol,
+                        'name': name,
+                        'type': stock_type,
+                        'stats': stats,
+                        'df': df
+                    }
+                    st.success(f"✅ {name} ({symbol}) 분석 완료! 탭 1에서 결과를 확인하세요.")
+                    st.rerun()
                 else:
                     st.error("분석에 실패했습니다.")
             else:
@@ -575,6 +531,110 @@ with tab1:
                 st.info("저장된 미국 주식이 없습니다.")
     else:
         st.info("📝 저장된 종목이 없습니다. 사이드바에서 종목을 추가해보세요!")
+    
+    # 분석 결과 표시
+    if 'current_analysis' in st.session_state:
+        st.markdown("---")
+        analysis = st.session_state.current_analysis
+        
+        # 분석 결과 제목과 추가 버튼을 한 줄에 배치
+        col_title1, col_title2 = st.columns([3, 1])
+        with col_title1:
+            st.subheader(f"📊 {analysis['name']} ({analysis['symbol']}) 분석 결과")
+        with col_title2:
+            st.markdown("")  # 공간 확보
+            if st.button(f"🎯 추가", use_container_width=True, type="primary", help=f"{analysis['name']}을 모니터링 목록에 추가"):
+                st.session_state.monitoring_stocks[analysis['symbol']] = analysis
+                st.success(f"{analysis['name']}이(가) 모니터링 목록에 추가되었습니다!")
+                del st.session_state.current_analysis
+                st.rerun()
+        
+        # 주요 지표
+        col_a, col_b, col_c, col_d = st.columns(4)
+        with col_a:
+            current_price, price_change = analyzer.get_current_price(analysis['symbol'], analysis['type'])
+            if current_price:
+                if analysis['type'] == 'KR':
+                    st.metric("현재가", f"₩{current_price:,.0f}", f"{price_change:+.2f}%")
+                else:
+                    st.metric("현재가", f"${current_price:,.2f}", f"{price_change:+.2f}%")
+            else:
+                if analysis['type'] == 'KR':
+                    st.metric("전일 종가", f"₩{analysis['stats']['last_close']:,.0f}")
+                    st.caption("현재가 정보를 가져올 수 없습니다")
+                else:
+                    st.metric("전일 종가", f"${analysis['stats']['last_close']:,.2f}")
+                    st.caption("현재가 정보를 가져올 수 없습니다")
+        with col_b:
+            st.metric("평균 수익률", f"{analysis['stats']['mean']:.2f}%")
+        with col_c:
+            st.metric("표준편차", f"{analysis['stats']['std']:.2f}%")
+        with col_d:
+            # 현재 변화율과 시그마 레벨 비교
+            if current_price:
+                change_pct = ((current_price - analysis['stats']['last_close']) / analysis['stats']['last_close']) * 100
+                if change_pct <= analysis['stats']['3sigma']:
+                    level = "3σ 돌파!"
+                    delta_color = "inverse"
+                elif change_pct <= analysis['stats']['2sigma']:
+                    level = "2σ 돌파!"
+                    delta_color = "inverse"
+                elif change_pct <= analysis['stats']['1sigma']:
+                    level = "1σ 돌파!"
+                    delta_color = "inverse"
+                else:
+                    level = "정상"
+                    delta_color = "normal"
+                st.metric("현재 상태", level, f"{change_pct:+.2f}%", delta_color=delta_color)
+        
+        # 시그마 하락시 가격 표시
+        st.markdown("---")
+        st.subheader("💰 시그마 하락시 목표 가격(어제 종가 기준)")
+        
+        # 어제 종가
+        yesterday_close = analysis['stats']['last_close']
+        
+        # 1년 시그마 값들
+        sigma_1_1y = analysis['stats'].get('1sigma_1y', analysis['stats']['1sigma'])
+        sigma_2_1y = analysis['stats'].get('2sigma_1y', analysis['stats']['2sigma'])
+        sigma_3_1y = analysis['stats'].get('3sigma_1y', analysis['stats']['3sigma'])
+        
+        # 시그마 하락시 가격 계산
+        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
+        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
+        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+        
+        # 통화 단위 설정
+        if analysis['type'] == 'KR':
+            currency = '₩'
+            price_format = "{:,.0f}"
+        else:
+            currency = '$'
+            price_format = "{:,.2f}"
+        
+        # 컬럼으로 표시
+        price_col1, price_col2, price_col3 = st.columns(3)
+        
+        with price_col1:
+            st.metric(
+                f"1σ ({sigma_1_1y:.2f}%) 하락시",
+                f"{currency}{price_format.format(price_at_1sigma)}"
+            )
+        
+        with price_col2:
+            st.metric(
+                f"2σ ({sigma_2_1y:.2f}%) 하락시",
+                f"{currency}{price_format.format(price_at_2sigma)}"
+            )
+        
+        with price_col3:
+            st.metric(
+                f"3σ ({sigma_3_1y:.2f}%) 하락시",
+                f"{currency}{price_format.format(price_at_3sigma)}"
+            )
+        
+        # 어제 종가 정보
+        st.caption(f"* 어제 종가 기준: {currency}{price_format.format(yesterday_close)}")
 
 # 탭 2: 백테스팅
 with tab2:
