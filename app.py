@@ -941,14 +941,12 @@ with tab3:
     with col1:
         st.markdown("### 📥 입력 섹션")
         
-        # 종목 선택 - 분석 결과 종목과 연동
+            # 종목 선택 - 분석 결과 종목과 연동
         if 'current_analysis' in st.session_state:
-            # 분석 결과에 있는 종목을 직접 사용
             analysis = st.session_state.current_analysis
             selected_symbol = analysis['symbol']
             st.info(f"📊 백테스팅 종목: {analysis['name']} ({analysis['symbol']})")
         else:
-            # 분석 결과가 없으면 안내 메시지만 표시
             st.info("📊 먼저 탭 1에서 종목을 검색하고 분석해주세요.")
             selected_symbol = None
         
