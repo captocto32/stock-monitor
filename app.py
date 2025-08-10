@@ -1004,12 +1004,15 @@ with tab3:
         st.info("📊 먼저 탭 1에서 종목을 검색하고 분석해주세요.")
         selected_symbol = None
     
-    # 투자 금액 설정 (라디오 버튼 제거)
+    # 투자 전략
+    strategy = st.radio("투자 전략", ["1σ 이상 하락시 매수", "2σ 이상 하락시 매수"])
+    
+    # 투자 금액 설정
     st.markdown("**투자 금액 설정**")
     col1_1, col1_2, col1_3 = st.columns(3)
     
     with col1_1:
-        amount_1sigma = st.number_input("1σ 하락시", min_value=0, value=100)
+        amount_1sigma = st.number_input("1σ 하락시", min_value=0, value=100, disabled=(strategy=="2σ 이상 하락시 매수"))
     with col1_2:
         amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=200)
     with col1_3:
@@ -1039,8 +1042,8 @@ with tab3:
             sigma_2 = stats['2sigma']
             sigma_3 = stats['3sigma']
             
-            # 백테스팅 함수 정의 (전략 파라미터 추가)
-            def run_backtest(df_data, period_name, include_1sigma=True):
+            # 백테스팅 함수 정의
+            def run_backtest(df_data, period_name):
                 buy_history = []
                 total_investment = 0
                 total_shares = 0
@@ -1086,8 +1089,8 @@ with tab3:
                         total_investment += investment
                         total_shares += shares
                     
-                    # 1σ 하락 시 (include_1sigma가 True일 때만)
-                    elif include_1sigma and current_return <= sigma_1:
+                    # 1σ 하락 시 (1σ 전략일 때만)
+                    elif strategy == "1σ 이상 하락시 매수" and current_return <= sigma_1:
                         if is_us_stock:
                             investment = amount_1sigma
                         else:
@@ -1131,385 +1134,507 @@ with tab3:
                         'total_return': 0
                     }
             
-            # DCA vs 일시불 비교 함수
-            def run_dca_vs_lump_sum_comparison(df_data, total_investment, period_months):
-                # DCA 투자 (매월 10일 종가)
-                dca_investment = 0
-                dca_shares = 0
-                dca_buy_count = 0
-                monthly_amount = total_investment / period_months if total_investment > 0 else 0
-                
-                # 일시불 투자 (1년 전 또는 5년 전)
-                if period_months == 12:  # 1년 결과
-                    lump_sum_price = df_data['Close'].iloc[-252] if len(df_data) >= 252 else df_data['Close'].iloc[0]
-                else:  # 5년 결과
-                    lump_sum_price = df_data['Close'].iloc[0]  # 5년 전 가격 (첫날)
-                
-                lump_sum_shares = total_investment / lump_sum_price if total_investment > 0 else 0
-                lump_sum_investment = total_investment
-                
-                # 매월 10일 찾기 (정확히 12개월 또는 60개월)
-                if monthly_amount > 0:
-                    target_months = period_months
-                    found_months = 0
-                    last_month = -1
-                    
-                    for i in range(len(df_data)):
-                        current_date = df_data.index[i]
-                        current_month = current_date.month
-                        
-                        # 매월 10일 또는 10일 이후 첫 거래일
-                        if (current_date.day >= 10 and current_month != last_month and found_months < target_months):
-                            current_price = df_data['Close'].iloc[i]
-                            shares = monthly_amount / current_price
-                            dca_investment += monthly_amount
-                            dca_shares += shares
-                            dca_buy_count += 1
-                            found_months += 1
-                            last_month = current_month
-                
-                # 현재 가격
-                current_price = df_data['Close'].iloc[-1]
-                
-                # DCA 결과
-                dca_current_value = dca_shares * current_price
-                dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100 if dca_investment > 0 else 0
-                dca_avg_price = dca_investment / dca_shares if dca_shares > 0 else 0
-                
-                # 일시불 결과
-                lump_sum_current_value = lump_sum_shares * current_price
-                lump_sum_total_return = ((lump_sum_current_value - lump_sum_investment) / lump_sum_investment) * 100 if lump_sum_investment > 0 else 0
-                lump_sum_avg_price = lump_sum_investment / lump_sum_shares if lump_sum_shares > 0 else 0
-                
-                return {
-                    'dca': {
-                        'buy_count': dca_buy_count,
-                        'total_investment': total_investment,
-                        'monthly_amount': monthly_amount,
-                        'avg_price': dca_avg_price,
-                        'total_shares': dca_shares,
-                        'current_value': dca_current_value,
-                        'total_return': dca_total_return
-                    },
-                    'lump_sum': {
-                        'buy_count': 1 if total_investment > 0 else 0,
-                        'total_investment': lump_sum_investment,
-                        'avg_price': lump_sum_avg_price,
-                        'total_shares': lump_sum_shares,
-                        'current_value': lump_sum_current_value,
-                        'total_return': lump_sum_total_return
-                    }
-                }
-            
             # 미국 주식인지 확인
             is_us_stock = analysis['type'] == 'US'
             
             # 백테스팅 실행
             with st.spinner("백테스팅 분석 중..."):
-                # 1σ 전략 백테스팅
-                results_1sigma_1year = run_backtest(df_1year, "1년", include_1sigma=True)
-                results_1sigma_5year = run_backtest(df_5year, "5년", include_1sigma=True)
-                
-                # 2σ 전략 백테스팅 (1σ 제외)
-                results_2sigma_1year = run_backtest(df_1year, "1년", include_1sigma=False)
-                results_2sigma_5year = run_backtest(df_5year, "5년", include_1sigma=False)
-                
-                # DCA와 일시불 비교를 위한 총 투자금 계산
-                # 1σ 전략의 총 투자금 사용 (더 많은 매수 기회)
-                total_investment_1y = max(results_1sigma_1year['total_investment'], results_2sigma_1year['total_investment'])
-                total_investment_5y = max(results_1sigma_5year['total_investment'], results_2sigma_5year['total_investment'])
-                
-                # DCA vs 일시불 계산
-                comparison_1y = run_dca_vs_lump_sum_comparison(df_1year, total_investment_1y, 12)
-                comparison_5y = run_dca_vs_lump_sum_comparison(df_5year, total_investment_5y, 60)
+                # 기존 시그마 기반 백테스팅
+                results_1year = run_backtest(df_1year, "1년")
+                results_5year = run_backtest(df_5year, "5년")
             
             # 결과 표시
             st.success("✅ 백테스팅 완료!")
             
-            # 4가지 전략 비교 섹션
-            st.markdown("#### 📊 4가지 투자 전략 비교")
-            
-            # 1년 결과
-            st.markdown("### 최근 1년 결과")
-            
-            # 1년 결과 메트릭 표시
-            col1y_1, col1y_2, col1y_3, col1y_4 = st.columns(4)
-            
-            with col1y_1:
-                st.markdown("**1σ 이상 하락시 매수**")
-                if results_1sigma_1year['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{results_1sigma_1year['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${results_1sigma_1year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${results_1sigma_1year['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{results_1sigma_1year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{results_1sigma_1year['avg_price']:,.0f}")
-                    st.metric("수익률", f"{results_1sigma_1year['total_return']:+.2f}%", 
-                             delta=f"{results_1sigma_1year['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            with col1y_2:
-                st.markdown("**2σ 이상 하락시 매수**")
-                if results_2sigma_1year['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{results_2sigma_1year['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${results_2sigma_1year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${results_2sigma_1year['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{results_2sigma_1year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{results_2sigma_1year['avg_price']:,.0f}")
-                    st.metric("수익률", f"{results_2sigma_1year['total_return']:+.2f}%",
-                             delta=f"{results_2sigma_1year['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            with col1y_3:
-                st.markdown("**DCA (매월 정액)**")
-                if comparison_1y['dca']['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{comparison_1y['dca']['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${comparison_1y['dca']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${comparison_1y['dca']['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{comparison_1y['dca']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{comparison_1y['dca']['avg_price']:,.0f}")
-                    st.metric("수익률", f"{comparison_1y['dca']['total_return']:+.2f}%",
-                             delta=f"{comparison_1y['dca']['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            with col1y_4:
-                st.markdown("**일시불 (1년 전)**")
-                if comparison_1y['lump_sum']['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{comparison_1y['lump_sum']['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${comparison_1y['lump_sum']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${comparison_1y['lump_sum']['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{comparison_1y['lump_sum']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{comparison_1y['lump_sum']['avg_price']:,.0f}")
-                    st.metric("수익률", f"{comparison_1y['lump_sum']['total_return']:+.2f}%",
-                             delta=f"{comparison_1y['lump_sum']['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            # 5년 결과
-            st.markdown("### 최근 5년 결과")
-            
-            # 5년 결과 메트릭 표시
-            col5y_1, col5y_2, col5y_3, col5y_4 = st.columns(4)
-            
-            with col5y_1:
-                st.markdown("**1σ 이상 하락시 매수**")
-                if results_1sigma_5year['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{results_1sigma_5year['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${results_1sigma_5year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${results_1sigma_5year['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{results_1sigma_5year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{results_1sigma_5year['avg_price']:,.0f}")
-                    st.metric("수익률", f"{results_1sigma_5year['total_return']:+.2f}%",
-                             delta=f"{results_1sigma_5year['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            with col5y_2:
-                st.markdown("**2σ 이상 하락시 매수**")
-                if results_2sigma_5year['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{results_2sigma_5year['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${results_2sigma_5year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${results_2sigma_5year['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{results_2sigma_5year['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{results_2sigma_5year['avg_price']:,.0f}")
-                    st.metric("수익률", f"{results_2sigma_5year['total_return']:+.2f}%",
-                             delta=f"{results_2sigma_5year['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            with col5y_3:
-                st.markdown("**DCA (매월 정액)**")
-                if comparison_5y['dca']['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{comparison_5y['dca']['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${comparison_5y['dca']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${comparison_5y['dca']['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{comparison_5y['dca']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{comparison_5y['dca']['avg_price']:,.0f}")
-                    st.metric("수익률", f"{comparison_5y['dca']['total_return']:+.2f}%",
-                             delta=f"{comparison_5y['dca']['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            with col5y_4:
-                st.markdown("**일시불 (5년 전)**")
-                if comparison_5y['lump_sum']['buy_count'] > 0:
-                    st.metric("매수 횟수", f"{comparison_5y['lump_sum']['buy_count']}회")
-                    if is_us_stock:
-                        st.metric("총 투자금", f"${comparison_5y['lump_sum']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"${comparison_5y['lump_sum']['avg_price']:,.2f}")
-                    else:
-                        st.metric("총 투자금", f"₩{comparison_5y['lump_sum']['total_investment']:,.0f}")
-                        st.metric("평균 단가", f"₩{comparison_5y['lump_sum']['avg_price']:,.0f}")
-                    st.metric("수익률", f"{comparison_5y['lump_sum']['total_return']:+.2f}%",
-                             delta=f"{comparison_5y['lump_sum']['total_return']:+.2f}%")
-                else:
-                    st.info("매수 내역 없음")
-            
-            # 수익률 비교 그래프
-            st.markdown("---")
-            st.markdown("#### 📊 수익률 비교 그래프")
-            
-            col_graph_1y, col_graph_5y = st.columns(2)
-            
-            # 1년 결과 그래프
-            with col_graph_1y:
-                st.markdown("**1년 수익률 비교**")
+            # 결과 비교 (1년 vs 5년)
+            if results_1year['buy_count'] > 0 or results_5year['buy_count'] > 0:
+                st.markdown("#### 📊 백테스팅 결과 비교")
                 
-                # 1년 수익률 데이터
-                returns_1y = [
-                    results_1sigma_1year['total_return'],
-                    results_2sigma_1year['total_return'],
-                    comparison_1y['dca']['total_return'],
-                    comparison_1y['lump_sum']['total_return']
-                ]
+                col_a, col_b = st.columns(2)
                 
-                # 1년 그래프
-                fig_1y = go.Figure()
-                fig_1y.add_trace(go.Bar(
-                    x=['1σ 전략', '2σ 전략', 'DCA', '일시불'],
-                    y=returns_1y,
-                    text=[f'{r:+.2f}%' for r in returns_1y],
-                    textposition='auto',
-                    marker_color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
-                ))
-                fig_1y.update_layout(
-                    title="1년 수익률 비교",
-                    xaxis_title="투자 전략",
-                    yaxis_title="수익률 (%)",
-                    height=400,
-                    showlegend=False
-                )
-                st.plotly_chart(fig_1y, use_container_width=True)
-            
-            # 5년 결과 그래프
-            with col_graph_5y:
-                st.markdown("**5년 수익률 비교**")
-                
-                # 5년 수익률 데이터
-                returns_5y = [
-                    results_1sigma_5year['total_return'],
-                    results_2sigma_5year['total_return'],
-                    comparison_5y['dca']['total_return'],
-                    comparison_5y['lump_sum']['total_return']
-                ]
-                
-                # 5년 그래프
-                fig_5y = go.Figure()
-                fig_5y.add_trace(go.Bar(
-                    x=['1σ 전략', '2σ 전략', 'DCA', '일시불'],
-                    y=returns_5y,
-                    text=[f'{r:+.2f}%' for r in returns_5y],
-                    textposition='auto',
-                    marker_color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
-                ))
-                fig_5y.update_layout(
-                    title="5년 수익률 비교",
-                    xaxis_title="투자 전략",
-                    yaxis_title="수익률 (%)",
-                    height=400,
-                    showlegend=False
-                )
-                st.plotly_chart(fig_5y, use_container_width=True)
-            
-            # 상세 매수 내역 Expander
-            st.markdown("---")
-            st.markdown("#### 📋 상세 매수 내역")
-            
-            # 1σ 전략 매수 내역
-            with st.expander("1σ 이상 하락시 매수 전략 상세 내역"):
-                col_1s_1y, col_1s_5y = st.columns(2)
-                
-                with col_1s_1y:
-                    st.markdown("**1년 매수 내역**")
-                    if results_1sigma_1year['buy_history']:
-                        buy_df = pd.DataFrame(results_1sigma_1year['buy_history'])
-                        buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
-                        if is_us_stock:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
-                        else:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
-                        buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df['시그마'] = buy_df['sigma_level']
-                        display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                with col_a:
+                    st.markdown("**최근 1년 결과**")
+                    if results_1year['buy_count'] > 0:
+                        # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                        col_a1, col_a2, col_a3, col_a4 = st.columns(4)
+                        with col_a1:
+                            st.metric("매수 횟수", f"{results_1year['buy_count']}회")
+                        with col_a2:
+                            if is_us_stock:
+                                st.metric("총 투자금", f"${results_1year['total_investment']:,.0f}")
+                            else:
+                                st.metric("총 투자금", f"₩{results_1year['total_investment']:,.0f}")
+                        with col_a3:
+                            if is_us_stock:
+                                st.metric("평균 매수 단가", f"${results_1year['avg_price']:,.2f}")
+                            else:
+                                st.metric("평균 매수 단가", f"₩{results_1year['avg_price']:,.0f}")
+                        with col_a4:
+                            st.metric("보유 주식수", f"{results_1year['total_shares']:.2f}주")
+                        
+                        # 두 번째 행: 현재 평가금액, 총 수익률
+                        col_a5, col_a6 = st.columns(2)
+                        with col_a5:
+                            if is_us_stock:
+                                st.metric("현재 평가금액", f"${results_1year['current_value']:,.0f}")
+                            else:
+                                st.metric("현재 평가금액", f"₩{results_1year['current_value']:,.0f}")
+                        with col_a6:
+                            st.metric("총 수익률", f"{results_1year['total_return']:+.2f}%")
+                        
+                        # 1년 매수 내역 expander
+                        if results_1year['buy_history']:
+                            with st.expander(f"📈 최근 1년 매수 내역 ({len(results_1year['buy_history'])}건)", expanded=False):
+                                buy_df_1year = pd.DataFrame(results_1year['buy_history'])
+                                buy_df_1year['날짜'] = buy_df_1year['date'].dt.strftime('%Y.%m.%d')
+                                
+                                if is_us_stock:
+                                    buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"${x:,.2f}")
+                                    buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"${x:,.0f}")
+                                else:
+                                    buy_df_1year['가격'] = buy_df_1year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                    buy_df_1year['투자금'] = buy_df_1year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                                
+                                buy_df_1year['수익률'] = buy_df_1year['return'].apply(lambda x: f"{x:.2f}%")
+                                buy_df_1year['시그마 레벨'] = buy_df_1year['sigma_level']
+                                buy_df_1year['주식수'] = buy_df_1year['shares'].apply(lambda x: f"{x:.2f}주")
+                                
+                                display_df_1year = buy_df_1year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                                st.dataframe(display_df_1year, use_container_width=True, hide_index=True)
                     else:
                         st.info("매수 내역 없음")
                 
-                with col_1s_5y:
-                    st.markdown("**5년 매수 내역**")
-                    if results_1sigma_5year['buy_history']:
-                        buy_df = pd.DataFrame(results_1sigma_5year['buy_history'])
-                        buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
-                        if is_us_stock:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
-                        else:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
-                        buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df['시그마'] = buy_df['sigma_level']
-                        display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                with col_b:
+                    st.markdown("**최근 5년 결과**")
+                    if results_5year['buy_count'] > 0:
+                        # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                        col_b1, col_b2, col_b3, col_b4 = st.columns(4)
+                        with col_b1:
+                            st.metric("매수 횟수", f"{results_5year['buy_count']}회")
+                        with col_b2:
+                            if is_us_stock:
+                                st.metric("총 투자금", f"${results_5year['total_investment']:,.0f}")
+                            else:
+                                st.metric("총 투자금", f"₩{results_5year['total_investment']:,.0f}")
+                        with col_b3:
+                            if is_us_stock:
+                                st.metric("평균 매수 단가", f"${results_5year['avg_price']:,.2f}")
+                            else:
+                                st.metric("평균 매수 단가", f"₩{results_5year['avg_price']:,.0f}")
+                        with col_b4:
+                            st.metric("보유 주식수", f"{results_5year['total_shares']:.2f}주")
+                        
+                        # 두 번째 행: 현재 평가금액, 총 수익률
+                        col_b5, col_b6 = st.columns(2)
+                        with col_b5:
+                            if is_us_stock:
+                                st.metric("현재 평가금액", f"${results_5year['current_value']:,.0f}")
+                            else:
+                                st.metric("현재 평가금액", f"₩{results_5year['current_value']:,.0f}")
+                        with col_b6:
+                            st.metric("총 수익률", f"{results_5year['total_return']:+.2f}%")
+                        
+                        # 5년 매수 내역 expander
+                        if results_5year['buy_history']:
+                            with st.expander(f"📈 최근 5년 매수 내역 ({len(results_5year['buy_history'])}건)", expanded=False):
+                                buy_df_5year = pd.DataFrame(results_5year['buy_history'])
+                                buy_df_5year['날짜'] = buy_df_5year['date'].dt.strftime('%Y.%m.%d')
+                                
+                                if is_us_stock:
+                                    buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"${x:,.2f}")
+                                    buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"${x:,.0f}")
+                                else:
+                                    buy_df_5year['가격'] = buy_df_5year['price'].apply(lambda x: f"₩{x:,.0f}")
+                                    buy_df_5year['투자금'] = buy_df_5year['investment'].apply(lambda x: f"₩{x:,.0f}")
+                                
+                                buy_df_5year['수익률'] = buy_df_5year['return'].apply(lambda x: f"{x:.2f}%")
+                                buy_df_5year['시그마 레벨'] = buy_df_5year['sigma_level']
+                                buy_df_5year['주식수'] = buy_df_5year['shares'].apply(lambda x: f"{x:.2f}주")
+                                
+                                display_df_5year = buy_df_5year[['날짜', '가격', '수익률', '시그마 레벨', '투자금', '주식수']]
+                                st.dataframe(display_df_5year, use_container_width=True, hide_index=True)
                     else:
                         st.info("매수 내역 없음")
-            
-            # 2σ 전략 매수 내역
-            with st.expander("2σ 이상 하락시 매수 전략 상세 내역"):
-                col_2s_1y, col_2s_5y = st.columns(2)
                 
-                with col_2s_1y:
-                    st.markdown("**1년 매수 내역**")
-                    if results_2sigma_1year['buy_history']:
-                        buy_df = pd.DataFrame(results_2sigma_1year['buy_history'])
-                        buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
-                        if is_us_stock:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
+                # DCA vs 일시불 투자 비교
+                if results_1year['buy_count'] > 0 or results_5year['buy_count'] > 0:
+                    st.markdown("---")
+                    st.markdown("#### 💰 DCA vs 일시불 투자 비교")
+                    
+                    col_dca_1y, col_dca_5y = st.columns(2)
+                    
+                    # DCA vs 일시불 비교 함수
+                    def run_dca_vs_lump_sum_comparison(df_data, total_investment, period_months):
+                        # DCA 투자 (매월 10일 종가)
+                        dca_investment = 0
+                        dca_shares = 0
+                        dca_buy_count = 0
+                        monthly_amount = total_investment / period_months
+                        
+                        # 일시불 투자 (1년 전 또는 5년 전)
+                        if period_months == 12:  # 1년 결과
+                            lump_sum_price = df_data['Close'].iloc[-252]  # 1년 전 가격
+                        else:  # 5년 결과
+                            lump_sum_price = df_data['Close'].iloc[0]  # 5년 전 가격 (첫날)
+                        
+                        lump_sum_shares = total_investment / lump_sum_price
+                        lump_sum_investment = total_investment
+                        
+                        # 매월 10일 찾기 (정확히 12개월 또는 60개월)
+                        target_months = period_months
+                        found_months = 0
+                        last_month = -1
+                        
+                        for i in range(len(df_data)):
+                            current_date = df_data.index[i]
+                            current_month = current_date.month
+                            
+                            # 매월 10일 또는 10일 이후 첫 거래일
+                            if (current_date.day >= 10 and current_month != last_month and found_months < target_months):
+                                current_price = df_data['Close'].iloc[i]
+                                shares = monthly_amount / current_price
+                                dca_investment += monthly_amount
+                                dca_shares += shares
+                                dca_buy_count += 1
+                                found_months += 1
+                                last_month = current_month
+                        
+                        # 현재 가격
+                        current_price = df_data['Close'].iloc[-1]
+                        
+                        # DCA 결과
+                        dca_current_value = dca_shares * current_price
+                        dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100 if dca_investment > 0 else 0
+                        dca_avg_price = dca_investment / dca_shares if dca_shares > 0 else 0
+                        
+                        # 일시불 결과
+                        lump_sum_current_value = lump_sum_shares * current_price
+                        lump_sum_total_return = ((lump_sum_current_value - lump_sum_investment) / lump_sum_investment) * 100 if lump_sum_investment > 0 else 0
+                        lump_sum_avg_price = lump_sum_investment / lump_sum_shares if lump_sum_shares > 0 else 0
+                        
+                        return {
+                            'dca': {
+                                'buy_count': dca_buy_count,
+                                'total_investment': total_investment,  # 시그마 하락시의 총투자금과 동일
+                                'monthly_amount': monthly_amount,
+                                'avg_price': dca_avg_price,
+                                'total_shares': dca_shares,
+                                'current_value': dca_current_value,
+                                'total_return': dca_total_return
+                            },
+                            'lump_sum': {
+                                'buy_count': 1,
+                                'total_investment': lump_sum_investment,
+                                'avg_price': lump_sum_avg_price,
+                                'total_shares': lump_sum_shares,
+                                'current_value': lump_sum_current_value,
+                                'total_return': lump_sum_total_return
+                            }
+                        }
+                    
+                    # 1년 결과 (왼쪽)
+                    with col_dca_1y:
+                        st.markdown("**최근 1년 결과**")
+                        
+                        if results_1year['buy_count'] > 0:
+                            # 1년 총 투자금을 기준으로 DCA 계산
+                            total_investment_1y = results_1year['total_investment']
+                            
+                            # 1년 데이터로 DCA vs 일시불 비교
+                            df_1year = analysis['df'].tail(252)
+                            comparison_1y = run_dca_vs_lump_sum_comparison(df_1year, total_investment_1y, 12)
+                            
+                            # DCA 결과
+                            st.markdown("### 📈 DCA (매월 정액)")
+                            # 첫 번째 행: 매수횟수, 총 투자금, 매월 투자금, 평균매수단가, 보유주식수
+                            col_dca1_1, col_dca1_2, col_dca1_3, col_dca1_4, col_dca1_5 = st.columns(5)
+                            with col_dca1_1:
+                                st.metric("매수 횟수", f"{comparison_1y['dca']['buy_count']}회", delta=None)
+                            with col_dca1_2:
+                                if is_us_stock:
+                                    st.metric("총 투자금", f"${comparison_1y['dca']['total_investment']:,.0f}", delta=None)
+                                else:
+                                    st.metric("총 투자금", f"₩{comparison_1y['dca']['total_investment']:,.0f}", delta=None)
+                            with col_dca1_3:
+                                if is_us_stock:
+                                    st.metric("매월 투자금", f"${comparison_1y['dca']['monthly_amount']:,.0f}", delta=None)
+                                else:
+                                    st.metric("매월 투자금", f"₩{comparison_1y['dca']['monthly_amount']:,.0f}", delta=None)
+                            with col_dca1_4:
+                                if is_us_stock:
+                                    st.metric("평균 매수 단가", f"${comparison_1y['dca']['avg_price']:,.2f}", delta=None)
+                                else:
+                                    st.metric("평균 매수 단가", f"₩{comparison_1y['dca']['avg_price']:,.0f}", delta=None)
+                            with col_dca1_5:
+                                st.metric("보유 주식수", f"{comparison_1y['dca']['total_shares']:.2f}주", delta=None)
+                            
+                            # 두 번째 행: 현재 평가금액, 총 수익률
+                            col_dca1_6, col_dca1_7 = st.columns(2)
+                            with col_dca1_6:
+                                if is_us_stock:
+                                    st.metric("현재 평가금액", f"${comparison_1y['dca']['current_value']:,.0f}", delta=None)
+                                else:
+                                    st.metric("현재 평가금액", f"₩{comparison_1y['dca']['current_value']:,.0f}", delta=None)
+                            with col_dca1_7:
+                                st.metric("총 수익률", f"{comparison_1y['dca']['total_return']:+.2f}%", delta=None)
+                            
+                            # DCA 매수 내역 expander
+                            if comparison_1y['dca']['buy_count'] > 0:
+                                with st.expander(f"📈 DCA 매수 내역 ({comparison_1y['dca']['buy_count']}건)", expanded=False):
+                                    # DCA 매수 내역 생성
+                                    dca_buy_history = []
+                                    df_1year = analysis['df'].tail(252)
+                                    monthly_amount = comparison_1y['dca']['monthly_amount']
+                                    found_months = 0
+                                    last_month = -1
+                                    
+                                    for i in range(len(df_1year)):
+                                        current_date = df_1year.index[i]
+                                        current_month = current_date.month
+                                        
+                                        # 매월 10일 또는 10일 이후 첫 거래일
+                                        if (current_date.day >= 10 and current_month != last_month and found_months < 12):
+                                            current_price = df_1year['Close'].iloc[i]
+                                            shares = monthly_amount / current_price
+                                            dca_buy_history.append({
+                                                'date': current_date,
+                                                'price': current_price,
+                                                'investment': monthly_amount,
+                                                'shares': shares
+                                            })
+                                            found_months += 1
+                                            last_month = current_month
+                                    
+                                    if dca_buy_history:
+                                        dca_df = pd.DataFrame(dca_buy_history)
+                                        dca_df['날짜'] = dca_df['date'].dt.strftime('%Y.%m.%d')
+                                        
+                                        if is_us_stock:
+                                            dca_df['가격'] = dca_df['price'].apply(lambda x: f"${x:,.2f}")
+                                            dca_df['투자금'] = dca_df['investment'].apply(lambda x: f"${x:,.0f}")
+                                        else:
+                                            dca_df['가격'] = dca_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                                            dca_df['투자금'] = dca_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                                        
+                                        dca_df['주식수'] = dca_df['shares'].apply(lambda x: f"{x:.2f}주")
+                                        
+                                        display_dca_df = dca_df[['날짜', '가격', '투자금', '주식수']]
+                                        st.dataframe(display_dca_df, use_container_width=True, hide_index=True)
+                            
+                            # 일시불 결과
+                            st.markdown("### 💰 일시불 (1년 전)")
+                            # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                            col_lump1_1, col_lump1_2, col_lump1_3, col_lump1_4 = st.columns(4)
+                            with col_lump1_1:
+                                st.metric("매수 횟수", f"{comparison_1y['lump_sum']['buy_count']}회", delta=None)
+                            with col_lump1_2:
+                                if is_us_stock:
+                                    st.metric("총 투자금", f"${comparison_1y['lump_sum']['total_investment']:,.0f}", delta=None)
+                                else:
+                                    st.metric("총 투자금", f"₩{comparison_1y['lump_sum']['total_investment']:,.0f}", delta=None)
+                            with col_lump1_3:
+                                if is_us_stock:
+                                    st.metric("평균 매수 단가", f"${comparison_1y['lump_sum']['avg_price']:,.2f}", delta=None)
+                                else:
+                                    st.metric("평균 매수 단가", f"₩{comparison_1y['lump_sum']['avg_price']:,.0f}", delta=None)
+                            with col_lump1_4:
+                                st.metric("보유 주식수", f"{comparison_1y['lump_sum']['total_shares']:.2f}주", delta=None)
+                            
+                            # 두 번째 행: 현재 평가금액, 총 수익률
+                            col_lump1_5, col_lump1_6 = st.columns(2)
+                            with col_lump1_5:
+                                if is_us_stock:
+                                    st.metric("현재 평가금액", f"${comparison_1y['lump_sum']['current_value']:,.0f}", delta=None)
+                                else:
+                                    st.metric("현재 평가금액", f"₩{comparison_1y['lump_sum']['current_value']:,.0f}", delta=None)
+                            with col_lump1_6:
+                                st.metric("총 수익률", f"{comparison_1y['lump_sum']['total_return']:+.2f}%", delta=None)
                         else:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
-                        buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df['시그마'] = buy_df['sigma_level']
-                        display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("매수 내역 없음")
+                            st.info("1년 매수 내역 없음")
+                    
+                    # 5년 결과 (오른쪽)
+                    with col_dca_5y:
+                        st.markdown("**최근 5년 결과**")
+                        
+                        if results_5year['buy_count'] > 0:
+                            # 5년 총 투자금을 기준으로 DCA 계산
+                            total_investment_5y = results_5year['total_investment']
+                            
+                            # 5년 데이터로 DCA vs 일시불 비교
+                            df_5year = analysis['df']
+                            comparison_5y = run_dca_vs_lump_sum_comparison(df_5year, total_investment_5y, 60)
+                            
+                            # DCA 결과
+                            st.markdown("### 📈 DCA (매월 정액)")
+                            # 첫 번째 행: 매수횟수, 총 투자금, 매월 투자금, 평균매수단가, 보유주식수
+                            col_dca5_1, col_dca5_2, col_dca5_3, col_dca5_4, col_dca5_5 = st.columns(5)
+                            with col_dca5_1:
+                                st.metric("매수 횟수", f"{comparison_5y['dca']['buy_count']}회", delta=None)
+                            with col_dca5_2:
+                                if is_us_stock:
+                                    st.metric("총 투자금", f"${comparison_5y['dca']['total_investment']:,.0f}", delta=None)
+                                else:
+                                    st.metric("총 투자금", f"₩{comparison_5y['dca']['total_investment']:,.0f}", delta=None)
+                            with col_dca5_3:
+                                if is_us_stock:
+                                    st.metric("매월 투자금", f"${comparison_5y['dca']['monthly_amount']:,.0f}", delta=None)
+                                else:
+                                    st.metric("매월 투자금", f"₩{comparison_5y['dca']['monthly_amount']:,.0f}", delta=None)
+                            with col_dca5_4:
+                                if is_us_stock:
+                                    st.metric("평균 매수 단가", f"${comparison_5y['dca']['avg_price']:,.2f}", delta=None)
+                                else:
+                                    st.metric("평균 매수 단가", f"₩{comparison_5y['dca']['avg_price']:,.0f}", delta=None)
+                            with col_dca5_5:
+                                st.metric("보유 주식수", f"{comparison_5y['dca']['total_shares']:.2f}주", delta=None)
+                            
+                            # 두 번째 행: 현재 평가금액, 총 수익률
+                            col_dca5_6, col_dca5_7 = st.columns(2)
+                            with col_dca5_6:
+                                if is_us_stock:
+                                    st.metric("현재 평가금액", f"${comparison_5y['dca']['current_value']:,.0f}", delta=None)
+                                else:
+                                    st.metric("현재 평가금액", f"₩{comparison_5y['dca']['current_value']:,.0f}", delta=None)
+                            with col_dca5_7:
+                                st.metric("총 수익률", f"{comparison_5y['dca']['total_return']:+.2f}%", delta=None)
+                            
+                            # DCA 매수 내역 expander (5년)
+                            if comparison_5y['dca']['buy_count'] > 0:
+                                with st.expander(f"📈 DCA 매수 내역 ({comparison_5y['dca']['buy_count']}건)", expanded=False):
+                                    # DCA 매수 내역 생성
+                                    dca_buy_history_5y = []
+                                    df_5year = analysis['df']
+                                    monthly_amount_5y = comparison_5y['dca']['monthly_amount']
+                                    found_months_5y = 0
+                                    last_month_5y = -1
+                                    
+                                    for i in range(len(df_5year)):
+                                        current_date = df_5year.index[i]
+                                        current_month = current_date.month
+                                        
+                                        # 매월 10일 또는 10일 이후 첫 거래일
+                                        if (current_date.day >= 10 and current_month != last_month_5y and found_months_5y < 60):
+                                            current_price = df_5year['Close'].iloc[i]
+                                            shares = monthly_amount_5y / current_price
+                                            dca_buy_history_5y.append({
+                                                'date': current_date,
+                                                'price': current_price,
+                                                'investment': monthly_amount_5y,
+                                                'shares': shares
+                                            })
+                                            found_months_5y += 1
+                                            last_month_5y = current_month
+                                    
+                                    if dca_buy_history_5y:
+                                        dca_df_5y = pd.DataFrame(dca_buy_history_5y)
+                                        dca_df_5y['날짜'] = dca_df_5y['date'].dt.strftime('%Y.%m.%d')
+                                        
+                                        if is_us_stock:
+                                            dca_df_5y['가격'] = dca_df_5y['price'].apply(lambda x: f"${x:,.2f}")
+                                            dca_df_5y['투자금'] = dca_df_5y['investment'].apply(lambda x: f"${x:,.0f}")
+                                        else:
+                                            dca_df_5y['가격'] = dca_df_5y['price'].apply(lambda x: f"₩{x:,.0f}")
+                                            dca_df_5y['투자금'] = dca_df_5y['investment'].apply(lambda x: f"₩{x:,.0f}")
+                                        
+                                        dca_df_5y['주식수'] = dca_df_5y['shares'].apply(lambda x: f"{x:.2f}주")
+                                        
+                                        display_dca_df_5y = dca_df_5y[['날짜', '가격', '투자금', '주식수']]
+                                        st.dataframe(display_dca_df_5y, use_container_width=True, hide_index=True)
+                            
+                            # 일시불 결과
+                            st.markdown("### 💰 일시불 (5년 전)")
+                            # 첫 번째 행: 매수횟수, 총 투자금, 평균매수단가, 보유주식수
+                            col_lump5_1, col_lump5_2, col_lump5_3, col_lump5_4 = st.columns(4)
+                            with col_lump5_1:
+                                st.metric("매수 횟수", f"{comparison_5y['lump_sum']['buy_count']}회", delta=None)
+                            with col_lump5_2:
+                                if is_us_stock:
+                                    st.metric("총 투자금", f"${comparison_5y['lump_sum']['total_investment']:,.0f}", delta=None)
+                                else:
+                                    st.metric("총 투자금", f"₩{comparison_5y['lump_sum']['total_investment']:,.0f}", delta=None)
+                            with col_lump5_3:
+                                if is_us_stock:
+                                    st.metric("평균 매수 단가", f"${comparison_5y['lump_sum']['avg_price']:,.2f}", delta=None)
+                                else:
+                                    st.metric("평균 매수 단가", f"₩{comparison_5y['lump_sum']['avg_price']:,.0f}", delta=None)
+                            with col_lump5_4:
+                                st.metric("보유 주식수", f"{comparison_5y['lump_sum']['total_shares']:.2f}주", delta=None)
+                            
+                            # 두 번째 행: 현재 평가금액, 총 수익률
+                            col_lump5_5, col_lump5_6 = st.columns(2)
+                            with col_lump5_5:
+                                if is_us_stock:
+                                    st.metric("현재 평가금액", f"${comparison_5y['lump_sum']['current_value']:,.0f}", delta=None)
+                                else:
+                                    st.metric("현재 평가금액", f"₩{comparison_5y['lump_sum']['current_value']:,.0f}", delta=None)
+                            with col_lump5_6:
+                                st.metric("총 수익률", f"{comparison_5y['lump_sum']['total_return']:+.2f}%", delta=None)
+                        else:
+                            st.info("5년 매수 내역 없음")
                 
-                with col_2s_5y:
-                    st.markdown("**5년 매수 내역**")
-                    if results_2sigma_5year['buy_history']:
-                        buy_df = pd.DataFrame(results_2sigma_5year['buy_history'])
-                        buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
-                        if is_us_stock:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
-                        else:
-                            buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
-                            buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
-                        buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
-                        buy_df['시그마'] = buy_df['sigma_level']
-                        display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                # 수익률 비교 그래프
+                st.markdown("---")
+                st.markdown("#### 📊 수익률 비교 그래프")
+                
+                col_graph_1y, col_graph_5y = st.columns(2)
+                
+                # 1년 결과 그래프 (왼쪽)
+                with col_graph_1y:
+                    if results_1year['buy_count'] > 0:
+                        st.markdown("**1년 결과 수익률 비교**")
+                        
+                        # 1년 수익률 데이터
+                        sigma_return_1y = results_1year['total_return']
+                        dca_return_1y = comparison_1y['dca']['total_return']
+                        lump_sum_return_1y = comparison_1y['lump_sum']['total_return']
+                        
+                        # 1년 그래프
+                        fig_1y = go.Figure()
+                        fig_1y.add_trace(go.Bar(
+                            x=['시그마 하락시', 'DCA', '일시불'],
+                            y=[sigma_return_1y, dca_return_1y, lump_sum_return_1y],
+                            text=[f'{sigma_return_1y:+.2f}%', f'{dca_return_1y:+.2f}%', f'{lump_sum_return_1y:+.2f}%'],
+                            textposition='auto',
+                            marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
+                        ))
+                        fig_1y.update_layout(
+                            title="1년 수익률 비교",
+                            xaxis_title="투자 전략",
+                            yaxis_title="수익률 (%)",
+                            height=400
+                        )
+                        st.plotly_chart(fig_1y, use_container_width=True)
                     else:
-                        st.info("매수 내역 없음")
+                        st.info("1년 매수 내역 없음")
+                
+                # 5년 결과 그래프 (오른쪽)
+                with col_graph_5y:
+                    if results_5year['buy_count'] > 0:
+                        st.markdown("**5년 결과 수익률 비교**")
+                        
+                        # 5년 수익률 데이터
+                        sigma_return_5y = results_5year['total_return']
+                        dca_return_5y = comparison_5y['dca']['total_return']
+                        lump_sum_return_5y = comparison_5y['lump_sum']['total_return']
+                        
+                        # 5년 그래프
+                        fig_5y = go.Figure()
+                        fig_5y.add_trace(go.Bar(
+                            x=['시그마 하락시', 'DCA', '일시불'],
+                            y=[sigma_return_5y, dca_return_5y, lump_sum_return_5y],
+                            text=[f'{sigma_return_5y:+.2f}%', f'{dca_return_5y:+.2f}%', f'{lump_sum_return_5y:+.2f}%'],
+                            textposition='auto',
+                            marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
+                        ))
+                        fig_5y.update_layout(
+                            title="5년 수익률 비교",
+                            xaxis_title="투자 전략",
+                            yaxis_title="수익률 (%)",
+                            height=400
+                        )
+                        st.plotly_chart(fig_5y, use_container_width=True)
+                    else:
+                        st.info("5년 매수 내역 없음")
             
         else:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
