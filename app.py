@@ -1822,165 +1822,165 @@ with tab3:
                         st.write(f"• 수익률: {strategy['return_1y']:+.2f}%")
                         
                         # 효율성 지표
-                       if strategy['buy_count_1y'] > 0:
-                           efficiency = strategy['return_1y'] / strategy['buy_count_1y']
-                           st.write(f"• 매수당 평균 수익률: {efficiency:+.2f}%")
-                   
-                   with col_s2:
-                       st.markdown("**5년 데이터**")
-                       st.write(f"• 매수 횟수: {strategy['buy_count_5y']}회")
-                       if is_us_stock:
-                           st.write(f"• 총 투자금: ${strategy['total_inv_5y']:,.0f}")
-                       else:
-                           st.write(f"• 총 투자금: ₩{strategy['total_inv_5y']:,.0f}")
-                       st.write(f"• 수익률: {strategy['return_5y']:+.2f}%")
-                       
-                       if strategy['buy_count_5y'] > 0:
-                           efficiency = strategy['return_5y'] / strategy['buy_count_5y']
-                           st.write(f"• 매수당 평균 수익률: {efficiency:+.2f}%")
+                        if strategy['buy_count_1y'] > 0:
+                            efficiency = strategy['return_1y'] / strategy['buy_count_1y']
+                            st.write(f"• 매수당 평균 수익률: {efficiency:+.2f}%")
+                    
+                    with col_s2:
+                        st.markdown("**5년 데이터**")
+                        st.write(f"• 매수 횟수: {strategy['buy_count_5y']}회")
+                        if is_us_stock:
+                            st.write(f"• 총 투자금: ${strategy['total_inv_5y']:,.0f}")
+                        else:
+                            st.write(f"• 총 투자금: ₩{strategy['total_inv_5y']:,.0f}")
+                        st.write(f"• 수익률: {strategy['return_5y']:+.2f}%")
+                        
+                        if strategy['buy_count_5y'] > 0:
+                            efficiency = strategy['return_5y'] / strategy['buy_count_5y']
+                            st.write(f"• 매수당 평균 수익률: {efficiency:+.2f}%")
+            
+            # 3. 시장 환경 분석
+            st.markdown("---")
+            st.markdown("### 3. 시장 환경 분석")
            
-           # 3. 시장 환경 분석
-           st.markdown("---")
-           st.markdown("### 3. 시장 환경 분석")
+            # 현재 가격 및 이동평균 계산
+            current_price = analysis['df']['Close'].iloc[-1]
+            ma_20 = analysis['df']['Close'].tail(20).mean()
+            ma_60 = analysis['df']['Close'].tail(60).mean()
+            ma_200 = analysis['df']['Close'].tail(200).mean() if len(analysis['df']) >= 200 else None
            
-           # 현재 가격 및 이동평균 계산
-           current_price = analysis['df']['Close'].iloc[-1]
-           ma_20 = analysis['df']['Close'].tail(20).mean()
-           ma_60 = analysis['df']['Close'].tail(60).mean()
-           ma_200 = analysis['df']['Close'].tail(200).mean() if len(analysis['df']) >= 200 else None
-           
-           year_high = analysis['df']['Close'].tail(252).max() if len(analysis['df']) >= 252 else analysis['df']['Close'].max()
-           year_low = analysis['df']['Close'].tail(252).min() if len(analysis['df']) >= 252 else analysis['df']['Close'].min()
-           all_time_high = analysis['df']['Close'].max()
-           
-           st.markdown("**📍 현재 위치 평가**")
-           
-           col_pos1, col_pos2, col_pos3 = st.columns(3)
-           
-           with col_pos1:
-               st.metric("52주 최고가 대비", 
-                        f"{((current_price - year_high) / year_high * 100):+.1f}%")
-               st.metric("52주 최저가 대비", 
-                        f"{((current_price - year_low) / year_low * 100):+.1f}%")
-           
-           with col_pos2:
-               st.metric("역사적 고점 대비", 
-                        f"{((current_price - all_time_high) / all_time_high * 100):+.1f}%")
-               st.metric("20일 이동평균 대비", 
-                        f"{((current_price - ma_20) / ma_20 * 100):+.1f}%")
-           
-           with col_pos3:
-               st.metric("60일 이동평균 대비", 
-                        f"{((current_price - ma_60) / ma_60 * 100):+.1f}%")
-               if ma_200:
-                   st.metric("200일 이동평균 대비", 
-                            f"{((current_price - ma_200) / ma_200 * 100):+.1f}%")
-           
-           # 4. 변동성 분석
-           st.markdown("---")
-           st.markdown("### 4. 변동성 분석")
-           
-           # 변동성 계산
-           daily_returns = analysis['df']['Close'].pct_change()
-           daily_volatility = daily_returns.std()
-           annual_volatility = daily_volatility * np.sqrt(252) * 100
-           
-           # 최근 60일 vs 전체 기간 변동성 비교
-           recent_volatility = daily_returns.tail(60).std() * np.sqrt(252) * 100
-           
-           col_vol1, col_vol2, col_vol3 = st.columns(3)
-           
-           with col_vol1:
-               st.metric("연간 변동성", f"{annual_volatility:.1f}%")
-           
-           with col_vol2:
-               st.metric("최근 60일 변동성", f"{recent_volatility:.1f}%")
-           
-           with col_vol3:
-               vol_change = ((recent_volatility - annual_volatility) / annual_volatility) * 100
-               st.metric("변동성 변화", f"{vol_change:+.1f}%")
-           
-           # 변동성 상태 판단
-           if recent_volatility > annual_volatility * 1.2:
-               vol_state = "⚠️ 변동성 확대 구간"
-           elif recent_volatility < annual_volatility * 0.8:
-               vol_state = "😴 변동성 축소 구간"
-           else:
-               vol_state = "👌 정상 변동성 구간"
-           
-           st.info(f"현재 시장 상태: **{vol_state}**")
-           
-           # 5. 전략 효율성 비교
-           st.markdown("---")
-           st.markdown("### 5. 전략 효율성 비교")
-           
-           # 투자 대비 수익률 (ROI) 계산
-           efficiency_data = []
-           
-           # 1σ 전략
-           if results_1sigma_5year['total_investment'] > 0:
-               roi_1sigma = (results_1sigma_5year['current_value'] - results_1sigma_5year['total_investment']) / results_1sigma_5year['total_investment'] * 100
-               efficiency_data.append(("1σ 전략", roi_1sigma, results_1sigma_5year['buy_count']))
-           
-           # 2σ 전략
-           if results_2sigma_5year['total_investment'] > 0:
-               roi_2sigma = (results_2sigma_5year['current_value'] - results_2sigma_5year['total_investment']) / results_2sigma_5year['total_investment'] * 100
-               efficiency_data.append(("2σ 전략", roi_2sigma, results_2sigma_5year['buy_count']))
-           
-           # DCA
-           roi_dca = comparison_5y['dca']['total_return']
-           efficiency_data.append(("DCA", roi_dca, comparison_5y['dca']['buy_count']))
-           
-           # 일시불
-           roi_lump = comparison_5y['lump_sum']['total_return']
-           efficiency_data.append(("일시불", roi_lump, comparison_5y['lump_sum']['buy_count']))
-           
-           # 효율성 테이블
-           efficiency_df = pd.DataFrame(efficiency_data, columns=['전략', '5년 ROI (%)', '거래 횟수'])
-           efficiency_df['거래당 효율'] = efficiency_df['5년 ROI (%)'] / efficiency_df['거래 횟수']
-           efficiency_df = efficiency_df.sort_values('5년 ROI (%)', ascending=False)
-           
-           st.dataframe(efficiency_df.style.format({
-               '5년 ROI (%)': '{:+.2f}%',
-               '거래 횟수': '{:.0f}회',
-               '거래당 효율': '{:+.2f}'
-           }), use_container_width=True, hide_index=True)
-           
-           # 6. 최종 요약
-           st.markdown("---")
-           st.markdown("### 6. 최종 요약")
-           
-           # 최고 전략 선정
-           best_1y = strategies_1y_sorted[0][0]
-           best_5y = strategies_5y_sorted[0][0]
-           
-           # 실제 데이터 기반 요약
-           summary_points = []
-           
-           # 1년 vs 5년 최고 전략
-           if best_1y == best_5y:
-               summary_points.append(f"✅ {best_1y}이 단기/장기 모두 최고 성과")
-           else:
-               summary_points.append(f"✅ 단기(1년): {best_1y} 최고")
-               summary_points.append(f"✅ 장기(5년): {best_5y} 최고")
-           
-           # 거래 빈도 비교
-           if results_1sigma_5year['buy_count'] > 0:
-               summary_points.append(f"✅ 1σ 전략: 5년간 {results_1sigma_5year['buy_count']}회 매수 (가장 활발)")
-           if results_2sigma_5year['buy_count'] > 0:
-               summary_points.append(f"✅ 2σ 전략: 5년간 {results_2sigma_5year['buy_count']}회 매수 (선별적)")
-           
-           # 변동성 상태
-           summary_points.append(f"✅ 현재 변동성: {recent_volatility:.1f}% (5년 평균 대비 {vol_change:+.1f}%)")
-           
-           st.info("\n\n".join(summary_points))
-           
-           st.warning("""
-           ⚠️ **중요 고지사항**
-           - 과거 성과는 미래 수익을 보장하지 않습니다
-           - 백테스팅은 거래 비용과 슬리피지를 고려하지 않았습니다
-           - 실제 투자 시 시장 상황과 개인 여건을 종합적으로 고려하세요
-           """)
+            year_high = analysis['df']['Close'].tail(252).max() if len(analysis['df']) >= 252 else analysis['df']['Close'].max()
+            year_low = analysis['df']['Close'].tail(252).min() if len(analysis['df']) >= 252 else analysis['df']['Close'].min()
+            all_time_high = analysis['df']['Close'].max()
+            
+            st.markdown("**📍 현재 위치 평가**")
+            
+            col_pos1, col_pos2, col_pos3 = st.columns(3)
+            
+            with col_pos1:
+                st.metric("52주 최고가 대비", 
+                            f"{((current_price - year_high) / year_high * 100):+.1f}%")
+                st.metric("52주 최저가 대비", 
+                            f"{((current_price - year_low) / year_low * 100):+.1f}%")
+            
+            with col_pos2:
+                st.metric("역사적 고점 대비", 
+                            f"{((current_price - all_time_high) / all_time_high * 100):+.1f}%")
+                st.metric("20일 이동평균 대비", 
+                            f"{((current_price - ma_20) / ma_20 * 100):+.1f}%")
+            
+            with col_pos3:
+                st.metric("60일 이동평균 대비", 
+                            f"{((current_price - ma_60) / ma_60 * 100):+.1f}%")
+                if ma_200:
+                    st.metric("200일 이동평균 대비", 
+                                f"{((current_price - ma_200) / ma_200 * 100):+.1f}%")
+            
+            # 4. 변동성 분석
+            st.markdown("---")
+            st.markdown("### 4. 변동성 분석")
+            
+            # 변동성 계산
+            daily_returns = analysis['df']['Close'].pct_change()
+            daily_volatility = daily_returns.std()
+            annual_volatility = daily_volatility * np.sqrt(252) * 100
+            
+            # 최근 60일 vs 전체 기간 변동성 비교
+            recent_volatility = daily_returns.tail(60).std() * np.sqrt(252) * 100
+            
+            col_vol1, col_vol2, col_vol3 = st.columns(3)
+            
+            with col_vol1:
+                st.metric("연간 변동성", f"{annual_volatility:.1f}%")
+            
+            with col_vol2:
+                st.metric("최근 60일 변동성", f"{recent_volatility:.1f}%")
+            
+            with col_vol3:
+                vol_change = ((recent_volatility - annual_volatility) / annual_volatility) * 100
+                st.metric("변동성 변화", f"{vol_change:+.1f}%")
+            
+            # 변동성 상태 판단
+            if recent_volatility > annual_volatility * 1.2:
+                vol_state = "⚠️ 변동성 확대 구간"
+            elif recent_volatility < annual_volatility * 0.8:
+                vol_state = "😴 변동성 축소 구간"
+            else:
+                vol_state = "👌 정상 변동성 구간"
+            
+            st.info(f"현재 시장 상태: **{vol_state}**")
+            
+            # 5. 전략 효율성 비교
+            st.markdown("---")
+            st.markdown("### 5. 전략 효율성 비교")
+            
+            # 투자 대비 수익률 (ROI) 계산
+            efficiency_data = []
+            
+            # 1σ 전략
+            if results_1sigma_5year['total_investment'] > 0:
+                roi_1sigma = (results_1sigma_5year['current_value'] - results_1sigma_5year['total_investment']) / results_1sigma_5year['total_investment'] * 100
+                efficiency_data.append(("1σ 전략", roi_1sigma, results_1sigma_5year['buy_count']))
+            
+            # 2σ 전략
+            if results_2sigma_5year['total_investment'] > 0:
+                roi_2sigma = (results_2sigma_5year['current_value'] - results_2sigma_5year['total_investment']) / results_2sigma_5year['total_investment'] * 100
+                efficiency_data.append(("2σ 전략", roi_2sigma, results_2sigma_5year['buy_count']))
+            
+            # DCA
+            roi_dca = comparison_5y['dca']['total_return']
+            efficiency_data.append(("DCA", roi_dca, comparison_5y['dca']['buy_count']))
+            
+            # 일시불
+            roi_lump = comparison_5y['lump_sum']['total_return']
+            efficiency_data.append(("일시불", roi_lump, comparison_5y['lump_sum']['buy_count']))
+            
+            # 효율성 테이블
+            efficiency_df = pd.DataFrame(efficiency_data, columns=['전략', '5년 ROI (%)', '거래 횟수'])
+            efficiency_df['거래당 효율'] = efficiency_df['5년 ROI (%)'] / efficiency_df['거래 횟수']
+            efficiency_df = efficiency_df.sort_values('5년 ROI (%)', ascending=False)
+            
+            st.dataframe(efficiency_df.style.format({
+                '5년 ROI (%)': '{:+.2f}%',
+                '거래 횟수': '{:.0f}회',
+                '거래당 효율': '{:+.2f}'
+            }), use_container_width=True, hide_index=True)
+            
+            # 6. 최종 요약
+            st.markdown("---")
+            st.markdown("### 6. 최종 요약")
+            
+            # 최고 전략 선정
+            best_1y = strategies_1y_sorted[0][0]
+            best_5y = strategies_5y_sorted[0][0]
+            
+            # 실제 데이터 기반 요약
+            summary_points = []
+            
+            # 1년 vs 5년 최고 전략
+            if best_1y == best_5y:
+                summary_points.append(f"✅ {best_1y}이 단기/장기 모두 최고 성과")
+            else:
+                summary_points.append(f"✅ 단기(1년): {best_1y} 최고")
+                summary_points.append(f"✅ 장기(5년): {best_5y} 최고")
+            
+            # 거래 빈도 비교
+            if results_1sigma_5year['buy_count'] > 0:
+                summary_points.append(f"✅ 1σ 전략: 5년간 {results_1sigma_5year['buy_count']}회 매수 (가장 활발)")
+            if results_2sigma_5year['buy_count'] > 0:
+                summary_points.append(f"✅ 2σ 전략: 5년간 {results_2sigma_5year['buy_count']}회 매수 (선별적)")
+            
+            # 변동성 상태
+            summary_points.append(f"✅ 현재 변동성: {recent_volatility:.1f}% (5년 평균 대비 {vol_change:+.1f}%)")
+            
+            st.info("\n\n".join(summary_points))
+            
+            st.warning("""
+            ⚠️ **중요 고지사항**
+            - 과거 성과는 미래 수익을 보장하지 않습니다
+            - 백테스팅은 거래 비용과 슬리피지를 고려하지 않았습니다
+            - 실제 투자 시 시장 상황과 개인 여건을 종합적으로 고려하세요
+            """)
             
         else:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
