@@ -994,16 +994,11 @@ with tab2:
 with tab3:
     st.subheader("📈 백테스팅")
     
-    # 디버깅용 코드 추가
-    st.write("세션 스테이트 키:", st.session_state.keys())
-    
     if 'current_analysis' in st.session_state:
-        st.write("current_analysis 있음")
         analysis = st.session_state.current_analysis
         selected_symbol = analysis['symbol']
         st.info(f"📊 백테스팅 종목: {analysis['name']} ({analysis['symbol']})")
     else:
-        st.write("current_analysis 없음")
         st.info("📊 먼저 탭 1에서 종목을 검색하고 분석해주세요.")
         selected_symbol = None
     
