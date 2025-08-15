@@ -49,14 +49,6 @@ def get_google_sheets_client():
             service_account_info, scopes=SCOPES
         )
         client = gspread.authorize(creds)
-        
-        # 캐싱 방지를 위한 설정
-        client.session.headers.update({
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        })
-        
         return client
     except Exception as e:
         st.error(f"Google Sheets 연결 실패: {e}")
@@ -116,6 +108,8 @@ def load_stocks_from_sheets():
             worksheet = spreadsheet.sheet1
             
             # 모든 값 가져오기 (캐시 무효화를 위해 강제로 새로고침)
+            # worksheet를 새로 가져와서 캐싱 방지
+            worksheet = spreadsheet.get_worksheet(0)
             all_values = worksheet.get_all_values()
             
             if len(all_values) <= 1:  # 헤더만 있거나 빈 경우
@@ -155,9 +149,12 @@ def load_stocks_from_sheets():
                 status_text.empty()
                 
                 # 세션 상태 완전히 초기화 후 새 데이터로 설정
-                st.session_state.monitoring_stocks = {}
+                st.session_state.monitoring_stocks.clear()
                 st.session_state.monitoring_stocks.update(stocks)
                 st.session_state.stocks_loaded = True
+                
+                # 캐시 무효화를 위해 강제로 새로고침
+                st.cache_data.clear()
                 
                 st.success(f"✅ Google Sheets에서 {len(stocks)}개 종목을 불러왔습니다!")
                 return True
@@ -355,7 +352,8 @@ with col2:
     if st.button("🔄 Google Sheets 새로고침", use_container_width=True, type="secondary"):
         # 캐시 무효화를 위해 세션 상태 초기화
         st.session_state.stocks_loaded = False
-        st.session_state.monitoring_stocks = {}
+        st.session_state.monitoring_stocks.clear()
+        st.cache_data.clear()
         
         if load_stocks_from_sheets():
             st.rerun()
@@ -381,7 +379,8 @@ with st.sidebar:
     if st.button("📂 Google Sheets에서 불러오기", use_container_width=True, type="primary"):
         # 캐시 무효화를 위해 세션 상태 초기화
         st.session_state.stocks_loaded = False
-        st.session_state.monitoring_stocks = {}
+        st.session_state.monitoring_stocks.clear()
+        st.cache_data.clear()
         
         if load_stocks_from_sheets():
             st.rerun()
