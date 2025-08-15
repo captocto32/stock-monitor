@@ -343,21 +343,6 @@ class StockAnalyzer:
 
 # Streamlit 앱 시작
 st.subheader("🍣 주식 하락률 모니터링 시스템")
-
-# Google Sheets 새로고침 버튼을 상단에 추가
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.markdown("---")
-with col2:
-    if st.button("🔄 Google Sheets 새로고침", use_container_width=True, type="secondary"):
-        # 캐시 무효화를 위해 세션 상태 초기화
-        st.session_state.stocks_loaded = False
-        st.session_state.monitoring_stocks.clear()
-        st.cache_data.clear()
-        
-        if load_stocks_from_sheets():
-            st.rerun()
-
 st.markdown("---")
 
 # 탭 생성
@@ -376,7 +361,7 @@ with st.sidebar:
     st.header("🍚 저장된 종목")
     
     # Google Sheets에서 불러오기 버튼
-    if st.button("📂 Google Sheets에서 불러오기", use_container_width=True, type="primary"):
+    if st.button("📂 Spreadsheets에서 불러오기", use_container_width=True, type="primary"):
         # 캐시 무효화를 위해 세션 상태 초기화
         st.session_state.stocks_loaded = False
         st.session_state.monitoring_stocks.clear()
