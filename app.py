@@ -361,7 +361,7 @@ with st.sidebar:
     st.header("🍚 저장된 종목")
     
     # Google Sheets에서 불러오기 버튼
-    if st.button("📂 Spreadsheets에서 불러오기", use_container_width=True, type="primary"):
+    if st.button("📂 저장종목 불러오기", use_container_width=True, type="primary"):
         # 캐시 무효화를 위해 세션 상태 초기화
         st.session_state.stocks_loaded = False
         st.session_state.monitoring_stocks.clear()
