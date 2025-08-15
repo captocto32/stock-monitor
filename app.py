@@ -51,6 +51,14 @@ def get_google_sheets_client():
             service_account_info, scopes=SCOPES
         )
         client = gspread.authorize(creds)
+        
+        # 캐싱 방지를 위한 설정
+        client.session.headers.update({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        })
+        
         return client
     except Exception as e:
         st.error(f"Google Sheets 연결 실패: {e}")
@@ -109,7 +117,7 @@ def load_stocks_from_sheets():
             spreadsheet = client.open(SPREADSHEET_NAME)
             worksheet = spreadsheet.sheet1
             
-            # 모든 값 가져오기
+            # 모든 값 가져오기 (캐시 무효화를 위해 강제로 새로고침)
             all_values = worksheet.get_all_values()
             
             if len(all_values) <= 1:  # 헤더만 있거나 빈 경우
@@ -129,7 +137,13 @@ def load_stocks_from_sheets():
             if stocks:
                 # 분석기로 현재 가격 정보 추가
                 analyzer = StockAnalyzer()
-                for symbol, info in stocks.items():
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for idx, (symbol, info) in enumerate(stocks.items()):
+                    status_text.text(f"Google Sheets에서 불러오는 중: {info['name']} ({symbol})")
+                    progress_bar.progress((idx + 1) / len(stocks))
+                    
                     try:
                         df = analyzer.get_stock_data(symbol, info['type'])
                         if df is not None:
@@ -139,8 +153,14 @@ def load_stocks_from_sheets():
                     except Exception as e:
                         st.warning(f"{symbol} 데이터 로드 실패: {e}")
                 
-                st.session_state.monitoring_stocks = stocks
+                progress_bar.empty()
+                status_text.empty()
+                
+                # 세션 상태 완전히 초기화 후 새 데이터로 설정
+                st.session_state.monitoring_stocks = {}
+                st.session_state.monitoring_stocks.update(stocks)
                 st.session_state.stocks_loaded = True
+                
                 st.success(f"✅ Google Sheets에서 {len(stocks)}개 종목을 불러왔습니다!")
                 return True
             else:
@@ -356,6 +376,20 @@ class StockAnalyzer:
 
 # Streamlit 앱 시작
 st.subheader("🍣 주식 하락률 모니터링 시스템")
+
+# Google Sheets 새로고침 버튼을 상단에 추가
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.markdown("---")
+with col2:
+    if st.button("🔄 Google Sheets 새로고침", use_container_width=True, type="secondary"):
+        # 캐시 무효화를 위해 세션 상태 초기화
+        st.session_state.stocks_loaded = False
+        st.session_state.monitoring_stocks = {}
+        
+        if load_stocks_from_sheets():
+            st.rerun()
+
 st.markdown("---")
 
 # 탭 생성
@@ -372,35 +406,48 @@ with st.sidebar:
     
     # 저장된 종목 불러오기
     st.header("🍚 저장된 종목")
-    saved_stocks = load_saved_stocks()
-
-    if saved_stocks and not st.session_state.stocks_loaded:
-        if st.button("📂 저장된 종목 불러오기", use_container_width=True):
-            analyzer = StockAnalyzer()
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            for idx, (symbol, info) in enumerate(saved_stocks.items()):
-                status_text.text(f"불러오는 중: {info['name']} ({symbol})")
-                progress_bar.progress((idx + 1) / len(saved_stocks))
-                
-                df = analyzer.get_stock_data(symbol, info['type'])
-                if df is not None:
-                    stats = analyzer.calculate_sigma_levels(df)
-                    st.session_state.monitoring_stocks[symbol] = {
-                        'name': info['name'],
-                        'type': info['type'],
-                        'stats': stats,
-                        'df': df
-                    }
-            
-            st.session_state.stocks_loaded = True
-            progress_bar.empty()
-            status_text.empty()
-            st.success(f"✅ {len(st.session_state.monitoring_stocks)}개 종목 로드 완료!")
-            st.rerun()
     
-    elif st.session_state.monitoring_stocks:
+    # Google Sheets에서 불러오기 버튼 추가
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📂 Google Sheets에서 불러오기", use_container_width=True, type="primary"):
+            # 캐시 무효화를 위해 세션 상태 초기화
+            st.session_state.stocks_loaded = False
+            st.session_state.monitoring_stocks = {}
+            
+            if load_stocks_from_sheets():
+                st.rerun()
+    
+    with col2:
+        saved_stocks = load_saved_stocks()
+        if saved_stocks and not st.session_state.stocks_loaded:
+            if st.button("📁 로컬 파일에서 불러오기", use_container_width=True):
+                analyzer = StockAnalyzer()
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for idx, (symbol, info) in enumerate(saved_stocks.items()):
+                    status_text.text(f"불러오는 중: {info['name']} ({symbol})")
+                    progress_bar.progress((idx + 1) / len(saved_stocks))
+                    
+                    df = analyzer.get_stock_data(symbol, info['type'])
+                    if df is not None:
+                        stats = analyzer.calculate_sigma_levels(df)
+                        st.session_state.monitoring_stocks[symbol] = {
+                            'name': info['name'],
+                            'type': info['type'],
+                            'stats': stats,
+                            'df': df
+                        }
+                
+                st.session_state.stocks_loaded = True
+                progress_bar.empty()
+                status_text.empty()
+                st.success(f"✅ {len(st.session_state.monitoring_stocks)}개 종목 로드 완료!")
+                st.rerun()
+    
+    if st.session_state.monitoring_stocks:
         if st.button("💾 Google Sheets 저장", use_container_width=True):
             save_stocks_to_sheets()
         st.markdown(f"**현재 종목 {len(st.session_state.monitoring_stocks)}개**")
