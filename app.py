@@ -6,7 +6,6 @@ import numpy as np
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import json
-import os
 import subprocess
 import signal
 import time
@@ -30,8 +29,7 @@ if 'monitoring_active' not in st.session_state:
 if 'stocks_loaded' not in st.session_state:
     st.session_state.stocks_loaded = False
 
-# 저장 파일 경로
-SAVE_FILE = 'saved_stocks.json'
+# Google Sheets만 사용하므로 로컬 파일 경로 제거
 
 # Google Sheets 설정
 SCOPES = [
@@ -175,35 +173,7 @@ def load_stocks_from_sheets():
         st.error(f"Google Sheets에서 데이터를 불러올 수 없습니다: {e}")
         return False
 
-def save_stocks():
-    """모니터링 종목을 JSON 파일에 저장"""
-    try:
-        stocks_to_save = {}
-        for symbol, info in st.session_state.monitoring_stocks.items():
-            stocks_to_save[symbol] = {
-                'name': info['name'],
-                'type': info['type']
-            }
-        
-        with open(SAVE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(stocks_to_save, f, ensure_ascii=False, indent=2)
-        
-        st.success("✅ 저장 완료!")
-        return True
-    except Exception as e:
-        st.error(f"저장 실패: {e}")
-        return False
-
-def load_saved_stocks():
-    """JSON 파일에서 저장된 종목 불러오기"""
-    try:
-        if os.path.exists(SAVE_FILE):
-            with open(SAVE_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {}
-    except Exception as e:
-        st.error(f"파일 로드 실패: {e}")
-        return {}
+# 로컬 파일 저장/불러오기 함수 제거 - Google Sheets만 사용
 
 class StockAnalyzer:
     def __init__(self):
@@ -407,45 +377,14 @@ with st.sidebar:
     # 저장된 종목 불러오기
     st.header("🍚 저장된 종목")
     
-    # Google Sheets에서 불러오기 버튼 추가
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("📂 Google Sheets에서 불러오기", use_container_width=True, type="primary"):
-            # 캐시 무효화를 위해 세션 상태 초기화
-            st.session_state.stocks_loaded = False
-            st.session_state.monitoring_stocks = {}
-            
-            if load_stocks_from_sheets():
-                st.rerun()
-    
-    with col2:
-        saved_stocks = load_saved_stocks()
-        if saved_stocks and not st.session_state.stocks_loaded:
-            if st.button("📁 로컬 파일에서 불러오기", use_container_width=True):
-                analyzer = StockAnalyzer()
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                for idx, (symbol, info) in enumerate(saved_stocks.items()):
-                    status_text.text(f"불러오는 중: {info['name']} ({symbol})")
-                    progress_bar.progress((idx + 1) / len(saved_stocks))
-                    
-                    df = analyzer.get_stock_data(symbol, info['type'])
-                    if df is not None:
-                        stats = analyzer.calculate_sigma_levels(df)
-                        st.session_state.monitoring_stocks[symbol] = {
-                            'name': info['name'],
-                            'type': info['type'],
-                            'stats': stats,
-                            'df': df
-                        }
-                
-                st.session_state.stocks_loaded = True
-                progress_bar.empty()
-                status_text.empty()
-                st.success(f"✅ {len(st.session_state.monitoring_stocks)}개 종목 로드 완료!")
-                st.rerun()
+    # Google Sheets에서 불러오기 버튼
+    if st.button("📂 Google Sheets에서 불러오기", use_container_width=True, type="primary"):
+        # 캐시 무효화를 위해 세션 상태 초기화
+        st.session_state.stocks_loaded = False
+        st.session_state.monitoring_stocks = {}
+        
+        if load_stocks_from_sheets():
+            st.rerun()
     
     if st.session_state.monitoring_stocks:
         if st.button("💾 Google Sheets 저장", use_container_width=True):
