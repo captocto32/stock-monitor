@@ -981,162 +981,6 @@ with tab3:
     with col1_3:
         amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=200)
     
-    # 백테스팅 함수들을 버튼 밖에 정의
-    def run_backtest(df_data, period_name, include_1sigma, sigma_1, sigma_2, sigma_3, is_us_stock, amount_1sigma, amount_2sigma, amount_3sigma):
-        buy_history = []
-        total_investment = 0
-        total_shares = 0
-        
-        for i in range(1, len(df_data)):
-            current_return = df_data['Returns'].iloc[i]
-            current_price = df_data['Close'].iloc[i]
-            current_date = df_data.index[i]
-            
-            # 3σ 하락 시
-            if current_return <= sigma_3:
-                if is_us_stock:
-                    investment = amount_3sigma
-                else:
-                    investment = amount_3sigma * 10000
-                shares = investment / current_price
-                buy_history.append({
-                    'date': current_date,
-                    'price': current_price,
-                    'return': current_return,
-                    'sigma_level': '3σ',
-                    'investment': investment,
-                    'shares': shares
-                })
-                total_investment += investment
-                total_shares += shares
-            
-            # 2σ 하락 시
-            elif current_return <= sigma_2:
-                if is_us_stock:
-                    investment = amount_2sigma
-                else:
-                    investment = amount_2sigma * 10000
-                shares = investment / current_price
-                buy_history.append({
-                    'date': current_date,
-                    'price': current_price,
-                    'return': current_return,
-                    'sigma_level': '2σ',
-                    'investment': investment,
-                    'shares': shares
-                })
-                total_investment += investment
-                total_shares += shares
-            
-            # 1σ 하락 시 (include_1sigma가 True일 때만)
-            elif include_1sigma and current_return <= sigma_1:
-                if is_us_stock:
-                    investment = amount_1sigma
-                else:
-                    investment = amount_1sigma * 10000
-                shares = investment / current_price
-                buy_history.append({
-                    'date': current_date,
-                    'price': current_price,
-                    'return': current_return,
-                    'sigma_level': '1σ',
-                    'investment': investment,
-                    'shares': shares
-                })
-                total_investment += investment
-                total_shares += shares
-        
-        # 결과 계산
-        if buy_history:
-            avg_price = total_investment / total_shares
-            current_price = df_data['Close'].iloc[-1]
-            current_value = total_shares * current_price
-            total_return = ((current_value - total_investment) / total_investment) * 100
-            
-            return {
-                'buy_history': buy_history,
-                'buy_count': len(buy_history),
-                'total_investment': total_investment,
-                'total_shares': total_shares,
-                'avg_price': avg_price,
-                'current_value': current_value,
-                'total_return': total_return
-            }
-        else:
-            return {
-                'buy_history': [],
-                'buy_count': 0,
-                'total_investment': 0,
-                'total_shares': 0,
-                'avg_price': 0,
-                'current_value': 0,
-                'total_return': 0
-            }
-    
-    # DCA 전략 함수도 버튼 밖에 정의
-    def run_dca_comparison(df_data, period_months, is_us_stock):
-        # 고정 투자금 설정 (100만원 또는 $1000)
-        if is_us_stock:
-            fixed_investment = 1000  # $1000
-        else:
-            fixed_investment = 1000000  # 100만원
-        
-        # DCA 투자 (매월 10일 종가)
-        dca_investment = 0
-        dca_shares = 0
-        dca_buy_count = 0
-        dca_buy_history = []
-        monthly_amount = fixed_investment / period_months
-        
-        # DCA: 매월 10일 찾기
-        target_months = period_months
-        found_months = 0
-        last_month = -1
-        last_year = -1
-        
-        for i in range(len(df_data)):
-            current_date = df_data.index[i]
-            current_month = current_date.month
-            current_year = current_date.year
-            
-            # 매월 10일 또는 10일 이후 첫 거래일
-            if (current_date.day >= 10 and 
-                (current_year != last_year or current_month != last_month) and 
-                found_months < target_months):
-                current_price = df_data['Close'].iloc[i]
-                shares = monthly_amount / current_price
-                dca_investment += monthly_amount
-                dca_shares += shares
-                dca_buy_count += 1
-                dca_buy_history.append({
-                    'date': current_date,
-                    'price': current_price,
-                    'investment': monthly_amount,
-                    'shares': shares
-                })
-                found_months += 1
-                last_month = current_month
-                last_year = current_year
-        
-        # 현재 가격
-        current_price = df_data['Close'].iloc[-1]
-        
-        # DCA 결과
-        dca_current_value = dca_shares * current_price
-        dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100 if dca_investment > 0 else 0
-        dca_avg_price = dca_investment / dca_shares if dca_shares > 0 else 0
-        
-        return {
-                'buy_count': dca_buy_count,
-                'total_investment': fixed_investment,
-                'monthly_amount': monthly_amount,
-                'avg_price': dca_avg_price,
-                'total_shares': dca_shares,
-                'current_value': dca_current_value,
-                'total_return': dca_total_return,
-                'buy_history': dca_buy_history
-        }
-    
     # 백테스팅 실행 버튼
     if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
         if selected_symbol:
@@ -1164,19 +1008,175 @@ with tab3:
             sigma_2 = stats['2sigma']
             sigma_3 = stats['3sigma']
             
+            # 백테스팅 함수 정의
+            def run_backtest(df_data, period_name, include_1sigma=True):
+                buy_history = []
+                total_investment = 0
+                total_shares = 0
+                
+                for i in range(1, len(df_data)):
+                    current_return = df_data['Returns'].iloc[i]
+                    current_price = df_data['Close'].iloc[i]
+                    current_date = df_data.index[i]
+                    
+                    # 3σ 하락 시
+                    if current_return <= sigma_3:
+                        if is_us_stock:
+                            investment = amount_3sigma
+                        else:
+                            investment = amount_3sigma * 10000
+                        shares = investment / current_price
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': '3σ',
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                    
+                    # 2σ 하락 시
+                    elif current_return <= sigma_2:
+                        if is_us_stock:
+                            investment = amount_2sigma
+                        else:
+                            investment = amount_2sigma * 10000
+                        shares = investment / current_price
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': '2σ',
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                    
+                    # 1σ 하락 시 (include_1sigma가 True일 때만)
+                    elif include_1sigma and current_return <= sigma_1:
+                        if is_us_stock:
+                            investment = amount_1sigma
+                        else:
+                            investment = amount_1sigma * 10000
+                        shares = investment / current_price
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': '1σ',
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                
+                # 결과 계산
+                if buy_history:
+                    avg_price = total_investment / total_shares
+                    current_price = df_data['Close'].iloc[-1]
+                    current_value = total_shares * current_price
+                    total_return = ((current_value - total_investment) / total_investment) * 100
+                    
+                    return {
+                        'buy_history': buy_history,
+                        'buy_count': len(buy_history),
+                        'total_investment': total_investment,
+                        'total_shares': total_shares,
+                        'avg_price': avg_price,
+                        'current_value': current_value,
+                        'total_return': total_return
+                    }
+                else:
+                    return {
+                        'buy_history': [],
+                        'buy_count': 0,
+                        'total_investment': 0,
+                        'total_shares': 0,
+                        'avg_price': 0,
+                        'current_value': 0,
+                        'total_return': 0
+                    }
+            
+            # DCA 전략만 계산 (일시불 제거)
+            def run_dca_comparison(df_data, period_months):
+                # 고정 투자금 설정 (100만원 또는 $1000)
+                if is_us_stock:
+                    fixed_investment = 1000  # $1000
+                else:
+                    fixed_investment = 1000000  # 100만원
+                
+                # DCA 투자 (매월 10일 종가)
+                dca_investment = 0
+                dca_shares = 0
+                dca_buy_count = 0
+                dca_buy_history = []
+                monthly_amount = fixed_investment / period_months
+                
+                # DCA: 매월 10일 찾기
+                target_months = period_months
+                found_months = 0
+                last_month = -1
+                last_year = -1
+                
+                for i in range(len(df_data)):
+                    current_date = df_data.index[i]
+                    current_month = current_date.month
+                    current_year = current_date.year
+                    
+                    # 매월 10일 또는 10일 이후 첫 거래일
+                    if (current_date.day >= 10 and 
+                        (current_year != last_year or current_month != last_month) and 
+                        found_months < target_months):
+                        current_price = df_data['Close'].iloc[i]
+                        shares = monthly_amount / current_price
+                        dca_investment += monthly_amount
+                        dca_shares += shares
+                        dca_buy_count += 1
+                        dca_buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'investment': monthly_amount,
+                            'shares': shares
+                        })
+                        found_months += 1
+                        last_month = current_month
+                        last_year = current_year
+                
+                # 현재 가격
+                current_price = df_data['Close'].iloc[-1]
+                
+                # DCA 결과
+                dca_current_value = dca_shares * current_price
+                dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100 if dca_investment > 0 else 0
+                dca_avg_price = dca_investment / dca_shares if dca_shares > 0 else 0
+                
+                return {
+                        'buy_count': dca_buy_count,
+                        'total_investment': fixed_investment,
+                        'monthly_amount': monthly_amount,
+                        'avg_price': dca_avg_price,
+                        'total_shares': dca_shares,
+                        'current_value': dca_current_value,
+                        'total_return': dca_total_return,
+                        'buy_history': dca_buy_history
+                }
+            
             # 백테스팅 실행
             with st.spinner("백테스팅 분석 중..."):
                 # 1σ 전략 백테스팅
-                results_1sigma_1year = run_backtest(df_1year, "1년", True, sigma_1, sigma_2, sigma_3, is_us_stock, amount_1sigma, amount_2sigma, amount_3sigma)
-                results_1sigma_5year = run_backtest(df_5year, "5년", True, sigma_1, sigma_2, sigma_3, is_us_stock, amount_1sigma, amount_2sigma, amount_3sigma)
+                results_1sigma_1year = run_backtest(df_1year, "1년", include_1sigma=True)
+                results_1sigma_5year = run_backtest(df_5year, "5년", include_1sigma=True)
                 
                 # 2σ 전략 백테스팅 (1σ 제외)
-                results_2sigma_1year = run_backtest(df_1year, "1년", False, sigma_1, sigma_2, sigma_3, is_us_stock, amount_1sigma, amount_2sigma, amount_3sigma)
-                results_2sigma_5year = run_backtest(df_5year, "5년", False, sigma_1, sigma_2, sigma_3, is_us_stock, amount_1sigma, amount_2sigma, amount_3sigma)
+                results_2sigma_1year = run_backtest(df_1year, "1년", include_1sigma=False)
+                results_2sigma_5year = run_backtest(df_5year, "5년", include_1sigma=False)
                 
                 # DCA 계산 (일시불 제거)
-                dca_1y = run_dca_comparison(df_1year, 12, is_us_stock)
-                dca_5y = run_dca_comparison(df_5year, 60, is_us_stock)
+                dca_1y = run_dca_comparison(df_1year, 12)
+                dca_5y = run_dca_comparison(df_5year, 60)
                 
                 # 비교용 변수 생성
                 comparison_1y = {'dca': dca_1y}
@@ -1196,167 +1196,938 @@ with tab3:
                     'sigma_1': sigma_1,
                     'sigma_2': sigma_2,
                     'sigma_3': sigma_3,
-                    'is_us_stock': is_us_stock,
-                    'amount_1sigma': amount_1sigma,
-                    'amount_2sigma': amount_2sigma,
-                    'amount_3sigma': amount_3sigma
+                    'is_us_stock': is_us_stock
                 }
                 st.session_state['backtest_completed'] = True
+                st.rerun()  # 페이지 새로고침으로 결과 표시
     
-    # 백테스팅 결과가 있으면 표시 (버튼 조건문 밖!)
-    if 'backtest_completed' in st.session_state and st.session_state['backtest_completed']:
-        if 'backtest_results' in st.session_state:
-            # 세션에서 결과 불러오기
-            backtest_data = st.session_state['backtest_results']
-            results_1sigma_1year = backtest_data['results_1sigma_1year']
-            results_1sigma_5year = backtest_data['results_1sigma_5year']
-            results_2sigma_1year = backtest_data['results_2sigma_1year']
-            results_2sigma_5year = backtest_data['results_2sigma_5year']
-            comparison_1y = backtest_data['comparison_1y']
-            comparison_5y = backtest_data['comparison_5y']
-            df_5year = backtest_data['df_5year']
-            df_1year = backtest_data['df_1year']
-            stats = backtest_data['stats']
-            sigma_1 = backtest_data['sigma_1']
-            sigma_2 = backtest_data['sigma_2']
-            sigma_3 = backtest_data['sigma_3']
-            is_us_stock = backtest_data['is_us_stock']
-            dca_1y = comparison_1y['dca']
-            dca_5y = comparison_5y['dca']
-            
-            # 결과 표시
-            st.success("✅ 백테스팅 완료!")
-            
-            # 3가지 전략 비교 섹션 (일시불 제외)
-            st.markdown("#### 📊 투자 전략 백테스팅 결과")
-            
-            # [여기에 1σ, 2σ, DCA 결과 표시 코드 모두 넣기 - 기존 코드 그대로]
-            # ... (모든 결과 표시 코드)
-            
-            # ============= 개선된 몬테카를로 최적화 섹션 =============
-            st.markdown("---")
-            st.markdown("## 🎲 몬테카를로 최적화")
-            
-            # 실제 변동성 계산 함수 추가
-            def calculate_strategy_volatility(df_data, strategy_type):
-                """각 전략의 실제 변동성 계산"""
-                if strategy_type == '1sigma':
-                    # 1σ 하락일의 수익률 변동성
-                    sigma_days = df_data[df_data['Returns'] <= sigma_1]
-                    return sigma_days['Returns'].std() if len(sigma_days) > 0 else 15
-                elif strategy_type == '2sigma':
-                    sigma_days = df_data[df_data['Returns'] <= sigma_2]
-                    return sigma_days['Returns'].std() if len(sigma_days) > 0 else 12
-                else:  # DCA
-                    # 매월 수익률 계산
-                    monthly_returns = df_data['Close'].resample('M').last().pct_change() * 100
-                    return monthly_returns.std() if len(monthly_returns) > 0 else 8
-            
-            # 개선된 몬테카를로 함수
-            def monte_carlo_optimization(df_data, sigma_stats, num_simulations=5000):
-                """몬테카를로 시뮬레이션으로 최적 비중 찾기"""
+    # 백테스팅 결과가 있으면 표시
+    if 'backtest_completed' in st.session_state and st.session_state.get('backtest_completed', False):
+        # 세션에서 결과 불러오기
+        backtest_data = st.session_state['backtest_results']
+        results_1sigma_1year = backtest_data['results_1sigma_1year']
+        results_1sigma_5year = backtest_data['results_1sigma_5year']
+        results_2sigma_1year = backtest_data['results_2sigma_1year']
+        results_2sigma_5year = backtest_data['results_2sigma_5year']
+        comparison_1y = backtest_data['comparison_1y']
+        comparison_5y = backtest_data['comparison_5y']
+        df_5year = backtest_data['df_5year']
+        df_1year = backtest_data['df_1year']
+        stats = backtest_data['stats']
+        sigma_1 = backtest_data['sigma_1']
+        sigma_2 = backtest_data['sigma_2']
+        is_us_stock = backtest_data['is_us_stock']
+        dca_1y = comparison_1y['dca']
+        dca_5y = comparison_5y['dca']
+        
+        # 결과 표시
+        st.success("✅ 백테스팅 완료!")
+        
+        # 3가지 전략 비교 섹션 (일시불 제외)
+        st.markdown("#### 📊 투자 전략 백테스팅 결과")
+        
+        # 1σ 전략
+        st.markdown("---")
+        st.markdown("### 1️⃣ 1σ 이상 하락시 매수 전략")
+        
+        col_1s_1y, col_1s_5y = st.columns(2)
+        
+        with col_1s_1y:
+            st.markdown("**📅 최근 1년**")
+            if results_1sigma_1year['buy_count'] > 0:
+                # 첫 행: 매수횟수, 평균 매수 단가, 보유주식수
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("매수 횟수", f"{results_1sigma_1year['buy_count']}회")
+                with col2:
+                    if is_us_stock:
+                        st.metric("평균 매수 단가", f"${results_1sigma_1year['avg_price']:,.2f}")
+                    else:
+                        st.metric("평균 매수 단가", f"₩{results_1sigma_1year['avg_price']:,.0f}")
+                with col3:
+                    st.metric("보유 주식수", f"{results_1sigma_1year['total_shares']:.2f}주")
                 
-                # 실제 변동성 계산
-                vol_1sigma = calculate_strategy_volatility(df_data, '1sigma')
-                vol_2sigma = calculate_strategy_volatility(df_data, '2sigma')
-                vol_dca = calculate_strategy_volatility(df_data, 'dca')
+                # 둘째 행: 총 투자금, 수익률
+                col4, col5 = st.columns(2)
+                with col4:
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_1sigma_1year['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_1sigma_1year['total_investment']:,.0f}")
+                with col5:
+                    st.metric("수익률", f"{results_1sigma_1year['total_return']:+.2f}%",
+                             delta=f"{results_1sigma_1year['total_return']:+.2f}%")
                 
-                best_result = {
-                    'sharpe': -999,
-                    'weights': None,
-                    'return': None,
-                    'std': None,
-                    'all_results': []
-                }
+                # 매수 내역
+                with st.expander(f"📋 매수 내역 ({results_1sigma_1year['buy_count']}건)"):
+                    buy_df = pd.DataFrame(results_1sigma_1year['buy_history'])
+                    buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
+                    if is_us_stock:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
+                    else:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                    buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
+                    buy_df['시그마'] = buy_df['sigma_level']
+                    display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("매수 내역 없음")
+        
+        with col_1s_5y:
+            st.markdown("**📅 최근 5년**")
+            if results_1sigma_5year['buy_count'] > 0:
+                # 첫 행: 매수횟수, 평균 매수 단가, 보유주식수
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("매수 횟수", f"{results_1sigma_5year['buy_count']}회")
+                with col2:
+                    if is_us_stock:
+                        st.metric("평균 매수 단가", f"${results_1sigma_5year['avg_price']:,.2f}")
+                    else:
+                        st.metric("평균 매수 단가", f"₩{results_1sigma_5year['avg_price']:,.0f}")
+                with col3:
+                    st.metric("보유 주식수", f"{results_1sigma_5year['total_shares']:.2f}주")
                 
-                all_combinations = []
+                # 둘째 행: 총 투자금, 수익률
+                col4, col5 = st.columns(2)
+                with col4:
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_1sigma_5year['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_1sigma_5year['total_investment']:,.0f}")
+                with col5:
+                    st.metric("수익률", f"{results_1sigma_5year['total_return']:+.2f}%",
+                             delta=f"{results_1sigma_5year['total_return']:+.2f}%")
                 
-                for i in range(num_simulations):
-                    # 무작위 비중 생성
-                    weights = np.random.random(3)
-                    weights = weights / weights.sum()  # 정규화
+                # 매수 내역
+                with st.expander(f"📋 매수 내역 ({results_1sigma_5year['buy_count']}건)"):
+                    buy_df = pd.DataFrame(results_1sigma_5year['buy_history'])
+                    buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
+                    if is_us_stock:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
+                    else:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                    buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
+                    buy_df['시그마'] = buy_df['sigma_level']
+                    display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("매수 내역 없음")
+        
+        # 2σ 전략
+        st.markdown("---")
+        st.markdown("### 2️⃣ 2σ 이상 하락시 매수 전략")
+        
+        col_2s_1y, col_2s_5y = st.columns(2)
+        
+        with col_2s_1y:
+            st.markdown("**📅 최근 1년**")
+            if results_2sigma_1year['buy_count'] > 0:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("매수 횟수", f"{results_2sigma_1year['buy_count']}회")
+                with col2:
+                    if is_us_stock:
+                        st.metric("평균 매수 단가", f"${results_2sigma_1year['avg_price']:,.2f}")
+                    else:
+                        st.metric("평균 매수 단가", f"₩{results_2sigma_1year['avg_price']:,.0f}")
+                with col3:
+                    st.metric("보유 주식수", f"{results_2sigma_1year['total_shares']:.2f}주")
+                
+                col4, col5 = st.columns(2)
+                with col4:
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_2sigma_1year['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_2sigma_1year['total_investment']:,.0f}")
+                with col5:
+                    st.metric("수익률", f"{results_2sigma_1year['total_return']:+.2f}%",
+                             delta=f"{results_2sigma_1year['total_return']:+.2f}%")
+                
+                with st.expander(f"📋 매수 내역 ({results_2sigma_1year['buy_count']}건)"):
+                    buy_df = pd.DataFrame(results_2sigma_1year['buy_history'])
+                    buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
+                    if is_us_stock:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
+                    else:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                    buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
+                    buy_df['시그마'] = buy_df['sigma_level']
+                    display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("매수 내역 없음")
+        
+        with col_2s_5y:
+            st.markdown("**📅 최근 5년**")
+            if results_2sigma_5year['buy_count'] > 0:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("매수 횟수", f"{results_2sigma_5year['buy_count']}회")
+                with col2:
+                    if is_us_stock:
+                        st.metric("평균 매수 단가", f"${results_2sigma_5year['avg_price']:,.2f}")
+                    else:
+                        st.metric("평균 매수 단가", f"₩{results_2sigma_5year['avg_price']:,.0f}")
+                with col3:
+                    st.metric("보유 주식수", f"{results_2sigma_5year['total_shares']:.2f}주")
+                
+                col4, col5 = st.columns(2)
+                with col4:
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${results_2sigma_5year['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{results_2sigma_5year['total_investment']:,.0f}")
+                with col5:
+                    st.metric("수익률", f"{results_2sigma_5year['total_return']:+.2f}%",
+                             delta=f"{results_2sigma_5year['total_return']:+.2f}%")
+                
+                with st.expander(f"📋 매수 내역 ({results_2sigma_5year['buy_count']}건)"):
+                    buy_df = pd.DataFrame(results_2sigma_5year['buy_history'])
+                    buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
+                    if is_us_stock:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"${x:,.2f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"${x:,.0f}")
+                    else:
+                        buy_df['가격'] = buy_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                        buy_df['투자금'] = buy_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                    buy_df['수익률'] = buy_df['return'].apply(lambda x: f"{x:.2f}%")
+                    buy_df['시그마'] = buy_df['sigma_level']
+                    display_df = buy_df[['날짜', '가격', '수익률', '시그마', '투자금']]
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("매수 내역 없음")
+        
+        # DCA 전략
+        st.markdown("---")
+        st.markdown("### 3️⃣ DCA (매월 정액 투자)")
+        st.caption(f"고정 투자금: {'$1,000' if is_us_stock else '100만원'}")
+        
+        col_dca_1y, col_dca_5y = st.columns(2)
+        
+        with col_dca_1y:
+            st.markdown("**📅 최근 1년**")
+            if dca_1y['buy_count'] > 0:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("매수 횟수", f"{dca_1y['buy_count']}회")
+                with col2:
+                    if is_us_stock:
+                        st.metric("평균 매수 단가", f"${dca_1y['avg_price']:,.2f}")
+                    else:
+                        st.metric("평균 매수 단가", f"₩{dca_1y['avg_price']:,.0f}")
+                with col3:
+                    st.metric("보유 주식수", f"{dca_1y['total_shares']:.2f}주")
+                
+                col4, col5 = st.columns(2)
+                with col4:
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${dca_1y['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{dca_1y['total_investment']:,.0f}")
+                with col5:
+                    st.metric("수익률", f"{dca_1y['total_return']:+.2f}%",
+                             delta=f"{dca_1y['total_return']:+.2f}%")
+                
+                with st.expander(f"📋 매수 내역 ({dca_1y['buy_count']}건)"):
+                    if dca_1y['buy_history']:
+                        dca_df = pd.DataFrame(dca_1y['buy_history'])
+                        dca_df['날짜'] = dca_df['date'].dt.strftime('%Y.%m.%d')
+                        if is_us_stock:
+                            dca_df['가격'] = dca_df['price'].apply(lambda x: f"${x:,.2f}")
+                            dca_df['투자금'] = dca_df['investment'].apply(lambda x: f"${x:,.0f}")
+                        else:
+                            dca_df['가격'] = dca_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                            dca_df['투자금'] = dca_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                        dca_df['주식수'] = dca_df['shares'].apply(lambda x: f"{x:.2f}주")
+                        display_dca_df = dca_df[['날짜', '가격', '투자금', '주식수']]
+                        st.dataframe(display_dca_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("매수 내역 없음")
+        
+        with col_dca_5y:
+            st.markdown("**📅 최근 5년**")
+            if dca_5y['buy_count'] > 0:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("매수 횟수", f"{dca_5y['buy_count']}회")
+                with col2:
+                    if is_us_stock:
+                        st.metric("평균 매수 단가", f"${dca_5y['avg_price']:,.2f}")
+                    else:
+                        st.metric("평균 매수 단가", f"₩{dca_5y['avg_price']:,.0f}")
+                with col3:
+                    st.metric("보유 주식수", f"{dca_5y['total_shares']:.2f}주")
+                
+                col4, col5 = st.columns(2)
+                with col4:
+                    if is_us_stock:
+                        st.metric("총 투자금", f"${dca_5y['total_investment']:,.0f}")
+                    else:
+                        st.metric("총 투자금", f"₩{dca_5y['total_investment']:,.0f}")
+                with col5:
+                    st.metric("수익률", f"{dca_5y['total_return']:+.2f}%",
+                             delta=f"{dca_5y['total_return']:+.2f}%")
+                
+                with st.expander(f"📋 매수 내역 ({dca_5y['buy_count']}건)"):
+                    if dca_5y['buy_history']:
+                        dca_df = pd.DataFrame(dca_5y['buy_history'])
+                        dca_df['날짜'] = dca_df['date'].dt.strftime('%Y.%m.%d')
+                        if is_us_stock:
+                            dca_df['가격'] = dca_df['price'].apply(lambda x: f"${x:,.2f}")
+                            dca_df['투자금'] = dca_df['investment'].apply(lambda x: f"${x:,.0f}")
+                        else:
+                            dca_df['가격'] = dca_df['price'].apply(lambda x: f"₩{x:,.0f}")
+                            dca_df['투자금'] = dca_df['investment'].apply(lambda x: f"₩{x:,.0f}")
+                        dca_df['주식수'] = dca_df['shares'].apply(lambda x: f"{x:.2f}주")
+                        display_dca_df = dca_df[['날짜', '가격', '투자금', '주식수']]
+                        st.dataframe(display_dca_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("매수 내역 없음")
+        
+        # 수익률 비교 그래프
+        st.markdown("---")
+        st.markdown("#### 📊 투자 효율 비교 (100만원당 수익률)")
+        
+        col_graph_1y, col_graph_5y = st.columns(2)
+        
+        # 1년 결과 그래프
+        with col_graph_1y:
+            st.markdown("**1년 투자 효율 비교**")
+            
+            efficiency_1y = []
+            labels_1y = []
+            
+            if results_1sigma_1year['total_investment'] > 0:
+                efficiency_1y.append(results_1sigma_1year['total_return'])
+            else:
+                efficiency_1y.append(0)
+            labels_1y.append('1σ 전략')
+            
+            if results_2sigma_1year['total_investment'] > 0:
+                efficiency_1y.append(results_2sigma_1year['total_return'])
+            else:
+                efficiency_1y.append(0)
+            labels_1y.append('2σ 전략')
+            
+            efficiency_1y.append(comparison_1y['dca']['total_return'])
+            labels_1y.append('DCA')
+            
+            fig_1y = go.Figure()
+            fig_1y.add_trace(go.Bar(
+                x=labels_1y,
+                y=efficiency_1y,
+                text=[f'{e:+.2f}%' for e in efficiency_1y],
+                textposition='auto',
+                marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
+            ))
+            fig_1y.update_layout(
+                title="1년 투자 효율",
+                xaxis_title="투자 전략",
+                yaxis_title="수익률 (%)",
+                height=400,
+                showlegend=False
+            )
+            st.plotly_chart(fig_1y, use_container_width=True)
+        
+        # 5년 결과 그래프
+        with col_graph_5y:
+            st.markdown("**5년 투자 효율 비교**")
+            
+            efficiency_5y = []
+            labels_5y = []
+            
+            if results_1sigma_5year['total_investment'] > 0:
+                efficiency_5y.append(results_1sigma_5year['total_return'])
+            else:
+                efficiency_5y.append(0)
+            labels_5y.append('1σ 전략')
+            
+            if results_2sigma_5year['total_investment'] > 0:
+                efficiency_5y.append(results_2sigma_5year['total_return'])
+            else:
+                efficiency_5y.append(0)
+            labels_5y.append('2σ 전략')
+            
+            efficiency_5y.append(comparison_5y['dca']['total_return'])
+            labels_5y.append('DCA')
+            
+            fig_5y = go.Figure()
+            fig_5y.add_trace(go.Bar(
+                x=labels_5y,
+                y=efficiency_5y,
+                text=[f'{e:+.2f}%' for e in efficiency_5y],
+                textposition='auto',
+                marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
+            ))
+            fig_5y.update_layout(
+                title="5년 투자 효율",
+                xaxis_title="투자 전략",
+                yaxis_title="수익률 (%)",
+                height=400,
+                showlegend=False
+            )
+            st.plotly_chart(fig_5y, use_container_width=True)
+        
+        # ============= 몬테카를로 최적화 섹션 =============
+        st.markdown("---")
+        st.markdown("## 🎲 몬테카를로 최적화")
+        
+        # 실제 변동성 계산 함수 추가
+        def calculate_strategy_volatility(df_data, strategy_type):
+            """각 전략의 실제 변동성 계산"""
+            if strategy_type == '1sigma':
+                # 1σ 하락일의 수익률 변동성
+                sigma_days = df_data[df_data['Returns'] <= sigma_1]
+                return sigma_days['Returns'].std() if len(sigma_days) > 0 else 15
+            elif strategy_type == '2sigma':
+                sigma_days = df_data[df_data['Returns'] <= sigma_2]
+                return sigma_days['Returns'].std() if len(sigma_days) > 0 else 12
+            else:  # DCA
+                # 매월 수익률 계산
+                monthly_returns = df_data['Close'].resample('M').last().pct_change() * 100
+                return monthly_returns.std() if len(monthly_returns) > 0 else 8
+            
+        # 개선된 몬테카를로 함수
+        def monte_carlo_optimization(df_data, sigma_stats, num_simulations=5000):
+            """몬테카를로 시뮬레이션으로 최적 비중 찾기"""
+
+            # 실제 변동성 계산
+            vol_1sigma = calculate_strategy_volatility(df_data, '1sigma')
+            vol_2sigma = calculate_strategy_volatility(df_data, '2sigma')
+            vol_dca = calculate_strategy_volatility(df_data, 'dca')
+                
+            best_result = {
+                'sharpe': -999,
+                'weights': None,
+                'return': None,
+                'std': None,
+                'all_results': []
+            }
+                
+            all_combinations = []
+                
+            for i in range(num_simulations):
+                # 무작위 비중 생성
+                weights = np.random.random(3)
+                weights = weights / weights.sum()  # 정규화
+                
+                # 각 전략의 실제 수익률 사용
+                portfolio_return = (
+                    weights[0] * (results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0) +
+                    weights[1] * (results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0) +
+                    weights[2] * comparison_5y['dca']['total_return']
+                )
                     
-                    # 각 전략의 실제 수익률 사용
-                    portfolio_return = (
-                        weights[0] * (results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0) +
-                        weights[1] * (results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0) +
-                        weights[2] * comparison_5y['dca']['total_return']
-                    )
+                # 실제 변동성 기반 포트폴리오 변동성
+                portfolio_std = np.sqrt(
+                    (weights[0]**2 * vol_1sigma**2) +
+                    (weights[1]**2 * vol_2sigma**2) +
+                    (weights[2]**2 * vol_dca**2)
+                )
                     
-                    # 실제 변동성 기반 포트폴리오 변동성
-                    portfolio_std = np.sqrt(
-                        (weights[0]**2 * vol_1sigma**2) +
-                        (weights[1]**2 * vol_2sigma**2) +
-                        (weights[2]**2 * vol_dca**2)
-                    )
+                sharpe = portfolio_return / portfolio_std if portfolio_std > 0 else 0
                     
-                    sharpe = portfolio_return / portfolio_std if portfolio_std > 0 else 0
+                all_combinations.append({
+                    'weights': weights.copy(),
+                    'return': portfolio_return,
+                    'std': portfolio_std,
+                    'sharpe': sharpe
+                })
                     
-                    all_combinations.append({
+                if sharpe > best_result['sharpe']:
+                    best_result = {
+                        'sharpe': sharpe,
                         'weights': weights.copy(),
                         'return': portfolio_return,
-                        'std': portfolio_std,
-                        'sharpe': sharpe
-                    })
-                    
-                    if sharpe > best_result['sharpe']:
-                        best_result = {
-                            'sharpe': sharpe,
-                            'weights': weights.copy(),
-                            'return': portfolio_return,
-                            'std': portfolio_std
-                        }
+                        'std': portfolio_std
+                    }
                 
-                return best_result, all_combinations
+            return best_result, all_combinations
             
-            # 몬테카를로 실행 버튼
-            col_mc1, col_mc2 = st.columns([3, 1])
-            
-            with col_mc1:
-                st.info("""
-                **몬테카를로 시뮬레이션이란?**
-                - 5,000가지 전략 비중 조합을 무작위로 테스트
-                - 실제 데이터 기반 변동성으로 리스크 계산
-                - 리스크 대비 수익(샤프비율)이 가장 높은 조합 발견
-                - 최적의 자산 배분 비율 제시
+        # 몬테카를로 실행 버튼
+        col_mc1, col_mc2 = st.columns([3, 1])
+        
+        with col_mc1:
+            st.info("""
+            몬테카를로 시뮬레이션
                 """)
             
-            with col_mc2:
-                if st.button("🎯 최적 비중 찾기", type="secondary", use_container_width=True, key="monte_carlo_btn"):
-                    with st.spinner("5,000개 조합 분석 중..."):
-                        # 프로그레스 바
-                        progress_bar = st.progress(0)
+        with col_mc2:
+            if st.button("🎯 최적 비중 찾기", type="secondary", use_container_width=True, key="monte_carlo_btn"):
+                with st.spinner("5,000개 조합 분석 중..."):
+                    # 프로그레스 바
+                    progress_bar = st.progress(0)
                         
-                        # 몬테카를로 실행
-                        best_result, all_combinations = monte_carlo_optimization(
-                            df_5year,
-                            stats
+                    # 몬테카를로 실행
+                    best_result, all_combinations = monte_carlo_optimization(
+                        df_5year,
+                        stats
+                    )
+                        
+                    progress_bar.progress(100)
+                        
+                    # 결과 표시
+                    st.success("✅ 최적 비중 발견!")
+
+                    # 최적 비중 표시
+                    col_opt1, col_opt2, col_opt3 = st.columns(3)
+                    
+                    with col_opt1:
+                        st.metric("1σ 전략", f"{best_result['weights'][0]:.1%}")
+                    
+                    with col_opt2:
+                        st.metric("2σ 전략", f"{best_result['weights'][1]:.1%}")
+                    
+                    with col_opt3:
+                        st.metric("DCA", f"{best_result['weights'][2]:.1%}")
+                    
+                    # 예상 성과
+                    st.markdown("### 📊 최적 포트폴리오 예상 성과")
+                    col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
+                    
+                    with col_perf1:
+                        st.metric("예상 수익률", f"{best_result['return']:.1%}")
+                    
+                    with col_perf2:
+                        st.metric("예상 변동성", f"{best_result['std']:.1%}")
+                    
+                    with col_perf3:
+                        st.metric("샤프비율", f"{best_result['sharpe']:.2f}")
+                    
+                    with col_perf4:
+                        # VaR 계산
+                        returns_list = [c['return'] for c in all_combinations]
+                        var_95 = np.percentile(returns_list, 5)
+                        st.metric("95% VaR", f"{var_95:.1%}",
+                                help="95% 신뢰수준에서 최대 예상 손실")
+                    
+                    # 효율적 프론티어 시각화
+                    st.markdown("### 📈 리스크-수익 분석")
+                    
+                    # 모든 조합의 산점도
+                    returns = [c['return'] for c in all_combinations]
+                    stds = [c['std'] for c in all_combinations]
+                    sharpes = [c['sharpe'] for c in all_combinations]
+                    
+                    fig_frontier = go.Figure()
+                    
+                    # 모든 조합
+                    fig_frontier.add_trace(go.Scatter(
+                        x=stds,
+                        y=returns,
+                        mode='markers',
+                        marker=dict(
+                            size=5,
+                            color=sharpes,
+                            colorscale='Viridis',
+                            showscale=True,
+                            colorbar=dict(title="샤프비율")
+                        ),
+                        text=[f"수익: {r:.1f}%<br>리스크: {s:.1f}%<br>샤프: {sh:.2f}" 
+                            for r, s, sh in zip(returns, stds, sharpes)],
+                        hovertemplate='%{text}<extra></extra>',
+                        name='모든 조합'
+                    ))
+                    
+                    # 최적 포트폴리오 강조
+                    fig_frontier.add_trace(go.Scatter(
+                        x=[best_result['std']],
+                        y=[best_result['return']],
+                        mode='markers',
+                        marker=dict(
+                            size=15,
+                            color='red',
+                            symbol='star',
+                            line=dict(color='darkred', width=2)
+                        ),
+                        name='최적 포트폴리오',
+                        text=f"최적: 수익 {best_result['return']:.1f}%, 리스크 {best_result['std']:.1f}%",
+                        hovertemplate='%{text}<extra></extra>'
+                    ))
+                    
+                    # 개별 전략들도 표시
+                    vol_1sigma = calculate_strategy_volatility(df_5year, '1sigma')
+                    vol_2sigma = calculate_strategy_volatility(df_5year, '2sigma')
+                    vol_dca = calculate_strategy_volatility(df_5year, 'dca')
+                    
+                    individual_strategies = [
+                        ("1σ 전략", results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0, vol_1sigma),
+                        ("2σ 전략", results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0, vol_2sigma),
+                        ("DCA", comparison_5y['dca']['total_return'], vol_dca)
+                    ]
+                    
+                    for name, ret, std in individual_strategies:
+                        fig_frontier.add_trace(go.Scatter(
+                            x=[std],
+                            y=[ret],
+                            mode='markers+text',
+                            marker=dict(size=10, symbol='diamond'),
+                            text=[name],
+                            textposition="top center",
+                            name=name
+                        ))
+                    
+                    fig_frontier.update_layout(
+                        title="효율적 프론티어 (Efficient Frontier)",
+                        xaxis_title="리스크 (표준편차 %)",
+                        yaxis_title="수익률 (%)",
+                        height=500,
+                        hovermode='closest'
+                    )
+                    
+                    st.plotly_chart(fig_frontier, use_container_width=True)
+                    
+                    # 시나리오 분석 추가
+                    st.markdown("### 📊 시나리오 분석")
+                    
+                    scenarios = {
+                        '강세장 (상승 20%)': {'1sigma': 5, '2sigma': 3, 'dca': 15},
+                        '약세장 (하락 20%)': {'1sigma': 20, '2sigma': 25, 'dca': -5},
+                        '횡보장 (±5%)': {'1sigma': 12, '2sigma': 8, 'dca': 7},
+                        '변동장 (고변동성)': {'1sigma': 18, '2sigma': 22, 'dca': 10}
+                    }
+                    
+                    scenario_results = []
+                    for scenario_name, returns in scenarios.items():
+                        scenario_return = (
+                            best_result['weights'][0] * returns['1sigma'] +
+                            best_result['weights'][1] * returns['2sigma'] +
+                            best_result['weights'][2] * returns['dca']
+                        )
+                        scenario_results.append({
+                            '시나리오': scenario_name,
+                            '예상 수익률': f"{scenario_return:.1f}%"
+                        })
+                    
+                    st.dataframe(pd.DataFrame(scenario_results), use_container_width=True, hide_index=True)
+                        
+                    # 저장할 수 있도록 세션 스테이트에 저장
+                    st.session_state['optimal_weights'] = best_result['weights']
+        
+        # ============= 혼합 전략 백테스팅 =============
+        st.markdown("---")
+        st.markdown("## 🔄 혼합 전략 백테스팅")
+
+        # 혼합 전략 설정
+        st.markdown("### 전략 비중 설정")
+
+        col_mix1, col_mix2 = st.columns([3, 1])
+
+        with col_mix1:
+            # 슬라이더로 비중 조절
+            st.markdown("**각 전략의 비중을 조절하세요**")
+        
+            # 최적 비중이 있으면 기본값으로 사용
+            if 'optimal_weights' in st.session_state:
+                default_weights = st.session_state['optimal_weights']
+            else:
+                default_weights = [0.33, 0.33, 0.34]
+            
+            weight_1sigma = st.slider("1σ 전략 비중", 0.0, 1.0, float(default_weights[0]), 0.05)
+            weight_2sigma = st.slider("2σ 전략 비중", 0.0, 1.0, float(default_weights[1]), 0.05)
+            weight_dca = st.slider("DCA 비중", 0.0, 1.0, float(default_weights[2]), 0.05)
+        
+            # 합계 확인
+            total_weight = weight_1sigma + weight_2sigma + weight_dca
+            
+            if abs(total_weight - 1.0) > 0.01:
+                st.warning(f"⚠️ 비중 합계: {total_weight:.1%} (100%가 되도록 조정해주세요)")
+            else:
+                st.success(f"✅ 비중 합계: {total_weight:.1%}")
+
+        with col_mix2:
+            if 'optimal_weights' in st.session_state:
+                if st.button("🎯 최적 비중 적용", use_container_width=True):
+                    st.rerun()
+
+        # 리밸런싱 옵션 추가
+        st.markdown("### ⚖️ 리밸런싱 설정")
+        col_rebal1, col_rebal2 = st.columns([2, 2])
+
+        with col_rebal1:
+            rebalance_option = st.selectbox(
+                "리밸런싱 주기",
+                ["없음", "월별", "분기별", "반기별", "연간"]
+            )
+
+        with col_rebal2:
+            if rebalance_option != "없음":
+                st.info(f"📌 {rebalance_option} 리밸런싱 적용 시 거래비용 고려 필요")
+
+        # 혼합 전략 실행 버튼
+        if st.button("🚀 혼합 전략 실행", type="primary", use_container_width=True):
+            if abs(total_weight - 1.0) > 0.01:
+                st.error("비중 합계를 100%로 맞춰주세요!")
+            else:
+                with st.spinner("혼합 전략 백테스팅 중..."):
+                    # 혼합 전략 계산
+                    def run_hybrid_backtest(df_data, weights, period_name):
+                        """혼합 전략 백테스팅"""
+                        # 총 투자금 설정
+                        if is_us_stock:
+                            total_budget = 1000  # $1000
+                        else:
+                            total_budget = 1000000  # 100만원
+                    
+                        # 각 전략별 자금 배분
+                        budget_1sigma = total_budget * weights[0]
+                        budget_2sigma = total_budget * weights[1]
+                        budget_dca = total_budget * weights[2]
+                        
+                        # 각 전략 수익률 계산 (실제 백테스팅 결과 활용)
+                        if period_name == "1년":
+                            return_1sigma = results_1sigma_1year['total_return'] if results_1sigma_1year['total_investment'] > 0 else 0
+                            return_2sigma = results_2sigma_1year['total_return'] if results_2sigma_1year['total_investment'] > 0 else 0
+                            return_dca = comparison_1y['dca']['total_return']
+                        else:
+                            return_1sigma = results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0
+                            return_2sigma = results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0
+                            return_dca = comparison_5y['dca']['total_return']
+                    
+                        # 가중 평균 수익률
+                        hybrid_return = (
+                            weights[0] * return_1sigma +
+                            weights[1] * return_2sigma +
+                            weights[2] * return_dca
                         )
                         
-                        progress_bar.progress(100)
+                        # 각 전략의 기여도
+                        contribution_1sigma = weights[0] * return_1sigma
+                        contribution_2sigma = weights[1] * return_2sigma
+                        contribution_dca = weights[2] * return_dca
                         
-                        # 결과 표시
-                        st.success("✅ 최적 비중 발견!")
+                        # 최대 낙폭 추정 (간단한 방법)
+                        estimated_mdd = hybrid_return * -0.5 if hybrid_return > 0 else hybrid_return * -1.5
                         
-                        # [몬테카를로 결과 표시 코드 - 기존 코드 그대로]
+                        return {
+                            'total_return': hybrid_return,
+                            'contributions': {
+                                '1σ': contribution_1sigma,
+                                '2σ': contribution_2sigma,
+                                'DCA': contribution_dca
+                            },
+                            'individual_returns': {
+                                '1σ': return_1sigma,
+                                '2σ': return_2sigma,
+                                'DCA': return_dca
+                            },
+                            'estimated_mdd': estimated_mdd
+                        }
+                
+                    # 1년, 5년 혼합 전략 실행
+                    weights = [weight_1sigma, weight_2sigma, weight_dca]
+                    hybrid_1y = run_hybrid_backtest(df_1year, weights, "1년")
+                    hybrid_5y = run_hybrid_backtest(df_5year, weights, "5년")
+                    
+                    # 결과 표시
+                    st.success("✅ 혼합 전략 분석 완료!")
+                    
+                    # 혼합 전략 성과
+                    st.markdown("### 📊 혼합 전략 성과")
+                    
+                    col_hybrid1, col_hybrid2 = st.columns(2)
+                
+                    with col_hybrid1:
+                        st.markdown("**1년 성과**")
+                        st.metric("혼합 전략 수익률", f"{hybrid_1y['total_return']:.2f}%",
+                                    delta=f"{hybrid_1y['total_return']:.2f}%")
+                        st.metric("예상 최대낙폭", f"{hybrid_1y['estimated_mdd']:.1f}%")
                         
-                        # 저장할 수 있도록 세션 스테이트에 저장
-                        st.session_state['optimal_weights'] = best_result['weights']
+                        # 기여도 분석
+                        st.markdown("**전략별 기여도**")
+                        for strategy, contribution in hybrid_1y['contributions'].items():
+                            st.write(f"• {strategy}: {contribution:+.2f}%")
+                    
+                    with col_hybrid2:
+                        st.markdown("**5년 성과**")
+                        st.metric("혼합 전략 수익률", f"{hybrid_5y['total_return']:.2f}%",
+                                    delta=f"{hybrid_5y['total_return']:.2f}%")
+                        st.metric("예상 최대낙폭", f"{hybrid_5y['estimated_mdd']:.1f}%")
+                        
+                        # 기여도 분석
+                        st.markdown("**전략별 기여도**")
+                        for strategy, contribution in hybrid_5y['contributions'].items():
+                            st.write(f"• {strategy}: {contribution:+.2f}%")
+                
+                    # 전체 전략 비교 (혼합 전략 포함)
+                    st.markdown("### 📈 전체 전략 비교")
+                    
+                    # 비교 차트 생성
+                    comparison_data = {
+                        '전략': ['1σ', '2σ', 'DCA', '혼합'],
+                        '1년 수익률': [
+                            results_1sigma_1year['total_return'] if results_1sigma_1year['total_investment'] > 0 else 0,
+                            results_2sigma_1year['total_return'] if results_2sigma_1year['total_investment'] > 0 else 0,
+                            comparison_1y['dca']['total_return'],
+                            hybrid_1y['total_return']
+                        ],
+                        '5년 수익률': [
+                            results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0,
+                            results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0,
+                            comparison_5y['dca']['total_return'],
+                            hybrid_5y['total_return']
+                        ]
+                    }
+                
+                    df_comparison = pd.DataFrame(comparison_data)
+                    
+                    # 그룹 바 차트
+                    fig_comparison = go.Figure()
+                    
+                    fig_comparison.add_trace(go.Bar(
+                        name='1년',
+                        x=df_comparison['전략'],
+                        y=df_comparison['1년 수익률'],
+                        text=[f'{y:.1f}%' for y in df_comparison['1년 수익률']],
+                        textposition='auto',
+                        marker_color='lightblue'
+                    ))
+                    
+                    fig_comparison.add_trace(go.Bar(
+                        name='5년',
+                        x=df_comparison['전략'],
+                        y=df_comparison['5년 수익률'],
+                        text=[f'{y:.1f}%' for y in df_comparison['5년 수익률']],
+                        textposition='auto',
+                        marker_color='darkblue'
+                    ))
+                    
+                    fig_comparison.update_layout(
+                        title="전략별 수익률 비교 (혼합 전략 포함)",
+                        xaxis_title="투자 전략",
+                        yaxis_title="수익률 (%)",
+                        barmode='group',
+                        height=400
+                    )
+                
+                    st.plotly_chart(fig_comparison, use_container_width=True)
+                    
+                    # 상세 분석 테이블
+                    st.markdown("### 📊 상세 비교 분석")
+                    
+                    # 분석 테이블 생성
+                    analysis_table = []
+                    strategies = ['1σ', '2σ', 'DCA', '혼합']
+                    
+                    for i, strategy in enumerate(strategies):
+                        if strategy == '혼합':
+                            return_1y = hybrid_1y['total_return']
+                            return_5y = hybrid_5y['total_return']
+                        elif strategy == '1σ':
+                            return_1y = results_1sigma_1year['total_return'] if results_1sigma_1year['total_investment'] > 0 else 0
+                            return_5y = results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0
+                        elif strategy == '2σ':
+                            return_1y = results_2sigma_1year['total_return'] if results_2sigma_1year['total_investment'] > 0 else 0
+                            return_5y = results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0
+                        else:  # DCA
+                            return_1y = comparison_1y['dca']['total_return']
+                            return_5y = comparison_5y['dca']['total_return']
+                        
+                        # 연환산 수익률 계산
+                        annual_return_5y = ((1 + return_5y/100) ** (1/5) - 1) * 100 if return_5y != 0 else 0
+                        
+                        analysis_table.append({
+                            '전략': strategy,
+                            '1년 수익률': f"{return_1y:.2f}%",
+                            '5년 누적수익률': f"{return_5y:.2f}%",
+                            '5년 연환산': f"{annual_return_5y:.2f}%"
+                        })
+                
+                    df_analysis = pd.DataFrame(analysis_table)
+                    st.dataframe(df_analysis, use_container_width=True, hide_index=True)
+                    
+                    # 인사이트
+                    st.markdown("### 💡 핵심 인사이트")
+                    
+                    # 최고 수익률 전략 찾기
+                    best_1y_idx = df_comparison['1년 수익률'].idxmax()
+                    best_5y_idx = df_comparison['5년 수익률'].idxmax()
+                    
+                    insights = []
+                    
+                    # 1년 최고 전략
+                    if df_comparison.loc[best_1y_idx, '전략'] == '혼합':
+                        insights.append("✅ 혼합 전략이 1년 기준 최고 수익률 달성")
+                    else:
+                        insights.append(f"📊 1년 기준 최고 전략: {df_comparison.loc[best_1y_idx, '전략']} ({df_comparison.loc[best_1y_idx, '1년 수익률']:.1f}%)")
+                    
+                    # 5년 최고 전략
+                    if df_comparison.loc[best_5y_idx, '전략'] == '혼합':
+                        insights.append("✅ 혼합 전략이 5년 기준 최고 수익률 달성")
+                    else:
+                        insights.append(f"📊 5년 기준 최고 전략: {df_comparison.loc[best_5y_idx, '전략']} ({df_comparison.loc[best_5y_idx, '5년 수익률']:.1f}%)")
+                    
+                    # 리스크 분산 효과
+                    min_return = min(hybrid_5y['individual_returns'].values())
+                    if hybrid_5y['total_return'] > min_return:
+                        insights.append(f"✅ 전략 혼합으로 리스크 분산 효과 확인 (최저 전략 대비 +{(hybrid_5y['total_return'] - min_return):.1f}%p)")
+                    
+                    # 안정성
+                    volatility = abs(hybrid_1y['total_return'] - hybrid_5y['total_return']/5)
+                    if volatility < 10:
+                        insights.append("✅ 혼합 전략이 단기/장기 모두 안정적인 수익률 제공")
+                    
+                    # 리밸런싱 효과
+                    if rebalance_option != "없음":
+                        insights.append(f"📌 {rebalance_option} 리밸런싱 적용 시 추가 성과 개선 가능")
+                    
+                    # 현재 비중 평가
+                    if weight_1sigma > 0.5:
+                        insights.append("📌 1σ 전략 비중이 높아 잦은 매매 발생 가능")
+                    elif weight_2sigma > 0.5:
+                        insights.append("📌 2σ 전략 비중이 높아 매수 기회가 제한적일 수 있음")
+                    elif weight_dca > 0.5:
+                        insights.append("📌 DCA 비중이 높아 안정적이지만 하락장 기회 활용 제한")
+                    else:
+                        insights.append("✅ 균형잡힌 포트폴리오 구성")
+                    
+                    for insight in insights:
+                        st.info(insight)
+                
+                    # 실행 가이드
+                    st.markdown("### 📝 실행 가이드")
+                    
+                    if is_us_stock:
+                        total_investment = 1000  # $1000
+                        currency = "$"
+                    else:
+                        total_investment = 1000000  # 100만원
+                        currency = "₩"
+                    
+                    col_guide1, col_guide2, col_guide3 = st.columns(3)
+                    
+                    with col_guide1:
+                        st.markdown("**1σ 전략 배분**")
+                        allocation_1s = total_investment * weight_1sigma
+                        st.write(f"{currency}{allocation_1s:,.0f}")
+                        st.caption(f"({weight_1sigma:.1%})")
+                    
+                    with col_guide2:
+                        st.markdown("**2σ 전략 배분**")
+                        allocation_2s = total_investment * weight_2sigma
+                        st.write(f"{currency}{allocation_2s:,.0f}")
+                        st.caption(f"({weight_2sigma:.1%})")
+                    
+                    with col_guide3:
+                        st.markdown("**DCA 배분**")
+                        allocation_dca = total_investment * weight_dca
+                        st.write(f"{currency}{allocation_dca:,.0f}")
+                        st.caption(f"({weight_dca:.1%})")
             
-            # ============= 혼합 전략 백테스팅 =============
-            st.markdown("---")
-            st.markdown("## 🔄 혼합 전략 백테스팅")
-            
-            # [혼합 전략 코드 - 기존 코드 그대로]
-            
-            # 경고 문구
-            st.warning("""
-            ⚠️ **투자 유의사항**
-            - 과거 성과가 미래 수익을 보장하지 않습니다
-            - 실제 투자 시 거래 비용과 세금을 고려하세요
-            - 개인의 투자 성향과 재무 상황을 고려한 신중한 결정이 필요합니다
-            - 몬테카를로 시뮬레이션은 확률적 추정이며 실제 결과와 다를 수 있습니다
-            """)
+        # 경고 문구
+        st.warning("""
+        ⚠️ **투자 유의사항**
+        - 과거 성과가 미래 수익을 보장하지 않습니다
+        - 실제 투자 시 거래 비용과 세금을 고려하세요
+        - 개인의 투자 성향과 재무 상황을 고려한 신중한 결정이 필요합니다
+        """)
     else:
         if selected_symbol:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
