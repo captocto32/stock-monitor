@@ -1181,6 +1181,21 @@ with tab3:
                 # 비교용 변수 생성
                 comparison_1y = {'dca': dca_1y}
                 comparison_5y = {'dca': dca_5y}
+
+                # ⭐ 세션 스테이트에 결과 저장 (이 부분 추가!)
+                st.session_state['backtest_results'] = {
+                    'results_1sigma_1year': results_1sigma_1year,
+                    'results_1sigma_5year': results_1sigma_5year,
+                    'results_2sigma_1year': results_2sigma_1year,
+                    'results_2sigma_5year': results_2sigma_5year,
+                    'comparison_1y': comparison_1y,
+                    'comparison_5y': comparison_5y,
+                    'df_5year': df_5year,
+                    'stats': stats,
+                    'sigma_1': sigma_1,
+                    'sigma_2': sigma_2,
+                    'is_us_stock': is_us_stock
+                }
             
             # 결과 표시
             st.success("✅ 백테스팅 완료!")
@@ -1547,6 +1562,20 @@ with tab3:
             st.markdown("---")
             st.markdown("## 🎲 몬테카를로 최적화")
             
+            # 백테스팅 결과가 있는지 확인
+            if 'backtest_results' not in st.session_state:
+                st.warning("⚠️ 먼저 백테스팅을 실행해주세요!")
+            else:
+                # 세션에서 결과 불러오기
+                backtest_data = st.session_state['backtest_results']
+                results_1sigma_5year = backtest_data['results_1sigma_5year']
+                results_2sigma_5year = backtest_data['results_2sigma_5year']
+                comparison_5y = backtest_data['comparison_5y']
+                df_5year = backtest_data['df_5year']
+                stats = backtest_data['stats']
+                sigma_1 = backtest_data['sigma_1']
+                sigma_2 = backtest_data['sigma_2']
+                
             # 실제 변동성 계산 함수 추가
             def calculate_strategy_volatility(df_data, strategy_type):
                 """각 전략의 실제 변동성 계산"""
