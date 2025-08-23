@@ -750,8 +750,6 @@ with tab1:
         
         st.plotly_chart(fig, use_container_width=True)
         
-
-
 # 탭 2: 저장된 종목
 with tab2:
     st.subheader("📋 저장된 종목 목록")
