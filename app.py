@@ -360,25 +360,15 @@ with st.sidebar:
     # 저장된 종목 불러오기
     st.header("🍚 저장된 종목")
     
-    # 저장된 종목 불러오기 버튼
+    # Google Sheets에서 불러오기 버튼
     if st.button("📂 저장종목 불러오기", use_container_width=True, type="primary"):
         # 캐시 무효화를 위해 세션 상태 초기화
         st.session_state.stocks_loaded = False
+        st.session_state.monitoring_stocks.clear()
         st.cache_data.clear()
         
-        try:
-            if load_stocks_from_sheets():
-                st.rerun()
-            else:
-                # Google Sheets 실패시 현재 세션의 종목들 유지
-                if st.session_state.monitoring_stocks:
-                    st.success(f"✅ 현재 세션의 {len(st.session_state.monitoring_stocks)}개 종목을 유지합니다.")
-                else:
-                    st.info("💡 Google Sheets 연결에 실패했습니다. 새로 종목을 추가해보세요.")
-        except Exception as e:
-            st.warning(f"저장된 종목 불러오기 실패: {e}")
-            if st.session_state.monitoring_stocks:
-                st.success(f"✅ 현재 세션의 {len(st.session_state.monitoring_stocks)}개 종목을 유지합니다.")
+        if load_stocks_from_sheets():
+            st.rerun()
     
     if st.session_state.monitoring_stocks:
         if st.button("💾 Google Sheets 저장", use_container_width=True):
