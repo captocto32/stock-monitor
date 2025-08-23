@@ -360,15 +360,25 @@ with st.sidebar:
     # 저장된 종목 불러오기
     st.header("🍚 저장된 종목")
     
-    # Google Sheets에서 불러오기 버튼
+    # 저장된 종목 불러오기 버튼
     if st.button("📂 저장종목 불러오기", use_container_width=True, type="primary"):
         # 캐시 무효화를 위해 세션 상태 초기화
         st.session_state.stocks_loaded = False
-        st.session_state.monitoring_stocks.clear()
         st.cache_data.clear()
         
-        if load_stocks_from_sheets():
-            st.rerun()
+        try:
+            if load_stocks_from_sheets():
+                st.rerun()
+            else:
+                # Google Sheets 실패시 현재 세션의 종목들 유지
+                if st.session_state.monitoring_stocks:
+                    st.success(f"✅ 현재 세션의 {len(st.session_state.monitoring_stocks)}개 종목을 유지합니다.")
+                else:
+                    st.info("💡 Google Sheets 연결에 실패했습니다. 새로 종목을 추가해보세요.")
+        except Exception as e:
+            st.warning(f"저장된 종목 불러오기 실패: {e}")
+            if st.session_state.monitoring_stocks:
+                st.success(f"✅ 현재 세션의 {len(st.session_state.monitoring_stocks)}개 종목을 유지합니다.")
     
     if st.session_state.monitoring_stocks:
         if st.button("💾 Google Sheets 저장", use_container_width=True):
@@ -995,6 +1005,9 @@ with tab3:
                 st.error("분석 데이터가 없습니다.")
                 st.stop()
             
+            # 미국 주식인지 확인
+            is_us_stock = analysis['type'] == 'US'
+            
             # 1년과 5년 데이터 모두 준비
             df_1year = df.tail(252)  # 1년 데이터
             df_5year = df  # 5년 데이터
@@ -1151,18 +1164,15 @@ with tab3:
                 dca_avg_price = dca_investment / dca_shares if dca_shares > 0 else 0
                 
                 return {
-                    'buy_count': dca_buy_count,
-                    'total_investment': fixed_investment,
-                    'monthly_amount': monthly_amount,
-                    'avg_price': dca_avg_price,
-                    'total_shares': dca_shares,
-                    'current_value': dca_current_value,
-                    'total_return': dca_total_return,
-                    'buy_history': dca_buy_history
+                        'buy_count': dca_buy_count,
+                        'total_investment': fixed_investment,
+                        'monthly_amount': monthly_amount,
+                        'avg_price': dca_avg_price,
+                        'total_shares': dca_shares,
+                        'current_value': dca_current_value,
+                        'total_return': dca_total_return,
+                        'buy_history': dca_buy_history
                 }
-            
-            # 미국 주식인지 확인
-            is_us_stock = analysis['type'] == 'US'
             
             # 백테스팅 실행
             with st.spinner("백테스팅 분석 중..."):
@@ -1177,6 +1187,10 @@ with tab3:
                 # DCA 계산 (일시불 제거)
                 dca_1y = run_dca_comparison(df_1year, 12)
                 dca_5y = run_dca_comparison(df_5year, 60)
+                
+                # 비교용 변수 생성
+                comparison_1y = {'dca': dca_1y}
+                comparison_5y = {'dca': dca_5y}
             
             # 결과 표시
             st.success("✅ 백테스팅 완료!")
@@ -1451,7 +1465,7 @@ with tab3:
                             st.dataframe(display_dca_df, use_container_width=True, hide_index=True)
                 else:
                     st.info("매수 내역 없음")
-                        
+            
             # 수익률 비교 그래프 (일시불 제외 버전)
             st.markdown("---")
             st.markdown("#### 📊 투자 효율 비교 (100만원당 수익률)")
@@ -1468,11 +1482,11 @@ with tab3:
                 # 1σ, 2σ, DCA만 포함
                 if results_1sigma_1year['total_investment'] > 0:
                     efficiency_1y.append(results_1sigma_1year['total_return'])
-                    labels_1y.append('1σ 전략')
+                labels_1y.append('1σ 전략')
                 
                 if results_2sigma_1year['total_investment'] > 0:
                     efficiency_1y.append(results_2sigma_1year['total_return'])
-                    labels_1y.append('2σ 전략')
+                labels_1y.append('2σ 전략')
                 
                 efficiency_1y.append(comparison_1y['dca']['total_return'])
                 labels_1y.append('DCA')
@@ -1504,11 +1518,11 @@ with tab3:
                 
                 if results_1sigma_5year['total_investment'] > 0:
                     efficiency_5y.append(results_1sigma_5year['total_return'])
-                    labels_5y.append('1σ 전략')
+                labels_5y.append('1σ 전략')
                 
                 if results_2sigma_5year['total_investment'] > 0:
                     efficiency_5y.append(results_2sigma_5year['total_return'])
-                    labels_5y.append('2σ 전략')
+                labels_5y.append('2σ 전략')
                 
                 efficiency_5y.append(comparison_5y['dca']['total_return'])
                 labels_5y.append('DCA')
