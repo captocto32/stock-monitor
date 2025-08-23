@@ -1652,164 +1652,156 @@ with tab3:
             return best_result, all_combinations
             
         # 몬테카를로 실행 버튼
-        col_mc1, col_mc2 = st.columns([3, 1])
-        
-        with col_mc1:
-            st.info("""
-            몬테카를로 시뮬레이션
-                """)
-            
-        with col_mc2:
-            if st.button("🎯 최적 비중 찾기", type="secondary", use_container_width=True, key="monte_carlo_btn"):
-                with st.spinner("5,000개 조합 분석 중..."):
-                    # 프로그레스 바
-                    progress_bar = st.progress(0)
+        if st.button("🎯 최적 비중 찾기", type="secondary", use_container_width=True, key="monte_carlo_btn"):
+            with st.spinner("5,000개 조합 분석 중..."):
+                # 프로그레스 바
+                progress_bar = st.progress(0)
+                
+                # 몬테카를로 실행
+                best_result, all_combinations = monte_carlo_optimization(
+                    df_5year,
+                    stats
+                )
+                
+                progress_bar.progress(100)
                         
-                    # 몬테카를로 실행
-                    best_result, all_combinations = monte_carlo_optimization(
-                        df_5year,
-                        stats
-                    )
-                        
-                    progress_bar.progress(100)
-                        
-                    # 결과 표시
-                    st.success("✅ 최적 비중 발견!")
+                # 결과 표시
+                st.success("✅ 최적 비중 발견!")
 
-                    # 최적 비중 표시
-                    col_opt1, col_opt2, col_opt3 = st.columns(3)
-                    
-                    with col_opt1:
-                        st.metric("1σ 전략", f"{best_result['weights'][0]:.1%}")
-                    
-                    with col_opt2:
-                        st.metric("2σ 전략", f"{best_result['weights'][1]:.1%}")
-                    
-                    with col_opt3:
-                        st.metric("DCA", f"{best_result['weights'][2]:.1%}")
-                    
-                    # 예상 성과
-                    st.markdown("### 📊 최적 포트폴리오 예상 성과")
-                    col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
-                    
-                    with col_perf1:
-                        st.metric("예상 수익률", f"{best_result['return']:.1%}")
-                    
-                    with col_perf2:
-                        st.metric("예상 변동성", f"{best_result['std']:.1%}")
-                    
-                    with col_perf3:
-                        st.metric("샤프비율", f"{best_result['sharpe']:.2f}")
-                    
-                    with col_perf4:
-                        # VaR 계산
-                        returns_list = [c['return'] for c in all_combinations]
-                        var_95 = np.percentile(returns_list, 5)
-                        st.metric("95% VaR", f"{var_95:.1%}",
-                                help="95% 신뢰수준에서 최대 예상 손실")
-                    
-                    # 효율적 프론티어 시각화
-                    st.markdown("### 📈 리스크-수익 분석")
-                    
-                    # 모든 조합의 산점도
-                    returns = [c['return'] for c in all_combinations]
-                    stds = [c['std'] for c in all_combinations]
-                    sharpes = [c['sharpe'] for c in all_combinations]
-                    
-                    fig_frontier = go.Figure()
-                    
-                    # 모든 조합
+                # 최적 비중 표시
+                col_opt1, col_opt2, col_opt3 = st.columns(3)
+                
+                with col_opt1:
+                    st.metric("1σ 전략", f"{best_result['weights'][0]:.1%}")
+                
+                with col_opt2:
+                    st.metric("2σ 전략", f"{best_result['weights'][1]:.1%}")
+                
+                with col_opt3:
+                    st.metric("DCA", f"{best_result['weights'][2]:.1%}")
+                
+                # 예상 성과
+                st.markdown("### 📊 최적 포트폴리오 예상 성과")
+                col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
+                
+                with col_perf1:
+                    st.metric("예상 수익률", f"{best_result['return']:.1%}")
+                
+                with col_perf2:
+                    st.metric("예상 변동성", f"{best_result['std']:.1%}")
+                
+                with col_perf3:
+                    st.metric("샤프비율", f"{best_result['sharpe']:.2f}")
+                
+                with col_perf4:
+                    # VaR 계산
+                    returns_list = [c['return'] for c in all_combinations]
+                    var_95 = np.percentile(returns_list, 5)
+                    st.metric("95% VaR", f"{var_95:.1%}",
+                            help="95% 신뢰수준에서 최대 예상 손실")
+                
+                # 효율적 프론티어 시각화
+                st.markdown("### 📈 리스크-수익 분석")
+                
+                # 모든 조합의 산점도
+                returns = [c['return'] for c in all_combinations]
+                stds = [c['std'] for c in all_combinations]
+                sharpes = [c['sharpe'] for c in all_combinations]
+                
+                fig_frontier = go.Figure()
+                
+                # 모든 조합
+                fig_frontier.add_trace(go.Scatter(
+                    x=stds,
+                    y=returns,
+                    mode='markers',
+                    marker=dict(
+                        size=5,
+                        color=sharpes,
+                        colorscale='Viridis',
+                        showscale=True,
+                        colorbar=dict(title="샤프비율")
+                    ),
+                    text=[f"수익: {r:.1f}%<br>리스크: {s:.1f}%<br>샤프: {sh:.2f}" 
+                        for r, s, sh in zip(returns, stds, sharpes)],
+                    hovertemplate='%{text}<extra></extra>',
+                    name='모든 조합'
+                ))
+                
+                # 최적 포트폴리오 강조
+                fig_frontier.add_trace(go.Scatter(
+                    x=[best_result['std']],
+                    y=[best_result['return']],
+                    mode='markers',
+                    marker=dict(
+                        size=15,
+                        color='red',
+                        symbol='star',
+                        line=dict(color='darkred', width=2)
+                    ),
+                    name='최적 포트폴리오',
+                    text=f"최적: 수익 {best_result['return']:.1f}%, 리스크 {best_result['std']:.1f}%",
+                    hovertemplate='%{text}<extra></extra>'
+                ))
+                
+                # 개별 전략들도 표시
+                vol_1sigma = calculate_strategy_volatility(df_5year, '1sigma')
+                vol_2sigma = calculate_strategy_volatility(df_5year, '2sigma')
+                vol_dca = calculate_strategy_volatility(df_5year, 'dca')
+                
+                individual_strategies = [
+                    ("1σ 전략", results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0, vol_1sigma),
+                    ("2σ 전략", results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0, vol_2sigma),
+                    ("DCA", comparison_5y['dca']['total_return'], vol_dca)
+                ]
+                
+                for name, ret, std in individual_strategies:
                     fig_frontier.add_trace(go.Scatter(
-                        x=stds,
-                        y=returns,
-                        mode='markers',
-                        marker=dict(
-                            size=5,
-                            color=sharpes,
-                            colorscale='Viridis',
-                            showscale=True,
-                            colorbar=dict(title="샤프비율")
-                        ),
-                        text=[f"수익: {r:.1f}%<br>리스크: {s:.1f}%<br>샤프: {sh:.2f}" 
-                            for r, s, sh in zip(returns, stds, sharpes)],
-                        hovertemplate='%{text}<extra></extra>',
-                        name='모든 조합'
+                        x=[std],
+                        y=[ret],
+                        mode='markers+text',
+                        marker=dict(size=10, symbol='diamond'),
+                        text=[name],
+                        textposition="top center",
+                        name=name
                     ))
-                    
-                    # 최적 포트폴리오 강조
-                    fig_frontier.add_trace(go.Scatter(
-                        x=[best_result['std']],
-                        y=[best_result['return']],
-                        mode='markers',
-                        marker=dict(
-                            size=15,
-                            color='red',
-                            symbol='star',
-                            line=dict(color='darkred', width=2)
-                        ),
-                        name='최적 포트폴리오',
-                        text=f"최적: 수익 {best_result['return']:.1f}%, 리스크 {best_result['std']:.1f}%",
-                        hovertemplate='%{text}<extra></extra>'
-                    ))
-                    
-                    # 개별 전략들도 표시
-                    vol_1sigma = calculate_strategy_volatility(df_5year, '1sigma')
-                    vol_2sigma = calculate_strategy_volatility(df_5year, '2sigma')
-                    vol_dca = calculate_strategy_volatility(df_5year, 'dca')
-                    
-                    individual_strategies = [
-                        ("1σ 전략", results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0, vol_1sigma),
-                        ("2σ 전략", results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0, vol_2sigma),
-                        ("DCA", comparison_5y['dca']['total_return'], vol_dca)
-                    ]
-                    
-                    for name, ret, std in individual_strategies:
-                        fig_frontier.add_trace(go.Scatter(
-                            x=[std],
-                            y=[ret],
-                            mode='markers+text',
-                            marker=dict(size=10, symbol='diamond'),
-                            text=[name],
-                            textposition="top center",
-                            name=name
-                        ))
-                    
-                    fig_frontier.update_layout(
-                        title="효율적 프론티어 (Efficient Frontier)",
-                        xaxis_title="리스크 (표준편차 %)",
-                        yaxis_title="수익률 (%)",
-                        height=500,
-                        hovermode='closest'
+                
+                fig_frontier.update_layout(
+                    title="효율적 프론티어 (Efficient Frontier)",
+                    xaxis_title="리스크 (표준편차 %)",
+                    yaxis_title="수익률 (%)",
+                    height=500,
+                    hovermode='closest'
+                )
+                
+                st.plotly_chart(fig_frontier, use_container_width=True)
+                
+                # 시나리오 분석 추가
+                st.markdown("### 📊 시나리오 분석")
+                
+                scenarios = {
+                    '강세장 (상승 20%)': {'1sigma': 5, '2sigma': 3, 'dca': 15},
+                    '약세장 (하락 20%)': {'1sigma': 20, '2sigma': 25, 'dca': -5},
+                    '횡보장 (±5%)': {'1sigma': 12, '2sigma': 8, 'dca': 7},
+                    '변동장 (고변동성)': {'1sigma': 18, '2sigma': 22, 'dca': 10}
+                }
+                
+                scenario_results = []
+                for scenario_name, returns in scenarios.items():
+                    scenario_return = (
+                        best_result['weights'][0] * returns['1sigma'] +
+                        best_result['weights'][1] * returns['2sigma'] +
+                        best_result['weights'][2] * returns['dca']
                     )
+                    scenario_results.append({
+                        '시나리오': scenario_name,
+                        '예상 수익률': f"{scenario_return:.1f}%"
+                    })
+                
+                st.dataframe(pd.DataFrame(scenario_results), use_container_width=True, hide_index=True)
                     
-                    st.plotly_chart(fig_frontier, use_container_width=True)
-                    
-                    # 시나리오 분석 추가
-                    st.markdown("### 📊 시나리오 분석")
-                    
-                    scenarios = {
-                        '강세장 (상승 20%)': {'1sigma': 5, '2sigma': 3, 'dca': 15},
-                        '약세장 (하락 20%)': {'1sigma': 20, '2sigma': 25, 'dca': -5},
-                        '횡보장 (±5%)': {'1sigma': 12, '2sigma': 8, 'dca': 7},
-                        '변동장 (고변동성)': {'1sigma': 18, '2sigma': 22, 'dca': 10}
-                    }
-                    
-                    scenario_results = []
-                    for scenario_name, returns in scenarios.items():
-                        scenario_return = (
-                            best_result['weights'][0] * returns['1sigma'] +
-                            best_result['weights'][1] * returns['2sigma'] +
-                            best_result['weights'][2] * returns['dca']
-                        )
-                        scenario_results.append({
-                            '시나리오': scenario_name,
-                            '예상 수익률': f"{scenario_return:.1f}%"
-                        })
-                    
-                    st.dataframe(pd.DataFrame(scenario_results), use_container_width=True, hide_index=True)
-                        
-                    # 저장할 수 있도록 세션 스테이트에 저장
-                    st.session_state['optimal_weights'] = best_result['weights']
+                # 저장할 수 있도록 세션 스테이트에 저장
+                st.session_state['optimal_weights'] = best_result['weights']
         
         # ============= 혼합 전략 백테스팅 =============
         st.markdown("---")
