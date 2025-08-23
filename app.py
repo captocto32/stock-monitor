@@ -1576,242 +1576,242 @@ with tab3:
                 sigma_1 = backtest_data['sigma_1']
                 sigma_2 = backtest_data['sigma_2']
                 
-            # 실제 변동성 계산 함수 추가
-            def calculate_strategy_volatility(df_data, strategy_type):
-                """각 전략의 실제 변동성 계산"""
-                if strategy_type == '1sigma':
-                    # 1σ 하락일의 수익률 변동성
-                    sigma_days = df_data[df_data['Returns'] <= sigma_1]
-                    return sigma_days['Returns'].std() if len(sigma_days) > 0 else 15
-                elif strategy_type == '2sigma':
-                    sigma_days = df_data[df_data['Returns'] <= sigma_2]
-                    return sigma_days['Returns'].std() if len(sigma_days) > 0 else 12
-                else:  # DCA
-                    # 매월 수익률 계산
-                    monthly_returns = df_data['Close'].resample('M').last().pct_change() * 100
-                    return monthly_returns.std() if len(monthly_returns) > 0 else 8
-            
-            # 개선된 몬테카를로 함수
-            def monte_carlo_optimization(df_data, sigma_stats, num_simulations=5000):
-                """몬테카를로 시뮬레이션으로 최적 비중 찾기"""
+                # 실제 변동성 계산 함수 추가
+                def calculate_strategy_volatility(df_data, strategy_type):
+                    """각 전략의 실제 변동성 계산"""
+                    if strategy_type == '1sigma':
+                        # 1σ 하락일의 수익률 변동성
+                        sigma_days = df_data[df_data['Returns'] <= sigma_1]
+                        return sigma_days['Returns'].std() if len(sigma_days) > 0 else 15
+                    elif strategy_type == '2sigma':
+                        sigma_days = df_data[df_data['Returns'] <= sigma_2]
+                        return sigma_days['Returns'].std() if len(sigma_days) > 0 else 12
+                    else:  # DCA
+                        # 매월 수익률 계산
+                        monthly_returns = df_data['Close'].resample('M').last().pct_change() * 100
+                        return monthly_returns.std() if len(monthly_returns) > 0 else 8
                 
-                # 실제 변동성 계산
-                vol_1sigma = calculate_strategy_volatility(df_data, '1sigma')
-                vol_2sigma = calculate_strategy_volatility(df_data, '2sigma')
-                vol_dca = calculate_strategy_volatility(df_data, 'dca')
-                
-                best_result = {
-                    'sharpe': -999,
-                    'weights': None,
-                    'return': None,
-                    'std': None,
-                    'all_results': []
-                }
-                
-                all_combinations = []
-                
-                for i in range(num_simulations):
-                    # 무작위 비중 생성
-                    weights = np.random.random(3)
-                    weights = weights / weights.sum()  # 정규화
+                # 개선된 몬테카를로 함수
+                def monte_carlo_optimization(df_data, sigma_stats, num_simulations=5000):
+                    """몬테카를로 시뮬레이션으로 최적 비중 찾기"""
                     
-                    # 각 전략의 실제 수익률 사용
-                    portfolio_return = (
-                        weights[0] * (results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0) +
-                        weights[1] * (results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0) +
-                        weights[2] * comparison_5y['dca']['total_return']
-                    )
+                    # 실제 변동성 계산
+                    vol_1sigma = calculate_strategy_volatility(df_data, '1sigma')
+                    vol_2sigma = calculate_strategy_volatility(df_data, '2sigma')
+                    vol_dca = calculate_strategy_volatility(df_data, 'dca')
                     
-                    # 실제 변동성 기반 포트폴리오 변동성
-                    portfolio_std = np.sqrt(
-                        (weights[0]**2 * vol_1sigma**2) +
-                        (weights[1]**2 * vol_2sigma**2) +
-                        (weights[2]**2 * vol_dca**2)
-                    )
+                    best_result = {
+                        'sharpe': -999,
+                        'weights': None,
+                        'return': None,
+                        'std': None,
+                        'all_results': []
+                    }
                     
-                    sharpe = portfolio_return / portfolio_std if portfolio_std > 0 else 0
+                    all_combinations = []
                     
-                    all_combinations.append({
-                        'weights': weights.copy(),
-                        'return': portfolio_return,
-                        'std': portfolio_std,
-                        'sharpe': sharpe
-                    })
-                    
-                    if sharpe > best_result['sharpe']:
-                        best_result = {
-                            'sharpe': sharpe,
+                    for i in range(num_simulations):
+                        # 무작위 비중 생성
+                        weights = np.random.random(3)
+                        weights = weights / weights.sum()  # 정규화
+                        
+                        # 각 전략의 실제 수익률 사용
+                        portfolio_return = (
+                            weights[0] * (results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0) +
+                            weights[1] * (results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0) +
+                            weights[2] * comparison_5y['dca']['total_return']
+                        )
+                        
+                        # 실제 변동성 기반 포트폴리오 변동성
+                        portfolio_std = np.sqrt(
+                            (weights[0]**2 * vol_1sigma**2) +
+                            (weights[1]**2 * vol_2sigma**2) +
+                            (weights[2]**2 * vol_dca**2)
+                        )
+                        
+                        sharpe = portfolio_return / portfolio_std if portfolio_std > 0 else 0
+                        
+                        all_combinations.append({
                             'weights': weights.copy(),
                             'return': portfolio_return,
-                            'std': portfolio_std
-                        }
+                            'std': portfolio_std,
+                            'sharpe': sharpe
+                        })
+                        
+                        if sharpe > best_result['sharpe']:
+                            best_result = {
+                                'sharpe': sharpe,
+                                'weights': weights.copy(),
+                                'return': portfolio_return,
+                                'std': portfolio_std
+                            }
+                    
+                    return best_result, all_combinations
                 
-                return best_result, all_combinations
-            
-            # 몬테카를로 실행 버튼
-            col_mc1, col_mc2 = st.columns([3, 1])
-            
-            with col_mc1:
-                st.info("""
-                **몬테카를로 시뮬레이션이란?**
-                - 5,000가지 전략 비중 조합을 무작위로 테스트
-                - 실제 데이터 기반 변동성으로 리스크 계산
-                - 리스크 대비 수익(샤프비율)이 가장 높은 조합 발견
-                - 최적의 자산 배분 비율 제시
-                """)
-            
-            with col_mc2:
-                if st.button("🎯 최적 비중 찾기", type="secondary", use_container_width=True):
-                    with st.spinner("5,000개 조합 분석 중..."):
-                        # 프로그레스 바
-                        progress_bar = st.progress(0)
-                        
-                        # 몬테카를로 실행
-                        best_result, all_combinations = monte_carlo_optimization(
-                            df_5year,
-                            stats
-                        )
-                        
-                        progress_bar.progress(100)
-                        
-                        # 결과 표시
-                        st.success("✅ 최적 비중 발견!")
-                        
-                        # 최적 비중 표시
-                        col_opt1, col_opt2, col_opt3 = st.columns(3)
-                        
-                        with col_opt1:
-                            st.metric("1σ 전략", f"{best_result['weights'][0]:.1%}")
-                        
-                        with col_opt2:
-                            st.metric("2σ 전략", f"{best_result['weights'][1]:.1%}")
-                        
-                        with col_opt3:
-                            st.metric("DCA", f"{best_result['weights'][2]:.1%}")
-                        
-                        # 예상 성과
-                        st.markdown("### 📊 최적 포트폴리오 예상 성과")
-                        col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
-                        
-                        with col_perf1:
-                            st.metric("예상 수익률", f"{best_result['return']:.1%}")
-                        
-                        with col_perf2:
-                            st.metric("예상 변동성", f"{best_result['std']:.1%}")
-                        
-                        with col_perf3:
-                            st.metric("샤프비율", f"{best_result['sharpe']:.2f}")
-                        
-                        with col_perf4:
-                            # VaR 계산
-                            returns_list = [c['return'] for c in all_combinations]
-                            var_95 = np.percentile(returns_list, 5)
-                            st.metric("95% VaR", f"{var_95:.1%}",
-                                    help="95% 신뢰수준에서 최대 예상 손실")
-                        
-                        # 효율적 프론티어 시각화
-                        st.markdown("### 📈 리스크-수익 분석")
-                        
-                        # 모든 조합의 산점도
-                        returns = [c['return'] for c in all_combinations]
-                        stds = [c['std'] for c in all_combinations]
-                        sharpes = [c['sharpe'] for c in all_combinations]
-                        
-                        fig_frontier = go.Figure()
-                        
-                        # 모든 조합
-                        fig_frontier.add_trace(go.Scatter(
-                            x=stds,
-                            y=returns,
-                            mode='markers',
-                            marker=dict(
-                                size=5,
-                                color=sharpes,
-                                colorscale='Viridis',
-                                showscale=True,
-                                colorbar=dict(title="샤프비율")
-                            ),
-                            text=[f"수익: {r:.1f}%<br>리스크: {s:.1f}%<br>샤프: {sh:.2f}" 
-                                  for r, s, sh in zip(returns, stds, sharpes)],
-                            hovertemplate='%{text}<extra></extra>',
-                            name='모든 조합'
-                        ))
-                        
-                        # 최적 포트폴리오 강조
-                        fig_frontier.add_trace(go.Scatter(
-                            x=[best_result['std']],
-                            y=[best_result['return']],
-                            mode='markers',
-                            marker=dict(
-                                size=15,
-                                color='red',
-                                symbol='star',
-                                line=dict(color='darkred', width=2)
-                            ),
-                            name='최적 포트폴리오',
-                            text=f"최적: 수익 {best_result['return']:.1f}%, 리스크 {best_result['std']:.1f}%",
-                            hovertemplate='%{text}<extra></extra>'
-                        ))
-                        
-                        # 개별 전략들도 표시
-                        vol_1sigma = calculate_strategy_volatility(df_5year, '1sigma')
-                        vol_2sigma = calculate_strategy_volatility(df_5year, '2sigma')
-                        vol_dca = calculate_strategy_volatility(df_5year, 'dca')
-                        
-                        individual_strategies = [
-                            ("1σ 전략", results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0, vol_1sigma),
-                            ("2σ 전략", results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0, vol_2sigma),
-                            ("DCA", comparison_5y['dca']['total_return'], vol_dca)
-                        ]
-                        
-                        for name, ret, std in individual_strategies:
-                            fig_frontier.add_trace(go.Scatter(
-                                x=[std],
-                                y=[ret],
-                                mode='markers+text',
-                                marker=dict(size=10, symbol='diamond'),
-                                text=[name],
-                                textposition="top center",
-                                name=name
-                            ))
-                        
-                        fig_frontier.update_layout(
-                            title="효율적 프론티어 (Efficient Frontier)",
-                            xaxis_title="리스크 (표준편차 %)",
-                            yaxis_title="수익률 (%)",
-                            height=500,
-                            hovermode='closest'
-                        )
-                        
-                        st.plotly_chart(fig_frontier, use_container_width=True)
-                        
-                        # 시나리오 분석 추가
-                        st.markdown("### 📊 시나리오 분석")
-                        
-                        scenarios = {
-                            '강세장 (상승 20%)': {'1sigma': 5, '2sigma': 3, 'dca': 15},
-                            '약세장 (하락 20%)': {'1sigma': 20, '2sigma': 25, 'dca': -5},
-                            '횡보장 (±5%)': {'1sigma': 12, '2sigma': 8, 'dca': 7},
-                            '변동장 (고변동성)': {'1sigma': 18, '2sigma': 22, 'dca': 10}
-                        }
-                        
-                        scenario_results = []
-                        for scenario_name, returns in scenarios.items():
-                            scenario_return = (
-                                best_result['weights'][0] * returns['1sigma'] +
-                                best_result['weights'][1] * returns['2sigma'] +
-                                best_result['weights'][2] * returns['dca']
+                # 몬테카를로 실행 버튼
+                col_mc1, col_mc2 = st.columns([3, 1])
+                
+                with col_mc1:
+                    st.info("""
+                    **몬테카를로 시뮬레이션이란?**
+                    - 5,000가지 전략 비중 조합을 무작위로 테스트
+                    - 실제 데이터 기반 변동성으로 리스크 계산
+                    - 리스크 대비 수익(샤프비율)이 가장 높은 조합 발견
+                    - 최적의 자산 배분 비율 제시
+                    """)
+                
+                with col_mc2:
+                    if st.button("🎯 최적 비중 찾기", type="secondary", use_container_width=True):
+                        with st.spinner("5,000개 조합 분석 중..."):
+                            # 프로그레스 바
+                            progress_bar = st.progress(0)
+                            
+                            # 몬테카를로 실행
+                            best_result, all_combinations = monte_carlo_optimization(
+                                df_5year,
+                                stats
                             )
-                            scenario_results.append({
-                                '시나리오': scenario_name,
-                                '예상 수익률': f"{scenario_return:.1f}%"
-                            })
-                        
-                        st.dataframe(pd.DataFrame(scenario_results), use_container_width=True, hide_index=True)
-                        
-                        # 저장할 수 있도록 세션 스테이트에 저장
-                        st.session_state['optimal_weights'] = best_result['weights']
-            
+                            
+                            progress_bar.progress(100)
+                            
+                            # 결과 표시
+                            st.success("✅ 최적 비중 발견!")
+                            
+                            # 최적 비중 표시
+                            col_opt1, col_opt2, col_opt3 = st.columns(3)
+                            
+                            with col_opt1:
+                                st.metric("1σ 전략", f"{best_result['weights'][0]:.1%}")
+                            
+                            with col_opt2:
+                                st.metric("2σ 전략", f"{best_result['weights'][1]:.1%}")
+                            
+                            with col_opt3:
+                                st.metric("DCA", f"{best_result['weights'][2]:.1%}")
+                            
+                            # 예상 성과
+                            st.markdown("### 📊 최적 포트폴리오 예상 성과")
+                            col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
+                            
+                            with col_perf1:
+                                st.metric("예상 수익률", f"{best_result['return']:.1%}")
+                            
+                            with col_perf2:
+                                st.metric("예상 변동성", f"{best_result['std']:.1%}")
+                            
+                            with col_perf3:
+                                st.metric("샤프비율", f"{best_result['sharpe']:.2f}")
+                            
+                            with col_perf4:
+                                # VaR 계산
+                                returns_list = [c['return'] for c in all_combinations]
+                                var_95 = np.percentile(returns_list, 5)
+                                st.metric("95% VaR", f"{var_95:.1%}",
+                                        help="95% 신뢰수준에서 최대 예상 손실")
+                            
+                            # 효율적 프론티어 시각화
+                            st.markdown("### 📈 리스크-수익 분석")
+                            
+                            # 모든 조합의 산점도
+                            returns = [c['return'] for c in all_combinations]
+                            stds = [c['std'] for c in all_combinations]
+                            sharpes = [c['sharpe'] for c in all_combinations]
+                            
+                            fig_frontier = go.Figure()
+                            
+                            # 모든 조합
+                            fig_frontier.add_trace(go.Scatter(
+                                x=stds,
+                                y=returns,
+                                mode='markers',
+                                marker=dict(
+                                    size=5,
+                                    color=sharpes,
+                                    colorscale='Viridis',
+                                    showscale=True,
+                                    colorbar=dict(title="샤프비율")
+                                ),
+                                text=[f"수익: {r:.1f}%<br>리스크: {s:.1f}%<br>샤프: {sh:.2f}" 
+                                    for r, s, sh in zip(returns, stds, sharpes)],
+                                hovertemplate='%{text}<extra></extra>',
+                                name='모든 조합'
+                            ))
+                            
+                            # 최적 포트폴리오 강조
+                            fig_frontier.add_trace(go.Scatter(
+                                x=[best_result['std']],
+                                y=[best_result['return']],
+                                mode='markers',
+                                marker=dict(
+                                    size=15,
+                                    color='red',
+                                    symbol='star',
+                                    line=dict(color='darkred', width=2)
+                                ),
+                                name='최적 포트폴리오',
+                                text=f"최적: 수익 {best_result['return']:.1f}%, 리스크 {best_result['std']:.1f}%",
+                                hovertemplate='%{text}<extra></extra>'
+                            ))
+                            
+                            # 개별 전략들도 표시
+                            vol_1sigma = calculate_strategy_volatility(df_5year, '1sigma')
+                            vol_2sigma = calculate_strategy_volatility(df_5year, '2sigma')
+                            vol_dca = calculate_strategy_volatility(df_5year, 'dca')
+                            
+                            individual_strategies = [
+                                ("1σ 전략", results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0, vol_1sigma),
+                                ("2σ 전략", results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0, vol_2sigma),
+                                ("DCA", comparison_5y['dca']['total_return'], vol_dca)
+                            ]
+                            
+                            for name, ret, std in individual_strategies:
+                                fig_frontier.add_trace(go.Scatter(
+                                    x=[std],
+                                    y=[ret],
+                                    mode='markers+text',
+                                    marker=dict(size=10, symbol='diamond'),
+                                    text=[name],
+                                    textposition="top center",
+                                    name=name
+                                ))
+                            
+                            fig_frontier.update_layout(
+                                title="효율적 프론티어 (Efficient Frontier)",
+                                xaxis_title="리스크 (표준편차 %)",
+                                yaxis_title="수익률 (%)",
+                                height=500,
+                                hovermode='closest'
+                            )
+                            
+                            st.plotly_chart(fig_frontier, use_container_width=True)
+                            
+                            # 시나리오 분석 추가
+                            st.markdown("### 📊 시나리오 분석")
+                            
+                            scenarios = {
+                                '강세장 (상승 20%)': {'1sigma': 5, '2sigma': 3, 'dca': 15},
+                                '약세장 (하락 20%)': {'1sigma': 20, '2sigma': 25, 'dca': -5},
+                                '횡보장 (±5%)': {'1sigma': 12, '2sigma': 8, 'dca': 7},
+                                '변동장 (고변동성)': {'1sigma': 18, '2sigma': 22, 'dca': 10}
+                            }
+                            
+                            scenario_results = []
+                            for scenario_name, returns in scenarios.items():
+                                scenario_return = (
+                                    best_result['weights'][0] * returns['1sigma'] +
+                                    best_result['weights'][1] * returns['2sigma'] +
+                                    best_result['weights'][2] * returns['dca']
+                                )
+                                scenario_results.append({
+                                    '시나리오': scenario_name,
+                                    '예상 수익률': f"{scenario_return:.1f}%"
+                                })
+                            
+                            st.dataframe(pd.DataFrame(scenario_results), use_container_width=True, hide_index=True)
+                            
+                            # 저장할 수 있도록 세션 스테이트에 저장
+                            st.session_state['optimal_weights'] = best_result['weights']
+                
             # ============= 혼합 전략 백테스팅 =============
             st.markdown("---")
             st.markdown("## 🔄 혼합 전략 백테스팅")
