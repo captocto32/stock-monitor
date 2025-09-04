@@ -696,7 +696,84 @@ with tab1:
             })
         yearly_df = pd.DataFrame(yearly_data)
         st.dataframe(yearly_df, use_container_width=True, hide_index=True)
-     
+    
+        # 최근 발생일 및 연속 발생 정보
+        st.markdown("---")
+        st.subheader("📊 최근 시그마 하락 발생일")
+        
+        # 각 시그마 구간별 발생일 찾기
+        df_analysis_clean = df_analysis.dropna()
+        sigma_1_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_1_5y) & 
+                                        (df_analysis_clean['Returns'] > sigma_2_5y)].index
+        sigma_2_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_2_5y) & 
+                                        (df_analysis_clean['Returns'] > sigma_3_5y)].index
+        sigma_3_dates = df_analysis_clean[df_analysis_clean['Returns'] <= sigma_3_5y].index
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if len(sigma_1_dates) > 0:
+                last_date = sigma_1_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("1σ 구간 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("1σ 구간 최근 발생", "없음")
+                
+        with col2:
+            if len(sigma_2_dates) > 0:
+                last_date = sigma_2_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("2σ 구간 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("2σ 구간 최근 발생", "없음")
+                
+        with col3:
+            if len(sigma_3_dates) > 0:
+                last_date = sigma_3_dates[-1]
+                days_ago = (datetime.now().date() - last_date.date()).days
+                st.metric("3σ 이하 최근 발생", f"{days_ago}일 전")
+            else:
+                st.metric("3σ 이하 최근 발생", "없음")
+        
+        # 상세 발생일 목록 (expander)
+        with st.expander("📅 시그마 하락 발생일 상세"):
+            tab1_detail, tab2_detail, tab3_detail = st.tabs(["2σ 구간 발생일", "3σ 이하 발생일", "극단적 하락 TOP 10"])
+            
+            with tab1_detail:
+                if len(sigma_2_dates) > 0:
+                    recent_2sigma = []
+                    for date in sigma_2_dates[-20:]:  # 최근 20개
+                        return_pct = df_analysis_clean.loc[date, 'Returns']
+                        recent_2sigma.append({
+                            '날짜': date.strftime('%Y-%m-%d'),
+                            '수익률': f"{return_pct:.2f}%"
+                        })
+                    st.dataframe(pd.DataFrame(recent_2sigma), use_container_width=True, hide_index=True)
+                    st.caption(f"2σ 구간: {sigma_3_5y:.2f}% < 하락률 ≤ {sigma_2_5y:.2f}%")
+                else:
+                    st.info("2σ 구간 하락 발생 이력이 없습니다.")
+                    
+            with tab2_detail:
+                if len(sigma_3_dates) > 0:
+                    recent_3sigma = []
+                    for date in sigma_3_dates:  # 3σ는 모두 표시
+                        return_pct = df_analysis_clean.loc[date, 'Returns']
+                        recent_3sigma.append({
+                            '날짜': date.strftime('%Y-%m-%d'),
+                            '수익률': f"{return_pct:.2f}%"
+                        })
+                    st.dataframe(pd.DataFrame(recent_3sigma), use_container_width=True, hide_index=True)
+                    st.caption(f"3σ 이하: 하락률 ≤ {sigma_3_5y:.2f}%")
+                else:
+                    st.info("3σ 이하 하락 발생 이력이 없습니다.")
+                    
+            with tab3_detail:
+                # 최악의 하락일 TOP 10
+                worst_days = df_analysis_clean.nsmallest(10, 'Returns')[['Returns']].copy()
+                worst_days['날짜'] = worst_days.index.strftime('%Y-%m-%d')
+                worst_days['수익률'] = worst_days['Returns'].apply(lambda x: f"{x:.2f}%")
+                st.dataframe(worst_days[['날짜', '수익률']], use_container_width=True, hide_index=True)
+
         # 수익률 분포 차트
         st.markdown("---")
         st.subheader("📈 일일 수익률 분포 (5년)")
