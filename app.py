@@ -1409,7 +1409,6 @@ with tab3:
         # DCA 전략
         st.markdown("---")
         st.markdown("### 3️⃣ DCA (매월 정액 투자)")
-        st.caption(f"고정 투자금: {'$1,000' if is_us_stock else '100만원'}")
         
         col_dca_1y, col_dca_5y = st.columns(2)
         
