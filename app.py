@@ -981,7 +981,7 @@ with tab3:
     with col1_3:
         amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=100)
     
-    # 백테스팅 실행 버튼
+# 백테스팅 실행 버튼
     if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
         if selected_symbol:
             # 백테스팅 실행
@@ -1162,8 +1162,24 @@ with tab3:
                 comparison_1y = {'dca': run_dca_comparison(df_1year, 12)}
                 comparison_5y = {'dca': run_dca_comparison(df_5year, 60)}
             
-            # 결과 저장 (몬테카를로에서 사용)
+            # 결과를 세션에 저장 (핵심 수정 부분!)
             st.session_state.update({
+                'backtest_completed': True,
+                'backtest_results': {
+                    'results_1sigma_1year': results_1sigma_1year,
+                    'results_1sigma_5year': results_1sigma_5year,
+                    'results_2sigma_1year': results_2sigma_1year,
+                    'results_2sigma_5year': results_2sigma_5year,
+                    'comparison_1y': comparison_1y,
+                    'comparison_5y': comparison_5y,
+                    'df_1year': df_1year,
+                    'df_5year': df_5year,
+                    'stats': stats,
+                    'sigma_1': sigma_1,
+                    'sigma_2': sigma_2,
+                    'is_us_stock': is_us_stock
+                },
+                # 몬테카를로에서 사용할 데이터도 함께 저장
                 'results_1sigma_1year': results_1sigma_1year,
                 'results_1sigma_5year': results_1sigma_5year,
                 'results_2sigma_1year': results_2sigma_1year,
@@ -1175,9 +1191,12 @@ with tab3:
                 'is_us_stock': is_us_stock,
                 'stats': stats
             })
+            
+            # 즉시 결과 표시를 위해 페이지 새로고침
+            st.rerun()
     
     # 백테스팅 결과가 있으면 표시
-    if 'backtest_completed' in st.session_state and st.session_state.get('backtest_completed', False):
+    if st.session_state.get('backtest_completed', False):
         # 세션에서 결과 불러오기
         backtest_data = st.session_state['backtest_results']
         results_1sigma_1year = backtest_data['results_1sigma_1year']
@@ -1462,9 +1481,7 @@ with tab3:
                         dca_df['주식수'] = dca_df['shares'].apply(lambda x: f"{x:.2f}주")
                         display_dca_df = dca_df[['날짜', '가격', '투자금', '주식수']]
                         st.dataframe(display_dca_df, use_container_width=True, hide_index=True)
-            else:
-                st.info("매수 내역 없음")
-        
+                               
         # 수익률 비교 그래프
         st.markdown("---")
         st.markdown("#### 📊 투자 효율 비교 (100만원당 수익률)")
