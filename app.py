@@ -1100,20 +1100,19 @@ with tab3:
                         'total_return': 0
                     }
             
-            # DCA 전략만 계산 (일시불 제거)
+            # DCA 전략만 계산 (일시불 제거) - 매월 $100 투자
             def run_dca_comparison(df_data, period_months):
-                # 고정 투자금 설정 (100만원 또는 $1000)
+                # 매월 고정 투자금 설정
                 if is_us_stock:
-                    fixed_investment = 1000  # $1000
+                    monthly_amount = 100  # 매월 $100
                 else:
-                    fixed_investment = 1000000  # 100만원
+                    monthly_amount = 100000  # 매월 10만원
                 
                 # DCA 투자 (매월 10일 종가)
                 dca_investment = 0
                 dca_shares = 0
                 dca_buy_count = 0
                 dca_buy_history = []
-                monthly_amount = fixed_investment / period_months
                 
                 # DCA: 매월 10일 찾기
                 target_months = period_months
@@ -1153,9 +1152,12 @@ with tab3:
                 dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100 if dca_investment > 0 else 0
                 dca_avg_price = dca_investment / dca_shares if dca_shares > 0 else 0
                 
+                # 총 투자금 계산 (실제 투자한 금액)
+                total_investment_actual = dca_investment
+                
                 return {
                         'buy_count': dca_buy_count,
-                        'total_investment': fixed_investment,
+                        'total_investment': total_investment_actual,  # 실제 투자한 총액
                         'monthly_amount': monthly_amount,
                         'avg_price': dca_avg_price,
                         'total_shares': dca_shares,
