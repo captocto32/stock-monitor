@@ -29,8 +29,6 @@ if 'monitoring_active' not in st.session_state:
 if 'stocks_loaded' not in st.session_state:
     st.session_state.stocks_loaded = False
 
-# Google Sheets만 사용하므로 로컬 파일 경로 제거
-
 # Google Sheets 설정
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
@@ -78,14 +76,18 @@ def save_stocks_to_sheets():
         # 첫 번째 시트 선택
         worksheet = spreadsheet.sheet1
         
-        # 헤더 설정
-        headers = ['종목코드', '종목명', '타입']
+        # 헤더 설정 - 기준 날짜와 종가 추가
+        headers = ['종목코드', '종목명', '타입', '기준날짜', '기준종가']
         worksheet.clear()
         worksheet.append_row(headers)
         
         # 데이터 추가
         for symbol, info in st.session_state.monitoring_stocks.items():
-            row = [symbol, info['name'], info['type']]
+            # 기준 날짜와 종가 정보 추출
+            base_date = info['stats'].get('base_date', '')
+            base_close = info['stats'].get('base_close', info['stats']['last_close'])
+            
+            row = [symbol, info['name'], info['type'], base_date, str(base_close)]
             worksheet.append_row(row)
         
         st.success("✅ Google Sheets에 저장 완료!")
@@ -107,8 +109,7 @@ def load_stocks_from_sheets():
             spreadsheet = client.open(SPREADSHEET_NAME)
             worksheet = spreadsheet.sheet1
             
-            # 모든 값 가져오기 (캐시 무효화를 위해 강제로 새로고침)
-            # worksheet를 새로 가져와서 캐싱 방지
+            # 모든 값 가져오기
             worksheet = spreadsheet.get_worksheet(0)
             all_values = worksheet.get_all_values()
             
@@ -120,10 +121,18 @@ def load_stocks_from_sheets():
             stocks = {}
             for row in all_values[1:]:  # 헤더 제외
                 if len(row) >= 3:
-                    symbol, name, stock_type = row[0], row[1], row[2]
+                    symbol = row[0]
+                    name = row[1]
+                    stock_type = row[2]
+                    # 기준 날짜와 종가 정보 (있으면)
+                    base_date = row[3] if len(row) > 3 else None
+                    base_close = float(row[4]) if len(row) > 4 and row[4] else None
+                    
                     stocks[symbol] = {
                         'name': name,
-                        'type': stock_type
+                        'type': stock_type,
+                        'saved_base_date': base_date,
+                        'saved_base_close': base_close
                     }
             
             if stocks:
@@ -140,6 +149,11 @@ def load_stocks_from_sheets():
                         df = analyzer.get_stock_data(symbol, info['type'])
                         if df is not None:
                             stats = analyzer.calculate_sigma_levels(df)
+                            # 정확한 전일 종가 가져오기
+                            base_close, base_date = analyzer.get_accurate_last_close(symbol, info['type'])
+                            if base_close:
+                                stats['base_close'] = base_close
+                                stats['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
                             info['stats'] = stats
                             info['df'] = df
                     except Exception as e:
@@ -148,12 +162,12 @@ def load_stocks_from_sheets():
                 progress_bar.empty()
                 status_text.empty()
                 
-                # 세션 상태 완전히 초기화 후 새 데이터로 설정
+                # 세션 상태 업데이트
                 st.session_state.monitoring_stocks.clear()
                 st.session_state.monitoring_stocks.update(stocks)
                 st.session_state.stocks_loaded = True
                 
-                # 캐시 무효화를 위해 강제로 새로고침
+                # 캐시 무효화
                 st.cache_data.clear()
                 
                 st.success(f"✅ Google Sheets에서 {len(stocks)}개 종목을 불러왔습니다!")
@@ -169,12 +183,56 @@ def load_stocks_from_sheets():
     except Exception as e:
         st.error(f"Google Sheets에서 데이터를 불러올 수 없습니다: {e}")
         return False
-
-# 로컬 파일 저장/불러오기 함수 제거 - Google Sheets만 사용
-
+    
 class StockAnalyzer:
     def __init__(self):
         pass
+    
+    def get_accurate_last_close(self, symbol, stock_type='KR'):
+        """정확한 전일 종가와 날짜 가져오기"""
+        try:
+            today = datetime.now()
+            
+            if stock_type == 'KR':
+                # 한국 주식 - 전일 종가 명시적으로 가져오기
+                # 주말과 공휴일을 고려하여 최근 거래일 찾기
+                for i in range(1, 10):  # 최대 10일 전까지 확인
+                    check_date = today - timedelta(days=i)
+                    df = stock.get_market_ohlcv_by_date(
+                        fromdate=check_date.strftime('%Y%m%d'),
+                        todate=check_date.strftime('%Y%m%d'),
+                        ticker=symbol
+                    )
+                    if not df.empty:
+                        return df['종가'].iloc[-1], check_date
+            else:
+                # 미국 주식 - yfinance의 previous close 사용
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                
+                if 'regularMarketPreviousClose' in info and info['regularMarketPreviousClose']:
+                    # history에서 날짜 확인
+                    hist = ticker.history(period='5d')
+                    if not hist.empty and len(hist) > 1:
+                        # 마지막에서 두 번째 날짜가 전일
+                        prev_date = hist.index[-2].date() if len(hist) > 1 else hist.index[-1].date()
+                        return info['regularMarketPreviousClose'], prev_date
+                
+                # info에서 못 구하면 history 사용
+                hist = ticker.history(period='1mo')
+                if not hist.empty:
+                    # 오늘 데이터 제외하고 마지막 거래일
+                    today_str = today.strftime('%Y-%m-%d')
+                    hist_filtered = hist[hist.index.strftime('%Y-%m-%d') < today_str]
+                    if not hist_filtered.empty:
+                        last_close = hist_filtered['Close'].iloc[-1]
+                        last_date = hist_filtered.index[-1].date()
+                        return last_close, last_date
+                        
+        except Exception as e:
+            st.warning(f"전일 종가 가져오기 실패 ({symbol}): {e}")
+        
+        return None, None
     
     def search_korean_stock(self, query):
         """한국 주식 검색"""
@@ -185,11 +243,9 @@ class StockAnalyzer:
                 if name:
                     return query, name
             
-            # 종목명으로 검색 - NAVER, 삼성전자 등
+            # 종목명으로 검색
             tickers = stock.get_market_ticker_list()
             query_upper = query.upper()
-            
-
             
             # 전체 검색
             for ticker in tickers:
@@ -198,7 +254,7 @@ class StockAnalyzer:
                     if name and query_upper in name.upper():
                         return ticker, name
                 except Exception:
-                    continue  # 개별 종목 오류는 무시하고 계속 진행
+                    continue
             
             return None, None
         except Exception as e:
@@ -208,31 +264,27 @@ class StockAnalyzer:
         """주식 데이터 가져오기"""
         try:
             if stock_type == 'KR':
-                # 한국 주식
+                # 한국 주식 - 오늘 데이터는 제외하고 가져오기
+                today = datetime.now()
+                yesterday = today - timedelta(days=1)
+                
                 df = stock.get_market_ohlcv_by_date(
-                    fromdate=(datetime.now() - timedelta(days=365*5)).strftime('%Y%m%d'),
-                    todate=datetime.now().strftime('%Y%m%d'),
+                    fromdate=(today - timedelta(days=365*5)).strftime('%Y%m%d'),
+                    todate=yesterday.strftime('%Y%m%d'),  # 어제까지만
                     ticker=symbol
                 )
-                
-                # 빈 DataFrame 체크
+            
                 if df is None or df.empty:
                     st.warning(f"종목코드 {symbol}에 대한 데이터가 없습니다.")
                     return None
                 
-                # 컬럼명 확인 후 변경
+                # 컬럼명 표준화
                 if len(df.columns) == 6:
-                    # 시가, 고가, 저가, 종가, 거래량, 거래대금
                     df.columns = ['Open', 'High', 'Low', 'Close', 'Volume', 'Value']
                     df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
                 elif len(df.columns) == 5:
-                    # 시가, 고가, 저가, 종가, 거래량
                     df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-                else:
-                    # 기본 컬럼명 사용
-                    pass
                 
-                # 데이터가 충분한지 확인
                 if len(df) < 10:
                     st.warning(f"종목코드 {symbol}의 데이터가 부족합니다.")
                     return None
@@ -243,6 +295,12 @@ class StockAnalyzer:
                 # 미국 주식
                 ticker = yf.Ticker(symbol)
                 df = ticker.history(period='5y')
+                
+                # 오늘 데이터가 있으면 제외
+                today = datetime.now().date()
+                if not df.empty and df.index[-1].date() == today:
+                    df = df[:-1]
+                
                 if df.empty:
                     return None
                 
@@ -257,13 +315,11 @@ class StockAnalyzer:
     def calculate_sigma_levels(self, df):
         """시그마 레벨 계산"""
         try:
-            # 빈 DataFrame 체크
             if df is None or df.empty:
                 return None
             
             returns = df['Returns'].dropna()
             
-            # 충분한 데이터가 있는지 확인
             if len(returns) < 10:
                 return None
             
@@ -276,11 +332,8 @@ class StockAnalyzer:
             sigma_2 = mean - 2 * std
             sigma_3 = mean - 3 * std
             
-            # 최근 종가 (안전하게)
-            if len(df) > 0:
-                last_close = df['Close'].iloc[-1]
-            else:
-                return None
+            # 마지막 종가 (데이터프레임의 마지막 값)
+            last_close = df['Close'].iloc[-1]
             
             # 1년 데이터로 별도 계산
             if len(df) >= 252:
@@ -306,7 +359,7 @@ class StockAnalyzer:
                 '1sigma_1y': sigma_1_1y,
                 '2sigma_1y': sigma_2_1y,
                 '3sigma_1y': sigma_3_1y,
-                'last_close': last_close,
+                'last_close': last_close,  # 데이터프레임의 마지막 종가
                 'returns': returns.tolist()
             }
             
@@ -319,9 +372,10 @@ class StockAnalyzer:
         try:
             if stock_type == 'KR':
                 # 한국 주식 현재가
+                today = datetime.now().strftime('%Y%m%d')
                 price = stock.get_market_ohlcv_by_date(
-                    fromdate=datetime.now().strftime('%Y%m%d'),
-                    todate=datetime.now().strftime('%Y%m%d'),
+                    fromdate=today,
+                    todate=today,
                     ticker=symbol
                 )
                 if not price.empty:
@@ -333,7 +387,7 @@ class StockAnalyzer:
                 if 'regularMarketPrice' in info and info['regularMarketPrice']:
                     current = info['regularMarketPrice']
                     previous = info.get('regularMarketPreviousClose', current)
-                    change = ((current - previous) / previous) * 100
+                    change = ((current - previous) / previous) * 100 if previous else 0
                     return current, change
             
             return None, None
@@ -412,8 +466,6 @@ with st.sidebar:
             # 한국 주식 검색
             kr_code, kr_name = analyzer.search_korean_stock(stock_input)
             
-
-            
             if kr_code:
                 symbol, name, stock_type = kr_code, kr_name, 'KR'
                 st.success(f"한국 주식: {name} ({kr_code})")
@@ -429,7 +481,18 @@ with st.sidebar:
             if df is not None:
                 stats = analyzer.calculate_sigma_levels(df)
                 
+                # 정확한 전일 종가 가져오기
+                base_close, base_date = analyzer.get_accurate_last_close(symbol, stock_type)
+                
                 if stats:
+                    # 기준 종가와 날짜 추가
+                    if base_close:
+                        stats['base_close'] = base_close
+                        stats['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
+                    else:
+                        stats['base_close'] = stats['last_close']
+                        stats['base_date'] = df.index[-1].strftime('%Y-%m-%d')
+                    
                     # 분석 결과를 세션에 저장
                     st.session_state.current_analysis = {
                         'symbol': symbol,
@@ -466,6 +529,10 @@ with tab1:
                 del st.session_state.current_analysis
                 st.rerun()
         
+        # 기준 종가 사용
+        base_close = analysis['stats'].get('base_close', analysis['stats']['last_close'])
+        base_date = analysis['stats'].get('base_date', '')
+        
         # 주요 지표
         col_a, col_b, col_c, col_d = st.columns(4)
         with col_a:
@@ -477,11 +544,13 @@ with tab1:
                     st.metric("현재가", f"${current_price:,.2f}", f"{price_change:+.2f}%")
             else:
                 if analysis['type'] == 'KR':
-                    st.metric("전일 종가", f"₩{analysis['stats']['last_close']:,.0f}")
-                    st.caption("현재가 정보를 가져올 수 없습니다")
+                    st.metric("기준 종가", f"₩{base_close:,.0f}")
+                    if base_date:
+                        st.caption(f"기준일: {base_date}")
                 else:
-                    st.metric("전일 종가", f"${analysis['stats']['last_close']:,.2f}")
-                    st.caption("현재가 정보를 가져올 수 없습니다")
+                    st.metric("기준 종가", f"${base_close:,.2f}")
+                    if base_date:
+                        st.caption(f"기준일: {base_date}")
         with col_b:
             st.metric("평균 수익률", f"{analysis['stats']['mean']:.2f}%")
         with col_c:
@@ -489,7 +558,7 @@ with tab1:
         with col_d:
             # 현재 변화율과 시그마 레벨 비교
             if current_price:
-                change_pct = ((current_price - analysis['stats']['last_close']) / analysis['stats']['last_close']) * 100
+                change_pct = ((current_price - base_close) / base_close) * 100
                 if change_pct <= analysis['stats']['3sigma']:
                     level = "3σ 돌파!"
                     delta_color = "inverse"
@@ -506,10 +575,7 @@ with tab1:
         
         # 시그마 하락시 가격 표시
         st.markdown("---")
-        st.subheader("💰 시그마 하락시 목표 가격(어제 종가 기준)")
-        
-        # 어제 종가
-        yesterday_close = analysis['stats']['last_close']
+        st.subheader(f"💰 시그마 하락시 목표 가격 (기준: {base_date if base_date else '마지막 거래일'})")
         
         # 1년 시그마 값들
         sigma_1_1y = analysis['stats'].get('1sigma_1y', analysis['stats']['1sigma'])
@@ -517,9 +583,9 @@ with tab1:
         sigma_3_1y = analysis['stats'].get('3sigma_1y', analysis['stats']['3sigma'])
         
         # 시그마 하락시 가격 계산
-        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
-        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
-        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+        price_at_1sigma = base_close * (1 + sigma_1_1y / 100)
+        price_at_2sigma = base_close * (1 + sigma_2_1y / 100)
+        price_at_3sigma = base_close * (1 + sigma_3_1y / 100)
         
         # 통화 단위 설정
         if analysis['type'] == 'KR':
@@ -550,8 +616,8 @@ with tab1:
                 f"{currency}{price_format.format(price_at_3sigma)}"
             )
         
-        # 어제 종가 정보
-        st.caption(f"* 어제 종가 기준: {currency}{price_format.format(yesterday_close)}")
+        # 기준 종가 정보
+        st.caption(f"* 기준 종가: {currency}{price_format.format(base_close)} ({base_date if base_date else '마지막 거래일'})")
         
         # 시그마 레벨 상세 정보
         st.markdown("---")
@@ -583,16 +649,12 @@ with tab1:
             # 1년 데이터로 실제 발생 확률 계산
             if len(analysis['stats']['returns']) >= 252:
                 returns_1y = analysis['stats']['returns'][-252:]
-                sigma_1_1y = analysis['stats'].get('1sigma_1y', sigma_1_5y)
-                sigma_2_1y = analysis['stats'].get('2sigma_1y', sigma_2_5y)
-                sigma_3_1y = analysis['stats'].get('3sigma_1y', sigma_3_5y)
                 
                 actual_prob_1_1y = (np.array(returns_1y) <= sigma_1_1y).sum() / len(returns_1y) * 100
                 actual_prob_2_1y = (np.array(returns_1y) <= sigma_2_1y).sum() / len(returns_1y) * 100
                 actual_prob_3_1y = (np.array(returns_1y) <= sigma_3_1y).sum() / len(returns_1y) * 100
             else:
                 actual_prob_1_1y, actual_prob_2_1y, actual_prob_3_1y = actual_prob_1_5y, actual_prob_2_5y, actual_prob_3_5y
-                sigma_1_1y, sigma_2_1y, sigma_3_1y = sigma_1_5y, sigma_2_5y, sigma_3_5y
             
             sigma_df_1y = pd.DataFrame({
                 '레벨': ['1시그마', '2시그마', '3시그마'],
@@ -634,84 +696,7 @@ with tab1:
             })
         yearly_df = pd.DataFrame(yearly_data)
         st.dataframe(yearly_df, use_container_width=True, hide_index=True)
-        
-        # 최근 발생일 및 연속 발생 정보
-        st.markdown("---")
-        st.subheader("📊 최근 시그마 하락 발생일")
-        
-        # 각 시그마 구간별 발생일 찾기
-        df_analysis_clean = df_analysis.dropna()
-        sigma_1_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_1_5y) & 
-                                        (df_analysis_clean['Returns'] > sigma_2_5y)].index
-        sigma_2_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_2_5y) & 
-                                        (df_analysis_clean['Returns'] > sigma_3_5y)].index
-        sigma_3_dates = df_analysis_clean[df_analysis_clean['Returns'] <= sigma_3_5y].index
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if len(sigma_1_dates) > 0:
-                last_date = sigma_1_dates[-1]
-                days_ago = (datetime.now().date() - last_date.date()).days
-                st.metric("1σ 구간 최근 발생", f"{days_ago}일 전")
-            else:
-                st.metric("1σ 구간 최근 발생", "없음")
-                
-        with col2:
-            if len(sigma_2_dates) > 0:
-                last_date = sigma_2_dates[-1]
-                days_ago = (datetime.now().date() - last_date.date()).days
-                st.metric("2σ 구간 최근 발생", f"{days_ago}일 전")
-            else:
-                st.metric("2σ 구간 최근 발생", "없음")
-                
-        with col3:
-            if len(sigma_3_dates) > 0:
-                last_date = sigma_3_dates[-1]
-                days_ago = (datetime.now().date() - last_date.date()).days
-                st.metric("3σ 이하 최근 발생", f"{days_ago}일 전")
-            else:
-                st.metric("3σ 이하 최근 발생", "없음")
-        
-        # 상세 발생일 목록 (expander)
-        with st.expander("📅 시그마 하락 발생일 상세"):
-            tab1_detail, tab2_detail, tab3_detail = st.tabs(["2σ 구간 발생일", "3σ 이하 발생일", "극단적 하락 TOP 10"])
-            
-            with tab1_detail:
-                if len(sigma_2_dates) > 0:
-                    recent_2sigma = []
-                    for date in sigma_2_dates[-20:]:  # 최근 20개
-                        return_pct = df_analysis_clean.loc[date, 'Returns']
-                        recent_2sigma.append({
-                            '날짜': date.strftime('%Y-%m-%d'),
-                            '수익률': f"{return_pct:.2f}%"
-                        })
-                    st.dataframe(pd.DataFrame(recent_2sigma), use_container_width=True, hide_index=True)
-                    st.caption(f"2σ 구간: {sigma_3_5y:.2f}% < 하락률 ≤ {sigma_2_5y:.2f}%")
-                else:
-                    st.info("2σ 구간 하락 발생 이력이 없습니다.")
-                    
-            with tab2_detail:
-                if len(sigma_3_dates) > 0:
-                    recent_3sigma = []
-                    for date in sigma_3_dates:  # 3σ는 모두 표시
-                        return_pct = df_analysis_clean.loc[date, 'Returns']
-                        recent_3sigma.append({
-                            '날짜': date.strftime('%Y-%m-%d'),
-                            '수익률': f"{return_pct:.2f}%"
-                        })
-                    st.dataframe(pd.DataFrame(recent_3sigma), use_container_width=True, hide_index=True)
-                    st.caption(f"3σ 이하: 하락률 ≤ {sigma_3_5y:.2f}%")
-                else:
-                    st.info("3σ 이하 하락 발생 이력이 없습니다.")
-                    
-            with tab3_detail:
-                # 최악의 하락일 TOP 10
-                worst_days = df_analysis_clean.nsmallest(10, 'Returns')[['Returns']].copy()
-                worst_days['날짜'] = worst_days.index.strftime('%Y-%m-%d')
-                worst_days['수익률'] = worst_days['Returns'].apply(lambda x: f"{x:.2f}%")
-                st.dataframe(worst_days[['날짜', '수익률']], use_container_width=True, hide_index=True)
-        
+     
         # 수익률 분포 차트
         st.markdown("---")
         st.subheader("📈 일일 수익률 분포 (5년)")
@@ -763,6 +748,17 @@ with tab2:
 
     # 새로고침 버튼
     if st.button("🔄 새로고침", use_container_width=True):
+        # 모든 종목 데이터 업데이트
+        analyzer = StockAnalyzer()
+        for symbol, info in st.session_state.monitoring_stocks.items():
+            try:
+                # 정확한 전일 종가 가져오기
+                base_close, base_date = analyzer.get_accurate_last_close(symbol, info['type'])
+                if base_close:
+                    info['stats']['base_close'] = base_close
+                    info['stats']['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
+            except Exception as e:
+                st.warning(f"{symbol} 업데이트 실패: {e}")
         st.rerun()
         
     # 현재가 표시 - 새로운 표 형식
@@ -784,8 +780,9 @@ with tab2:
                 sorted_kr_stocks = sorted(kr_stocks.items(), key=lambda x: x[1]['name'])
                 for symbol, info in sorted_kr_stocks:
                     try:
-                        # 어제 종가
-                        yesterday_close = info['stats']['last_close']
+                        # 기준 종가 사용
+                        base_close = info['stats'].get('base_close', info['stats']['last_close'])
+                        base_date = info['stats'].get('base_date', '')
                         
                         # 1년 시그마 값들 (퍼센트)
                         sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
@@ -793,13 +790,14 @@ with tab2:
                         sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
                         
                         # 시그마 하락시 가격 계산
-                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
-                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
-                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                        price_at_1sigma = base_close * (1 + sigma_1_1y / 100)
+                        price_at_2sigma = base_close * (1 + sigma_2_1y / 100)
+                        price_at_3sigma = base_close * (1 + sigma_3_1y / 100)
                         
                         current_prices_kr.append({
                             '종목': f"{info['name']} ({symbol})",
-                            '어제 종가': f"₩{yesterday_close:,.0f}",
+                            '기준 종가': f"₩{base_close:,.0f}",
+                            '기준일': base_date if base_date else '-',
                             '1σ(1년)': f"{sigma_1_1y:.2f}%",
                             '1σ 하락시 가격': f"₩{price_at_1sigma:,.0f}",
                             '2σ(1년)': f"{sigma_2_1y:.2f}%",
@@ -874,8 +872,9 @@ with tab2:
                 sorted_us_stocks = sorted(us_stocks.items(), key=lambda x: x[0])
                 for symbol, info in sorted_us_stocks:
                     try:
-                        # 어제 종가
-                        yesterday_close = info['stats']['last_close']
+                        # 기준 종가 사용
+                        base_close = info['stats'].get('base_close', info['stats']['last_close'])
+                        base_date = info['stats'].get('base_date', '')
                         
                         # 1년 시그마 값들 (퍼센트)
                         sigma_1_1y = info['stats'].get('1sigma_1y', info['stats']['1sigma'])
@@ -883,13 +882,14 @@ with tab2:
                         sigma_3_1y = info['stats'].get('3sigma_1y', info['stats']['3sigma'])
                         
                         # 시그마 하락시 가격 계산
-                        price_at_1sigma = yesterday_close * (1 + sigma_1_1y / 100)
-                        price_at_2sigma = yesterday_close * (1 + sigma_2_1y / 100)
-                        price_at_3sigma = yesterday_close * (1 + sigma_3_1y / 100)
+                        price_at_1sigma = base_close * (1 + sigma_1_1y / 100)
+                        price_at_2sigma = base_close * (1 + sigma_2_1y / 100)
+                        price_at_3sigma = base_close * (1 + sigma_3_1y / 100)
                         
                         current_prices_us.append({
                             '종목': f"{info['name']} ({symbol})",
-                            '어제 종가': f"${yesterday_close:,.2f}",
+                            '기준 종가': f"${base_close:,.2f}",
+                            '기준일': base_date if base_date else '-',
                             '1σ(1년)': f"{sigma_1_1y:.2f}%",
                             '1σ 하락시 가격': f"${price_at_1sigma:,.2f}",
                             '2σ(1년)': f"{sigma_2_1y:.2f}%",
