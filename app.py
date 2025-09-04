@@ -977,9 +977,9 @@ with tab3:
     with col1_1:
         amount_1sigma = st.number_input("1σ 하락시", min_value=0, value=100)
     with col1_2:
-        amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=200)
+        amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=100)
     with col1_3:
-        amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=200)
+        amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=100)
     
     # 백테스팅 실행 버튼
     if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
@@ -1008,7 +1008,7 @@ with tab3:
             sigma_2 = stats['2sigma']
             sigma_3 = stats['3sigma']
             
-            # 백테스팅 함수 정의
+            # 백테스팅 함수 정의 (수정됨)
             def run_backtest(df_data, period_name, include_1sigma=True):
                 buy_history = []
                 total_investment = 0
@@ -1019,54 +1019,34 @@ with tab3:
                     current_price = df_data['Close'].iloc[i]
                     current_date = df_data.index[i]
                     
-                    # 3σ 하락 시
-                    if current_return <= sigma_3:
-                        if is_us_stock:
-                            investment = amount_3sigma
-                        else:
-                            investment = amount_3sigma * 10000
-                        shares = investment / current_price
-                        buy_history.append({
-                            'date': current_date,
-                            'price': current_price,
-                            'return': current_return,
-                            'sigma_level': '3σ',
-                            'investment': investment,
-                            'shares': shares
-                        })
-                        total_investment += investment
-                        total_shares += shares
+                    investment = 0  # 기본값 초기화
+                    sigma_level = None
                     
+                    # 3σ 하락 시 (가장 큰 하락 우선 체크)
+                    if current_return <= sigma_3:
+                        investment = amount_3sigma
+                        sigma_level = '3σ'
                     # 2σ 하락 시
                     elif current_return <= sigma_2:
-                        if is_us_stock:
-                            investment = amount_2sigma
-                        else:
-                            investment = amount_2sigma * 10000
-                        shares = investment / current_price
-                        buy_history.append({
-                            'date': current_date,
-                            'price': current_price,
-                            'return': current_return,
-                            'sigma_level': '2σ',
-                            'investment': investment,
-                            'shares': shares
-                        })
-                        total_investment += investment
-                        total_shares += shares
-                    
+                        investment = amount_2sigma
+                        sigma_level = '2σ'
                     # 1σ 하락 시 (include_1sigma가 True일 때만)
                     elif include_1sigma and current_return <= sigma_1:
-                        if is_us_stock:
-                            investment = amount_1sigma
-                        else:
-                            investment = amount_1sigma * 10000
+                        investment = amount_1sigma
+                        sigma_level = '1σ'
+                    
+                    # 매수 실행
+                    if investment > 0:
+                        # 한국 주식의 경우 만원 단위 처리 (여기서 한 번만)
+                        if not is_us_stock:
+                            investment = investment * 10000  # 만원을 원으로 변환
+                        
                         shares = investment / current_price
                         buy_history.append({
                             'date': current_date,
                             'price': current_price,
                             'return': current_return,
-                            'sigma_level': '1σ',
+                            'sigma_level': sigma_level,
                             'investment': investment,
                             'shares': shares
                         })
@@ -1100,108 +1080,101 @@ with tab3:
                         'total_return': 0
                     }
             
-            # DCA 전략만 계산 (일시불 제거) - 매월 $100 투자
+            # DCA 전략 계산 (수정됨)
             def run_dca_comparison(df_data, period_months):
                 # 매월 고정 투자금 설정
                 if is_us_stock:
                     monthly_amount = 100  # 매월 $100
                 else:
-                    monthly_amount = 100000  # 매월 10만원
+                    monthly_amount = 100000  # 매월 10만원 (원 단위)
                 
-                # DCA 투자 (매월 10일 종가)
+                # DCA 투자 변수 초기화
                 dca_investment = 0
                 dca_shares = 0
                 dca_buy_count = 0
                 dca_buy_history = []
                 
-                # DCA: 매월 10일 찾기
-                target_months = period_months
+                # 매월 투자 로직 (수정됨)
                 found_months = 0
-                last_month = -1
-                last_year = -1
+                last_year_month = None
                 
                 for i in range(len(df_data)):
+                    if found_months >= period_months:
+                        break
+                        
                     current_date = df_data.index[i]
-                    current_month = current_date.month
-                    current_year = current_date.year
+                    current_year_month = (current_date.year, current_date.month)
                     
-                    # 매월 10일 또는 10일 이후 첫 거래일
+                    # 새로운 월이고, 10일 이후인 첫 거래일
                     if (current_date.day >= 10 and 
-                        (current_year != last_year or current_month != last_month) and 
-                        found_months < target_months):
+                        current_year_month != last_year_month):
+                        
                         current_price = df_data['Close'].iloc[i]
                         shares = monthly_amount / current_price
+                        
                         dca_investment += monthly_amount
                         dca_shares += shares
                         dca_buy_count += 1
+                        
                         dca_buy_history.append({
                             'date': current_date,
                             'price': current_price,
                             'investment': monthly_amount,
                             'shares': shares
                         })
+                        
                         found_months += 1
-                        last_month = current_month
-                        last_year = current_year
+                        last_year_month = current_year_month
                 
-                # 현재 가격
-                current_price = df_data['Close'].iloc[-1]
-                
-                # DCA 결과
-                dca_current_value = dca_shares * current_price
-                dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100 if dca_investment > 0 else 0
-                dca_avg_price = dca_investment / dca_shares if dca_shares > 0 else 0
-                
-                # 총 투자금 계산 (실제 투자한 금액)
-                total_investment_actual = dca_investment
+                # 현재 가격으로 결과 계산
+                if dca_shares > 0:
+                    current_price = df_data['Close'].iloc[-1]
+                    dca_current_value = dca_shares * current_price
+                    dca_total_return = ((dca_current_value - dca_investment) / dca_investment) * 100
+                    dca_avg_price = dca_investment / dca_shares
+                else:
+                    dca_current_value = 0
+                    dca_total_return = 0
+                    dca_avg_price = 0
                 
                 return {
-                        'buy_count': dca_buy_count,
-                        'total_investment': total_investment_actual,  # 실제 투자한 총액
-                        'monthly_amount': monthly_amount,
-                        'avg_price': dca_avg_price,
-                        'total_shares': dca_shares,
-                        'current_value': dca_current_value,
-                        'total_return': dca_total_return,
-                        'buy_history': dca_buy_history
+                    'buy_count': dca_buy_count,
+                    'total_investment': dca_investment,
+                    'monthly_amount': monthly_amount,
+                    'avg_price': dca_avg_price,
+                    'total_shares': dca_shares,
+                    'current_value': dca_current_value,
+                    'total_return': dca_total_return,
+                    'buy_history': dca_buy_history
                 }
             
             # 백테스팅 실행
             with st.spinner("백테스팅 분석 중..."):
-                # 1σ 전략 백테스팅
+                # 1σ 전략 (1년, 5년)
                 results_1sigma_1year = run_backtest(df_1year, "1년", include_1sigma=True)
                 results_1sigma_5year = run_backtest(df_5year, "5년", include_1sigma=True)
                 
-                # 2σ 전략 백테스팅 (1σ 제외)
+                # 2σ 전략 (1년, 5년)
                 results_2sigma_1year = run_backtest(df_1year, "1년", include_1sigma=False)
                 results_2sigma_5year = run_backtest(df_5year, "5년", include_1sigma=False)
                 
-                # DCA 계산 (일시불 제거)
-                dca_1y = run_dca_comparison(df_1year, 12)
-                dca_5y = run_dca_comparison(df_5year, 60)
-                
-                # 비교용 변수 생성
-                comparison_1y = {'dca': dca_1y}
-                comparison_5y = {'dca': dca_5y}
-
-                # ⭐ 세션 스테이트에 결과 저장
-                st.session_state['backtest_results'] = {
-                    'results_1sigma_1year': results_1sigma_1year,
-                    'results_1sigma_5year': results_1sigma_5year,
-                    'results_2sigma_1year': results_2sigma_1year,
-                    'results_2sigma_5year': results_2sigma_5year,
-                    'comparison_1y': comparison_1y,
-                    'comparison_5y': comparison_5y,
-                    'df_5year': df_5year,
-                    'df_1year': df_1year,
-                    'stats': stats,
-                    'sigma_1': sigma_1,
-                    'sigma_2': sigma_2,
-                    'sigma_3': sigma_3,
-                    'is_us_stock': is_us_stock
-                }
-                st.session_state['backtest_completed'] = True
-                st.rerun()  # 페이지 새로고침으로 결과 표시
+                # DCA 비교 (1년=12개월, 5년=60개월)
+                comparison_1y = {'dca': run_dca_comparison(df_1year, 12)}
+                comparison_5y = {'dca': run_dca_comparison(df_5year, 60)}
+            
+            # 결과 저장 (몬테카를로에서 사용)
+            st.session_state.update({
+                'results_1sigma_1year': results_1sigma_1year,
+                'results_1sigma_5year': results_1sigma_5year,
+                'results_2sigma_1year': results_2sigma_1year,
+                'results_2sigma_5year': results_2sigma_5year,
+                'comparison_1y': comparison_1y,
+                'comparison_5y': comparison_5y,
+                'df_1year': df_1year,
+                'df_5year': df_5year,
+                'is_us_stock': is_us_stock,
+                'stats': stats
+            })
     
     # 백테스팅 결과가 있으면 표시
     if 'backtest_completed' in st.session_state and st.session_state.get('backtest_completed', False):
@@ -2219,7 +2192,7 @@ with tab3:
                         allocation_dca = total_investment * weight_dca
                         st.write(f"{currency}{allocation_dca:,.0f}")
                         st.caption(f"({weight_dca:.1%})")
-                                   
+
     else:
         if selected_symbol:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
