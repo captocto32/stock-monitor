@@ -1481,7 +1481,7 @@ with tab3:
                         dca_df['주식수'] = dca_df['shares'].apply(lambda x: f"{x:.2f}주")
                         display_dca_df = dca_df[['날짜', '가격', '투자금', '주식수']]
                         st.dataframe(display_dca_df, use_container_width=True, hide_index=True)
-                               
+
         # 수익률 비교 그래프
         st.markdown("---")
         st.markdown("#### 📊 투자 효율 비교 (100만원당 수익률)")
@@ -1568,7 +1568,7 @@ with tab3:
         
    # ============= 몬테카를로 최적화 섹션 =============
         st.markdown("---")
-        st.markdown("## 🎲 몬테카를로 최적화")
+        st.markdown("## 🎲 몬테카를로 최적화 - 아직 미완^^...")
         
         # 올바른 변동성 계산 함수
         def calculate_strategy_daily_returns(df_data, strategy_type, initial_investment=1000000):
