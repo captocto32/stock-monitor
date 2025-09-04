@@ -1409,7 +1409,7 @@ with tab3:
         # DCA 전략
         st.markdown("---")
         st.markdown("### 3️⃣ DCA (매월 정액 투자)")
-        
+
         col_dca_1y, col_dca_5y = st.columns(2)
         
         with col_dca_1y:
@@ -1576,40 +1576,116 @@ with tab3:
             )
             st.plotly_chart(fig_5y, use_container_width=True)
         
-        # ============= 몬테카를로 최적화 섹션 =============
+   # ============= 몬테카를로 최적화 섹션 =============
         st.markdown("---")
         st.markdown("## 🎲 몬테카를로 최적화")
         
-        # 실제 변동성 계산 함수 추가
-        def calculate_strategy_volatility(df_data, strategy_type):
-            """각 전략의 실제 변동성 계산"""
-            if strategy_type == '1sigma':
-                # 1σ 하락일의 수익률 변동성
-                sigma_days = df_data[df_data['Returns'] <= sigma_1]
-                return sigma_days['Returns'].std() if len(sigma_days) > 0 else 15
-            elif strategy_type == '2sigma':
-                sigma_days = df_data[df_data['Returns'] <= sigma_2]
-                return sigma_days['Returns'].std() if len(sigma_days) > 0 else 12
-            else:  # DCA
-                # 매월 수익률 계산
-                monthly_returns = df_data['Close'].resample('M').last().pct_change() * 100
-                return monthly_returns.std() if len(monthly_returns) > 0 else 8
+        # 올바른 변동성 계산 함수
+        def calculate_strategy_daily_returns(df_data, strategy_type, initial_investment=1000000):
+            """각 전략의 일별 포트폴리오 수익률 계산"""
             
+            # 매수 조건 설정
+            if strategy_type == '1sigma':
+                buy_condition = df_data['Returns'] <= sigma_1
+            elif strategy_type == '2sigma':
+                buy_condition = df_data['Returns'] <= sigma_2
+            else:  # DCA
+                # 매월 첫 거래일에 매수 (간단한 근사)
+                buy_condition = (df_data.index.to_series().dt.day <= 5)
+            
+            # 포트폴리오 시뮬레이션
+            portfolio_values = []
+            cash = initial_investment
+            shares = 0
+            
+            for i, (date, row) in enumerate(df_data.iterrows()):
+                current_price = row['Close']
+                
+                # 매수 실행
+                if buy_condition.iloc[i] and cash > current_price:
+                    if strategy_type == 'dca':
+                        # DCA: 매월 고정 금액 투자
+                        monthly_investment = initial_investment / 60  # 5년 / 월 투자금
+                        invest_amount = min(cash, monthly_investment)
+                    else:
+                        # 변동성 전략: 가용 현금 전체 투자
+                        invest_amount = cash
+                    
+                    new_shares = invest_amount / current_price
+                    shares += new_shares
+                    cash -= invest_amount
+                
+                # 일별 포트폴리오 가치 계산
+                total_value = cash + (shares * current_price)
+                portfolio_values.append(total_value)
+            
+            # 일별 수익률 계산
+            portfolio_series = pd.Series(portfolio_values, index=df_data.index)
+            daily_returns = portfolio_series.pct_change().fillna(0)
+            
+            return daily_returns
+        
+        def calculate_strategy_statistics(df_data, strategy_type):
+            """전략별 수익률과 변동성 통계 계산"""
+            
+            # 일별 수익률 계산
+            daily_returns = calculate_strategy_daily_returns(df_data, strategy_type)
+            
+            # 통계 계산
+            total_return = ((daily_returns + 1).prod() - 1) * 100  # 누적 수익률
+            
+            # 연환산 변동성 계산
+            daily_vol = daily_returns.std()
+            annual_vol = daily_vol * np.sqrt(252) * 100  # 백분율로 변환
+            
+            # 샤프 비율 (무위험수익률 3% 가정)
+            risk_free_rate = 3.0
+            annual_return = ((1 + total_return/100) ** (1/5) - 1) * 100  # 연환산 수익률
+            excess_return = annual_return - risk_free_rate
+            sharpe_ratio = excess_return / annual_vol if annual_vol > 0 else 0
+            
+            # 최대낙폭 (MDD) 계산
+            cumulative = (daily_returns + 1).cumprod()
+            rolling_max = cumulative.expanding().max()
+            drawdown = (cumulative - rolling_max) / rolling_max
+            mdd = drawdown.min() * 100
+            
+            return {
+                'daily_returns': daily_returns,
+                'total_return': total_return,
+                'annual_volatility': annual_vol,
+                'sharpe_ratio': sharpe_ratio,
+                'max_drawdown': mdd
+            }
+        
         # 개선된 몬테카를로 함수
-        def monte_carlo_optimization(df_data, sigma_stats, num_simulations=5000):
+        def monte_carlo_optimization(df_data, num_simulations=5000):
             """몬테카를로 시뮬레이션으로 최적 비중 찾기"""
 
-            # 실제 변동성 계산
-            vol_1sigma = calculate_strategy_volatility(df_data, '1sigma')
-            vol_2sigma = calculate_strategy_volatility(df_data, '2sigma')
-            vol_dca = calculate_strategy_volatility(df_data, 'dca')
+            # 각 전략의 실제 통계 계산
+            stats_1sigma = calculate_strategy_statistics(df_data, '1sigma')
+            stats_2sigma = calculate_strategy_statistics(df_data, '2sigma')
+            stats_dca = calculate_strategy_statistics(df_data, 'dca')
+            
+            # 상관관계 계산
+            returns_1sigma = stats_1sigma['daily_returns']
+            returns_2sigma = stats_2sigma['daily_returns']
+            returns_dca = stats_dca['daily_returns']
+            
+            # 공분산 행렬 계산
+            returns_matrix = pd.DataFrame({
+                '1sigma': returns_1sigma,
+                '2sigma': returns_2sigma,
+                'dca': returns_dca
+            }).fillna(0)
+            
+            cov_matrix = returns_matrix.cov().values * 252 * 10000  # 연환산 + 백분율^2
                 
             best_result = {
                 'sharpe': -999,
                 'weights': None,
                 'return': None,
-                'std': None,
-                'all_results': []
+                'std': None
             }
                 
             all_combinations = []
@@ -1619,21 +1695,20 @@ with tab3:
                 weights = np.random.random(3)
                 weights = weights / weights.sum()  # 정규화
                 
-                # 각 전략의 실제 수익률 사용
+                # 포트폴리오 예상 수익률 (연환산)
                 portfolio_return = (
-                    weights[0] * (results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0) +
-                    weights[1] * (results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0) +
-                    weights[2] * comparison_5y['dca']['total_return']
+                    weights[0] * ((1 + stats_1sigma['total_return']/100) ** (1/5) - 1) * 100 +
+                    weights[1] * ((1 + stats_2sigma['total_return']/100) ** (1/5) - 1) * 100 +
+                    weights[2] * ((1 + stats_dca['total_return']/100) ** (1/5) - 1) * 100
                 )
                     
-                # 실제 변동성 기반 포트폴리오 변동성
-                portfolio_std = np.sqrt(
-                    (weights[0]**2 * vol_1sigma**2) +
-                    (weights[1]**2 * vol_2sigma**2) +
-                    (weights[2]**2 * vol_dca**2)
-                )
+                # 포트폴리오 변동성 (상관관계 고려)
+                portfolio_variance = np.dot(weights, np.dot(cov_matrix, weights))
+                portfolio_std = np.sqrt(portfolio_variance)
                     
-                sharpe = portfolio_return / portfolio_std if portfolio_std > 0 else 0
+                # 샤프 비율
+                risk_free_rate = 3.0
+                sharpe = (portfolio_return - risk_free_rate) / portfolio_std if portfolio_std > 0 else 0
                     
                 all_combinations.append({
                     'weights': weights.copy(),
@@ -1650,7 +1725,11 @@ with tab3:
                         'std': portfolio_std
                     }
                 
-            return best_result, all_combinations
+            return best_result, all_combinations, {
+                '1sigma': stats_1sigma,
+                '2sigma': stats_2sigma,
+                'dca': stats_dca
+            }
             
         # 몬테카를로 실행 버튼
         if st.button("🎯 최적 비중 찾기", type="secondary", use_container_width=True, key="monte_carlo_btn"):
@@ -1659,10 +1738,7 @@ with tab3:
                 progress_bar = st.progress(0)
                 
                 # 몬테카를로 실행
-                best_result, all_combinations = monte_carlo_optimization(
-                    df_5year,
-                    stats
-                )
+                best_result, all_combinations, strategy_stats = monte_carlo_optimization(df_5year)
                 
                 progress_bar.progress(100)
                         
@@ -1686,20 +1762,46 @@ with tab3:
                 col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
                 
                 with col_perf1:
-                    st.metric("예상 수익률", f"{best_result['return']:.1%}")
+                    st.metric("예상 연수익률", f"{best_result['return']:.1f}%")
                 
                 with col_perf2:
-                    st.metric("예상 변동성", f"{best_result['std']:.1%}")
+                    st.metric("예상 변동성", f"{best_result['std']:.1f}%")
                 
                 with col_perf3:
                     st.metric("샤프비율", f"{best_result['sharpe']:.2f}")
                 
                 with col_perf4:
-                    # VaR 계산
+                    # 올바른 VaR 계산
                     returns_list = [c['return'] for c in all_combinations]
                     var_95 = np.percentile(returns_list, 5)
-                    st.metric("95% VaR", f"{var_95:.1%}",
-                            help="95% 신뢰수준에서 최대 예상 손실")
+                    st.metric("95% VaR", f"{var_95:.1f}%",
+                            help="95% 신뢰수준에서 최대 예상 손실 (연기준)")
+                
+                # 개별 전략 통계 표시
+                st.markdown("### 📈 개별 전략 분석")
+                
+                col_stat1, col_stat2, col_stat3 = st.columns(3)
+                
+                with col_stat1:
+                    st.markdown("**1σ 전략**")
+                    st.write(f"연환산 수익률: {((1 + strategy_stats['1sigma']['total_return']/100) ** (1/5) - 1) * 100:.1f}%")
+                    st.write(f"연변동성: {strategy_stats['1sigma']['annual_volatility']:.1f}%")
+                    st.write(f"샤프비율: {strategy_stats['1sigma']['sharpe_ratio']:.2f}")
+                    st.write(f"최대낙폭: {strategy_stats['1sigma']['max_drawdown']:.1f}%")
+                
+                with col_stat2:
+                    st.markdown("**2σ 전략**")
+                    st.write(f"연환산 수익률: {((1 + strategy_stats['2sigma']['total_return']/100) ** (1/5) - 1) * 100:.1f}%")
+                    st.write(f"연변동성: {strategy_stats['2sigma']['annual_volatility']:.1f}%")
+                    st.write(f"샤프비율: {strategy_stats['2sigma']['sharpe_ratio']:.2f}")
+                    st.write(f"최대낙폭: {strategy_stats['2sigma']['max_drawdown']:.1f}%")
+                
+                with col_stat3:
+                    st.markdown("**DCA 전략**")
+                    st.write(f"연환산 수익률: {((1 + strategy_stats['dca']['total_return']/100) ** (1/5) - 1) * 100:.1f}%")
+                    st.write(f"연변동성: {strategy_stats['dca']['annual_volatility']:.1f}%")
+                    st.write(f"샤프비율: {strategy_stats['dca']['sharpe_ratio']:.2f}")
+                    st.write(f"최대낙폭: {strategy_stats['dca']['max_drawdown']:.1f}%")
                 
                 # 효율적 프론티어 시각화
                 st.markdown("### 📈 리스크-수익 분석")
@@ -1745,15 +1847,11 @@ with tab3:
                     hovertemplate='%{text}<extra></extra>'
                 ))
                 
-                # 개별 전략들도 표시
-                vol_1sigma = calculate_strategy_volatility(df_5year, '1sigma')
-                vol_2sigma = calculate_strategy_volatility(df_5year, '2sigma')
-                vol_dca = calculate_strategy_volatility(df_5year, 'dca')
-                
+                 # 개별 전략들도 표시
                 individual_strategies = [
-                    ("1σ 전략", results_1sigma_5year['total_return'] if results_1sigma_5year['total_investment'] > 0 else 0, vol_1sigma),
-                    ("2σ 전략", results_2sigma_5year['total_return'] if results_2sigma_5year['total_investment'] > 0 else 0, vol_2sigma),
-                    ("DCA", comparison_5y['dca']['total_return'], vol_dca)
+                    ("1σ 전략", ((1 + strategy_stats['1sigma']['total_return']/100) ** (1/5) - 1) * 100, strategy_stats['1sigma']['annual_volatility']),
+                    ("2σ 전략", ((1 + strategy_stats['2sigma']['total_return']/100) ** (1/5) - 1) * 100, strategy_stats['2sigma']['annual_volatility']),
+                    ("DCA", ((1 + strategy_stats['dca']['total_return']/100) ** (1/5) - 1) * 100, strategy_stats['dca']['annual_volatility'])
                 ]
                 
                 for name, ret, std in individual_strategies:
@@ -1769,40 +1867,38 @@ with tab3:
                 
                 fig_frontier.update_layout(
                     title="효율적 프론티어 (Efficient Frontier)",
-                    xaxis_title="리스크 (표준편차 %)",
-                    yaxis_title="수익률 (%)",
+                    xaxis_title="리스크 (연변동성 %)",
+                    yaxis_title="예상 연수익률 (%)",
                     height=500,
                     hovermode='closest'
                 )
                 
                 st.plotly_chart(fig_frontier, use_container_width=True)
                 
-                # 시나리오 분석 추가
+                # 현실적인 시나리오 분석
                 st.markdown("### 📊 시나리오 분석")
                 
                 scenarios = {
-                    '강세장 (상승 20%)': {'1sigma': 5, '2sigma': 3, 'dca': 15},
-                    '약세장 (하락 20%)': {'1sigma': 20, '2sigma': 25, 'dca': -5},
-                    '횡보장 (±5%)': {'1sigma': 12, '2sigma': 8, 'dca': 7},
-                    '변동장 (고변동성)': {'1sigma': 18, '2sigma': 22, 'dca': 10}
+                    '강세장': {'multiplier': 1.5, 'description': '기대수익률의 150%'},
+                    '정상장': {'multiplier': 1.0, 'description': '기대수익률 달성'},
+                    '약세장': {'multiplier': 0.3, 'description': '기대수익률의 30%'},
+                    '극약세장': {'multiplier': -0.2, 'description': '마이너스 수익률'}
                 }
                 
                 scenario_results = []
-                for scenario_name, returns in scenarios.items():
-                    scenario_return = (
-                        best_result['weights'][0] * returns['1sigma'] +
-                        best_result['weights'][1] * returns['2sigma'] +
-                        best_result['weights'][2] * returns['dca']
-                    )
+                for scenario_name, scenario_data in scenarios.items():
+                    scenario_return = best_result['return'] * scenario_data['multiplier']
                     scenario_results.append({
                         '시나리오': scenario_name,
-                        '예상 수익률': f"{scenario_return:.1f}%"
+                        '예상 수익률': f"{scenario_return:.1f}%",
+                        '설명': scenario_data['description']
                     })
                 
                 st.dataframe(pd.DataFrame(scenario_results), use_container_width=True, hide_index=True)
                     
                 # 저장할 수 있도록 세션 스테이트에 저장
                 st.session_state['optimal_weights'] = best_result['weights']
+                st.session_state['strategy_stats'] = strategy_stats
         
         # ============= 혼합 전략 백테스팅 =============
         st.markdown("---")
@@ -1860,19 +1956,9 @@ with tab3:
                 st.error("비중 합계를 100%로 맞춰주세요!")
             else:
                 with st.spinner("혼합 전략 백테스팅 중..."):
-                    # 혼합 전략 계산
-                    def run_hybrid_backtest(df_data, weights, period_name):
-                        """혼합 전략 백테스팅"""
-                        # 총 투자금 설정
-                        if is_us_stock:
-                            total_budget = 1000  # $1000
-                        else:
-                            total_budget = 1000000  # 100만원
-                    
-                        # 각 전략별 자금 배분
-                        budget_1sigma = total_budget * weights[0]
-                        budget_2sigma = total_budget * weights[1]
-                        budget_dca = total_budget * weights[2]
+                    # 혼합 전략 계산 (실제 백테스팅 결과 활용)
+                    def run_hybrid_backtest(weights, period_name):
+                        """혼합 전략 백테스팅 (실제 결과 기반)"""
                         
                         # 각 전략 수익률 계산 (실제 백테스팅 결과 활용)
                         if period_name == "1년":
@@ -1896,8 +1982,25 @@ with tab3:
                         contribution_2sigma = weights[1] * return_2sigma
                         contribution_dca = weights[2] * return_dca
                         
-                        # 최대 낙폭 추정 (간단한 방법)
-                        estimated_mdd = hybrid_return * -0.5 if hybrid_return > 0 else hybrid_return * -1.5
+                        # 변동성 추정 (최적화에서 계산된 통계가 있으면 활용)
+                        if 'strategy_stats' in st.session_state:
+                            stats = st.session_state['strategy_stats']
+                            vol_1sigma = stats['1sigma']['annual_volatility']
+                            vol_2sigma = stats['2sigma']['annual_volatility'] 
+                            vol_dca = stats['dca']['annual_volatility']
+                            
+                            # 간단한 포트폴리오 변동성 (상관관계 무시)
+                            estimated_volatility = np.sqrt(
+                                (weights[0]**2 * vol_1sigma**2) +
+                                (weights[1]**2 * vol_2sigma**2) +
+                                (weights[2]**2 * vol_dca**2)
+                            )
+                        else:
+                            # 기본값 사용
+                            estimated_volatility = 20.0
+                        
+                        # 최대 낙폭 추정
+                        estimated_mdd = min(-5.0, -estimated_volatility * 0.8)
                         
                         return {
                             'total_return': hybrid_return,
@@ -1911,13 +2014,14 @@ with tab3:
                                 '2σ': return_2sigma,
                                 'DCA': return_dca
                             },
+                            'estimated_volatility': estimated_volatility,
                             'estimated_mdd': estimated_mdd
                         }
                 
                     # 1년, 5년 혼합 전략 실행
                     weights = [weight_1sigma, weight_2sigma, weight_dca]
-                    hybrid_1y = run_hybrid_backtest(df_1year, weights, "1년")
-                    hybrid_5y = run_hybrid_backtest(df_5year, weights, "5년")
+                    hybrid_1y = run_hybrid_backtest(weights, "1년")
+                    hybrid_5y = run_hybrid_backtest(weights, "5년")
                     
                     # 결과 표시
                     st.success("✅ 혼합 전략 분석 완료!")
@@ -1931,6 +2035,7 @@ with tab3:
                         st.markdown("**1년 성과**")
                         st.metric("혼합 전략 수익률", f"{hybrid_1y['total_return']:.2f}%",
                                     delta=f"{hybrid_1y['total_return']:.2f}%")
+                        st.metric("예상 변동성", f"{hybrid_1y['estimated_volatility']:.1f}%")
                         st.metric("예상 최대낙폭", f"{hybrid_1y['estimated_mdd']:.1f}%")
                         
                         # 기여도 분석
@@ -1942,6 +2047,7 @@ with tab3:
                         st.markdown("**5년 성과**")
                         st.metric("혼합 전략 수익률", f"{hybrid_5y['total_return']:.2f}%",
                                     delta=f"{hybrid_5y['total_return']:.2f}%")
+                        st.metric("예상 변동성", f"{hybrid_5y['estimated_volatility']:.1f}%")
                         st.metric("예상 최대낙폭", f"{hybrid_5y['estimated_mdd']:.1f}%")
                         
                         # 기여도 분석
@@ -2063,8 +2169,8 @@ with tab3:
                         insights.append(f"✅ 전략 혼합으로 리스크 분산 효과 확인 (최저 전략 대비 +{(hybrid_5y['total_return'] - min_return):.1f}%p)")
                     
                     # 안정성
-                    volatility = abs(hybrid_1y['total_return'] - hybrid_5y['total_return']/5)
-                    if volatility < 10:
+                    volatility_diff = abs(hybrid_1y['total_return'] - hybrid_5y['total_return']/5)
+                    if volatility_diff < 10:
                         insights.append("✅ 혼합 전략이 단기/장기 모두 안정적인 수익률 제공")
                     
                     # 리밸런싱 효과
@@ -2113,14 +2219,7 @@ with tab3:
                         allocation_dca = total_investment * weight_dca
                         st.write(f"{currency}{allocation_dca:,.0f}")
                         st.caption(f"({weight_dca:.1%})")
-            
-        # 경고 문구
-        st.warning("""
-        ⚠️ **투자 유의사항**
-        - 과거 성과가 미래 수익을 보장하지 않습니다
-        - 실제 투자 시 거래 비용과 세금을 고려하세요
-        - 개인의 투자 성향과 재무 상황을 고려한 신중한 결정이 필요합니다
-        """)
+                                   
     else:
         if selected_symbol:
             st.info("백테스팅 실행 버튼을 클릭하여 분석을 시작하세요.")
