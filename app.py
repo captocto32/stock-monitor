@@ -1054,9 +1054,9 @@ with tab3:
     with col1_1:
         amount_1sigma = st.number_input("1σ 하락시", min_value=0, value=100)
     with col1_2:
-        amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=100)
+        amount_2sigma = st.number_input("2σ 하락시", min_value=0, value=200)
     with col1_3:
-        amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=100)
+        amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=400)
     
     # 백테스팅 실행 버튼
     if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
@@ -1079,21 +1079,17 @@ with tab3:
             df_1year = df.tail(252)  # 1년 데이터
             df_5year = df  # 5년 데이터
             
-            # 시그마 레벨 가져오기 (analysis['stats']에서 직접 사용)
+            # 시그마 레벨 가져오기
             stats = analysis['stats']
             sigma_1 = stats['1sigma']
             sigma_2 = stats['2sigma']
             sigma_3 = stats['3sigma']
             
-            # 백테스팅 함수 정의 (수정됨 - 독립적 구간 방식)
-            def run_backtest_independent(df_data, period_name):
-                """독립적 구간 방식 백테스팅"""
+            # 백테스팅 함수 정의 (독립적 구간 방식)
+            def run_backtest(df_data, period_name, include_1sigma=True):
                 buy_history = []
                 total_investment = 0
                 total_shares = 0
-                
-                # 시그마별 카운트
-                sigma_counts = {'1σ': 0, '2σ': 0, '3σ': 0}
                 
                 for i in range(1, len(df_data)):
                     current_return = df_data['Returns'].iloc[i]
@@ -1103,96 +1099,20 @@ with tab3:
                     investment = 0
                     sigma_level = None
                     
-                    # 독립적 구간 판정 (elif 구조)
+                    # 독립적 구간별 매수 (elif 구조)
                     if current_return <= sigma_3:
                         investment = amount_3sigma
                         sigma_level = '3σ'
                     elif current_return <= sigma_2:
                         investment = amount_2sigma
                         sigma_level = '2σ'
-                    elif current_return <= sigma_1:
+                    elif include_1sigma and current_return <= sigma_1:
                         investment = amount_1sigma
                         sigma_level = '1σ'
                     
                     # 매수 실행
                     if investment > 0:
-                        # 한국 주식의 경우 만원 단위 처리
-                        if not is_us_stock:
-                            investment = investment
-                        
                         shares = investment / current_price
-                        sigma_counts[sigma_level] += 1
-                        
-                        buy_history.append({
-                            'date': current_date,
-                            'price': current_price,
-                            'return': current_return,
-                            'sigma_level': sigma_level,
-                            'investment': investment,
-                            'shares': shares
-                        })
-                        total_investment += investment
-                        total_shares += shares
-                
-                # 결과 계산
-                if buy_history:
-                    avg_price = total_investment / total_shares
-                    current_price = df_data['Close'].iloc[-1]
-                    current_value = total_shares * current_price
-                    total_return = ((current_value - total_investment) / total_investment) * 100
-                    
-                    return {
-                        'buy_history': buy_history,
-                        'buy_count': len(buy_history),
-                        'sigma_counts': sigma_counts,
-                        'total_investment': total_investment,
-                        'total_shares': total_shares,
-                        'avg_price': avg_price,
-                        'current_value': current_value,
-                        'total_return': total_return
-                    }
-                else:
-                    return {
-                        'buy_history': [],
-                        'buy_count': 0,
-                        'sigma_counts': {'1σ': 0, '2σ': 0, '3σ': 0},
-                        'total_investment': 0,
-                        'total_shares': 0,
-                        'avg_price': 0,
-                        'current_value': 0,
-                        'total_return': 0
-                    }
-            
-            # 1σ 전략 (1σ 이하 모든 경우 매수)
-            def run_1sigma_strategy(df_data, period_name):
-                """1σ 전략: 1σ 이하 모든 하락에서 동일 금액 매수"""
-                buy_history = []
-                total_investment = 0
-                total_shares = 0
-                
-                for i in range(1, len(df_data)):
-                    current_return = df_data['Returns'].iloc[i]
-                    current_price = df_data['Close'].iloc[i]
-                    current_date = df_data.index[i]
-                    
-                    # 1σ 이하면 모두 매수 (금액은 동일)
-                    if current_return <= sigma_1:
-                        investment = amount_1sigma
-                        
-                        # 시그마 레벨 표시용
-                        if current_return <= sigma_3:
-                            sigma_level = '3σ'
-                        elif current_return <= sigma_2:
-                            sigma_level = '2σ'
-                        else:
-                            sigma_level = '1σ'
-                        
-                        # 한국 주식의 경우 만원 단위 처리
-                        if not is_us_stock:
-                            investment = investment
-                        
-                        shares = investment / current_price
-                        
                         buy_history.append({
                             'date': current_date,
                             'price': current_price,
@@ -1231,79 +1151,13 @@ with tab3:
                         'total_return': 0
                     }
             
-            # 2σ 전략 (2σ 이하 모든 경우 매수)
-            def run_2sigma_strategy(df_data, period_name):
-                """2σ 전략: 2σ 이하 모든 하락에서 동일 금액 매수"""
-                buy_history = []
-                total_investment = 0
-                total_shares = 0
-                
-                for i in range(1, len(df_data)):
-                    current_return = df_data['Returns'].iloc[i]
-                    current_price = df_data['Close'].iloc[i]
-                    current_date = df_data.index[i]
-                    
-                    # 2σ 이하면 모두 매수 (금액은 동일)
-                    if current_return <= sigma_2:
-                        investment = amount_2sigma
-                        
-                        # 시그마 레벨 표시용
-                        if current_return <= sigma_3:
-                            sigma_level = '3σ'
-                        else:
-                            sigma_level = '2σ'
-                        
-                        # 한국 주식의 경우 만원 단위 처리
-                        if not is_us_stock:
-                            investment = investment
-                        
-                        shares = investment / current_price
-                        
-                        buy_history.append({
-                            'date': current_date,
-                            'price': current_price,
-                            'return': current_return,
-                            'sigma_level': sigma_level,
-                            'investment': investment,
-                            'shares': shares
-                        })
-                        total_investment += investment
-                        total_shares += shares
-                
-                # 결과 계산
-                if buy_history:
-                    avg_price = total_investment / total_shares
-                    current_price = df_data['Close'].iloc[-1]
-                    current_value = total_shares * current_price
-                    total_return = ((current_value - total_investment) / total_investment) * 100
-                    
-                    return {
-                        'buy_history': buy_history,
-                        'buy_count': len(buy_history),
-                        'total_investment': total_investment,
-                        'total_shares': total_shares,
-                        'avg_price': avg_price,
-                        'current_value': current_value,
-                        'total_return': total_return
-                    }
-                else:
-                    return {
-                        'buy_history': [],
-                        'buy_count': 0,
-                        'total_investment': 0,
-                        'total_shares': 0,
-                        'avg_price': 0,
-                        'current_value': 0,
-                        'total_return': 0
-                    }
-            
-            # DCA 전략 계산 (변경 없음)
+            # DCA 전략 계산
             def run_dca_comparison(df_data, period_months):
                 # 매월 고정 투자금 설정
                 if is_us_stock:
                     monthly_amount = 100  # 매월 $100
                 else:
-                    monthly_amount = 100000  # 매월 10만원 (원 단위)
+                    monthly_amount = 100000  # 매월 10만원
                 
                 # DCA 투자 변수 초기화
                 dca_investment = 0
@@ -1367,15 +1221,15 @@ with tab3:
             
             # 백테스팅 실행
             with st.spinner("백테스팅 분석 중..."):
-                # 1σ 전략 실행
-                results_1sigma_1year = run_1sigma_strategy(df_1year, "1년")
-                results_1sigma_5year = run_1sigma_strategy(df_5year, "5년")
+                # 1σ 전략 (1σ, 2σ, 3σ 모두 포함)
+                results_1sigma_1year = run_backtest(df_1year, "1년", include_1sigma=True)
+                results_1sigma_5year = run_backtest(df_5year, "5년", include_1sigma=True)
                 
-                # 2σ 전략 실행
-                results_2sigma_1year = run_2sigma_strategy(df_1year, "1년")
-                results_2sigma_5year = run_2sigma_strategy(df_5year, "5년")
+                # 2σ 전략 (2σ, 3σ만 포함)
+                results_2sigma_1year = run_backtest(df_1year, "1년", include_1sigma=False)
+                results_2sigma_5year = run_backtest(df_5year, "5년", include_1sigma=False)
                 
-                # DCA 비교
+                # DCA 비교 (1년=12개월, 5년=60개월)
                 comparison_1y = {'dca': run_dca_comparison(df_1year, 12)}
                 comparison_5y = {'dca': run_dca_comparison(df_5year, 60)}
             
@@ -1397,7 +1251,7 @@ with tab3:
                     'sigma_3': sigma_3,
                     'is_us_stock': is_us_stock
                 },
-                # 몬테카를로에서 사용할 데이터
+                # 몬테카를로에서 사용할 데이터도 함께 저장
                 'results_1sigma_1year': results_1sigma_1year,
                 'results_1sigma_5year': results_1sigma_5year,
                 'results_2sigma_1year': results_2sigma_1year,
@@ -1407,10 +1261,13 @@ with tab3:
                 'df_1year': df_1year,
                 'df_5year': df_5year,
                 'is_us_stock': is_us_stock,
-                'stats': stats
+                'stats': stats,
+                'sigma_1': sigma_1,
+                'sigma_2': sigma_2,
+                'sigma_3': sigma_3
             })
             
-            # 페이지 새로고침
+            # 즉시 결과 표시를 위해 페이지 새로고침
             st.rerun()
     
     # 백테스팅 결과가 있으면 표시
@@ -1428,7 +1285,7 @@ with tab3:
         stats = backtest_data['stats']
         sigma_1 = backtest_data['sigma_1']
         sigma_2 = backtest_data['sigma_2']
-        sigma_3 = backtest_data['sigma_3']
+        sigma_3 = backtest_data.get('sigma_3', stats.get('3sigma', -6))  # 안전한 가져오기
         is_us_stock = backtest_data['is_us_stock']
         dca_1y = comparison_1y['dca']
         dca_5y = comparison_5y['dca']
@@ -1442,7 +1299,7 @@ with tab3:
         # 1σ 전략
         st.markdown("---")
         st.markdown("### 1️⃣ 1σ 이상 하락시 매수 전략")
-        st.caption("1σ 이하 모든 하락에서 동일 금액 매수")
+        st.caption("1σ, 2σ, 3σ 하락 시 각각 설정한 금액으로 매수")
         
         col_1s_1y, col_1s_5y = st.columns(2)
         
@@ -1492,6 +1349,7 @@ with tab3:
         with col_1s_5y:
             st.markdown("**📅 최근 5년**")
             if results_1sigma_5year['buy_count'] > 0:
+                # 첫 행: 매수횟수, 평균 매수 단가, 보유주식수
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("매수 횟수", f"{results_1sigma_5year['buy_count']}회")
@@ -1503,6 +1361,7 @@ with tab3:
                 with col3:
                     st.metric("보유 주식수", f"{results_1sigma_5year['total_shares']:.2f}주")
                 
+                # 둘째 행: 총 투자금, 수익률
                 col4, col5 = st.columns(2)
                 with col4:
                     if is_us_stock:
@@ -1513,6 +1372,7 @@ with tab3:
                     st.metric("수익률", f"{results_1sigma_5year['total_return']:+.2f}%",
                              delta=f"{results_1sigma_5year['total_return']:+.2f}%")
                 
+                # 매수 내역
                 with st.expander(f"📋 매수 내역 ({results_1sigma_5year['buy_count']}건)"):
                     buy_df = pd.DataFrame(results_1sigma_5year['buy_history'])
                     buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
@@ -1532,7 +1392,7 @@ with tab3:
         # 2σ 전략
         st.markdown("---")
         st.markdown("### 2️⃣ 2σ 이상 하락시 매수 전략")
-        st.caption("2σ 이하 모든 하락에서 동일 금액 매수")
+        st.caption("2σ, 3σ 하락 시 각각 설정한 금액으로 매수 (1σ 하락은 무시)")
         
         col_2s_1y, col_2s_5y = st.columns(2)
         
@@ -1616,7 +1476,7 @@ with tab3:
             else:
                 st.info("매수 내역 없음")
         
-        # DCA 전략 (변경 없음)
+        # DCA 전략
         st.markdown("---")
         st.markdown("### 3️⃣ DCA (매월 정액 투자)")
 
@@ -1702,7 +1562,7 @@ with tab3:
 
         # 수익률 비교 그래프
         st.markdown("---")
-        st.markdown("#### 📊 투자 효율 비교 (수익률)")
+        st.markdown("#### 📊 투자 효율 비교 (100만원당 수익률)")
         
         col_graph_1y, col_graph_5y = st.columns(2)
         
@@ -1789,388 +1649,380 @@ with tab3:
     st.markdown("## 🎲 시그마별 매수 금액 비율 최적화")
     st.markdown("1σ, 2σ, 3σ 하락 시 각각 얼마씩 매수해야 최적의 수익률을 얻을 수 있는지 찾아봅시다.")
 
-    # 최적화를 위한 백테스팅 함수
-    def backtest_sigma_ratio(df_data, ratio_1s, ratio_2s, ratio_3s, base_amount=100):
-        """
-        시그마별 매수 비율에 따른 백테스팅
-        ratio_1s: 1시그마 하락시 매수 금액 비율
-        ratio_2s: 2시그마 하락시 매수 금액 비율  
-        ratio_3s: 3시그마 하락시 매수 금액 비율
-        base_amount: 기본 매수 단위
-        """
-        
-        # 일별 수익률로 시그마 계산
-        daily_returns = df_data['Close'].pct_change().dropna()
-        mean_return = daily_returns.mean()
-        std_return = daily_returns.std()
-        
-        sigma_1 = mean_return - 1 * std_return
-        sigma_2 = mean_return - 2 * std_return
-        sigma_3 = mean_return - 3 * std_return
-        
-        # 백테스팅
-        total_investment = 0
-        total_shares = 0
-        buy_history = []
-        
-        for i in range(1, len(df_data)):
-            current_return = (df_data['Close'].iloc[i] - df_data['Close'].iloc[i-1]) / df_data['Close'].iloc[i-1]
-            current_price = df_data['Close'].iloc[i]
-            current_date = df_data.index[i]
+    # 백테스팅 결과가 있는 경우에만 최적화 섹션 표시
+    if st.session_state.get('backtest_completed', False):
+        # 최적화를 위한 백테스팅 함수 (독립적 구간 방식)
+        def backtest_sigma_ratio(df_data, ratio_1s, ratio_2s, ratio_3s, base_amount=100):
+            """
+            시그마별 매수 비율에 따른 백테스팅
+            """
+            # 백테스팅 데이터가 있는지 확인
+            if 'sigma_1' not in st.session_state or 'sigma_2' not in st.session_state:
+                return {
+                    'total_return': 0,
+                    'total_investment': 0,
+                    'avg_price': 0,
+                    'buy_counts': {'1σ': 0, '2σ': 0, '3σ': 0},
+                    'buy_amounts': {'1σ': 0, '2σ': 0, '3σ': 0},
+                    'buy_history': [],
+                    'final_value': 0,
+                    'total_shares': 0
+                }
             
-            buy_amount = 0
+            # 세션에서 시그마 값 가져오기
+            sigma_1 = st.session_state.get('sigma_1')
+            sigma_2 = st.session_state.get('sigma_2')
+            sigma_3 = st.session_state.get('sigma_3', -6)  # 기본값 설정
             
-            # 3시그마 하락 (가장 큰 하락)
-            if current_return <= sigma_3:
-                buy_amount = base_amount * ratio_3s
-                buy_history.append({
-                    'date': current_date,
-                    'type': '3σ',
-                    'price': current_price,
-                    'amount': buy_amount
-                })
-            # 2시그마 하락
-            elif current_return <= sigma_2:
-                buy_amount = base_amount * ratio_2s
-                buy_history.append({
-                    'date': current_date,
-                    'type': '2σ',
-                    'price': current_price,
-                    'amount': buy_amount
-                })
-            # 1시그마 하락
-            elif current_return <= sigma_1:
-                buy_amount = base_amount * ratio_1s
-                buy_history.append({
-                    'date': current_date,
-                    'type': '1σ',
-                    'price': current_price,
-                    'amount': buy_amount
-                })
-            
-            if buy_amount > 0:
-                shares = buy_amount / current_price
-                total_shares += shares
-                total_investment += buy_amount
-        
-        # 최종 수익률 계산
-        if total_investment > 0:
-            final_value = total_shares * df_data['Close'].iloc[-1]
-            total_return = ((final_value - total_investment) / total_investment) * 100
-            avg_price = total_investment / total_shares if total_shares > 0 else 0
-            
-            # 시그마별 매수 횟수 계산
+            # 백테스팅
+            total_investment = 0
+            total_shares = 0
+            buy_history = []
             buy_counts = {'1σ': 0, '2σ': 0, '3σ': 0}
             buy_amounts = {'1σ': 0, '2σ': 0, '3σ': 0}
             
-            for buy in buy_history:
-                buy_counts[buy['type']] += 1
-                buy_amounts[buy['type']] += buy['amount']
-            
-            return {
-                'total_return': total_return,
-                'total_investment': total_investment,
-                'avg_price': avg_price,
-                'buy_counts': buy_counts,
-                'buy_amounts': buy_amounts,
-                'buy_history': buy_history,
-                'final_value': final_value,
-                'total_shares': total_shares
-            }
-        else:
-            return {
-                'total_return': 0,
-                'total_investment': 0,
-                'avg_price': 0,
-                'buy_counts': {'1σ': 0, '2σ': 0, '3σ': 0},
-                'buy_amounts': {'1σ': 0, '2σ': 0, '3σ': 0},
-                'buy_history': [],
-                'final_value': 0,
-                'total_shares': 0
-            }
-
-    # 몬테카를로 시뮬레이션 함수
-    def monte_carlo_ratio_optimization(df_data, num_simulations=1000):
-        """
-        몬테카를로 시뮬레이션으로 최적의 시그마별 매수 비율 찾기
-        """
-        
-        best_result = {
-            'ratio': (0, 0, 0),
-            'return': -999,
-            'details': None
-        }
-        
-        all_results = []
-        
-        # 다양한 비율 조합 테스트
-        for _ in range(num_simulations):
-            # 랜덤 비율 생성 (1~10 범위)
-            ratio_1s = np.random.uniform(0.5, 5)
-            ratio_2s = np.random.uniform(0.5, 8)
-            ratio_3s = np.random.uniform(0.5, 10)
-            
-            # 백테스팅 실행
-            result = backtest_sigma_ratio(df_data, ratio_1s, ratio_2s, ratio_3s)
-            
-            all_results.append({
-                'ratio_1s': ratio_1s,
-                'ratio_2s': ratio_2s,
-                'ratio_3s': ratio_3s,
-                'return': result['total_return'],
-                'investment': result['total_investment'],
-                'details': result
-            })
-            
-            # 최고 수익률 업데이트
-            if result['total_return'] > best_result['return']:
-                best_result = {
-                    'ratio': (ratio_1s, ratio_2s, ratio_3s),
-                    'return': result['total_return'],
-                    'details': result
-                }
-        
-        return best_result, all_results
-
-    # 사전 정의된 비율 테스트
-    st.markdown("### 📊 사전 정의 비율 테스트")
-
-    predefined_ratios = [
-        ("보수적 (1:1.5:2)", 1, 1.5, 2),
-        ("균형형 (1:2:3)", 1, 2, 3),
-        ("균형형2 (1:2:4)", 1, 2, 4),
-        ("공격적 (1:3:5)", 1, 3, 5),
-        ("초공격적 (1:4:8)", 1, 4, 8),
-        ("선형 증가 (1:2.5:4)", 1, 2.5, 4),
-        ("지수 증가 (1:3:9)", 1, 3, 9)
-    ]
-
-    # 1년, 5년 데이터 모두 테스트
-    test_periods = [
-        ("1년", df_1year),
-        ("5년", df_5year)
-    ]
-
-    # 테스트 실행 버튼
-    if st.button("📈 비율 테스트 실행", type="primary", use_container_width=True):
-        with st.spinner("다양한 비율 조합을 테스트 중..."):
-            
-            # 각 기간별로 테스트
-            for period_name, period_data in test_periods:
-                st.markdown(f"#### {period_name} 결과")
+            for i in range(1, len(df_data)):
+                current_return = df_data['Returns'].iloc[i]
+                current_price = df_data['Close'].iloc[i]
+                current_date = df_data.index[i]
                 
-                results_list = []
+                buy_amount = 0
+                sigma_type = None
                 
-                for name, r1, r2, r3 in predefined_ratios:
-                    result = backtest_sigma_ratio(period_data, r1, r2, r3)
+                # 독립적 구간 판정
+                if current_return <= sigma_3:
+                    buy_amount = base_amount * ratio_3s
+                    sigma_type = '3σ'
+                elif current_return <= sigma_2:
+                    buy_amount = base_amount * ratio_2s
+                    sigma_type = '2σ'
+                elif current_return <= sigma_1:
+                    buy_amount = base_amount * ratio_1s
+                    sigma_type = '1σ'
+                
+                if buy_amount > 0:
+                    shares = buy_amount / current_price
+                    total_shares += shares
+                    total_investment += buy_amount
+                    buy_counts[sigma_type] += 1
+                    buy_amounts[sigma_type] += buy_amount
                     
-                    # 정규화된 비율 문자열
-                    normalized = f"{r1:.0f}:{r2:.0f}:{r3:.0f}"
-                    
-                    results_list.append({
-                        '전략': name,
-                        '비율': normalized,
-                        '총 수익률': f"{result['total_return']:.2f}%",
-                        '1σ 매수': result['buy_counts']['1σ'],
-                        '2σ 매수': result['buy_counts']['2σ'],
-                        '3σ 매수': result['buy_counts']['3σ'],
-                        '평균 매수가': f"${result['avg_price']:.2f}" if is_us_stock else f"₩{result['avg_price']:,.0f}"
+                    buy_history.append({
+                        'date': current_date,
+                        'type': sigma_type,
+                        'price': current_price,
+                        'amount': buy_amount
                     })
+            
+            # 최종 수익률 계산
+            if total_investment > 0:
+                final_value = total_shares * df_data['Close'].iloc[-1]
+                total_return = ((final_value - total_investment) / total_investment) * 100
+                avg_price = total_investment / total_shares if total_shares > 0 else 0
                 
-                # 데이터프레임으로 표시
-                df_results = pd.DataFrame(results_list)
-                st.dataframe(df_results, use_container_width=True, hide_index=True)
-                
-                # 최고 수익률 전략 하이라이트
-                best_idx = df_results['총 수익률'].apply(lambda x: float(x.strip('%'))).idxmax()
-                best_strategy = df_results.loc[best_idx, '전략']
-                best_return = df_results.loc[best_idx, '총 수익률']
-                
-                st.success(f"✅ {period_name} 최고 수익률: **{best_strategy}** - {best_return}")
-
-    # 몬테카를로 최적화
-    st.markdown("---")
-    st.markdown("### 🎯 몬테카를로 최적화")
-    st.info("1,000개의 랜덤 비율 조합을 테스트하여 최적의 비율을 찾습니다.")
-
-    col_mc1, col_mc2 = st.columns(2)
-
-    with col_mc1:
-        period_option = st.selectbox(
-            "분석 기간 선택",
-            ["1년", "5년"],
-            key="mc_period"
-        )
-
-    with col_mc2:
-        num_simulations = st.slider(
-            "시뮬레이션 횟수",
-            min_value=100,
-            max_value=5000,
-            value=1000,
-            step=100,
-            key="mc_simulations"
-        )
-
-    if st.button("🚀 최적 비율 찾기", type="secondary", use_container_width=True):
-        with st.spinner(f"{num_simulations:,}개 조합 테스트 중..."):
-            
-            # 선택된 기간 데이터
-            selected_data = df_1year if period_option == "1년" else df_5year
-            
-            # 몬테카를로 실행
-            progress_bar = st.progress(0)
-            best_result, all_results = monte_carlo_ratio_optimization(selected_data, num_simulations)
-            progress_bar.progress(100)
-            
-            # 최적 비율 표시
-            st.success("✅ 최적 비율 발견!")
-            
-            col_opt1, col_opt2, col_opt3, col_opt4 = st.columns(4)
-            
-            with col_opt1:
-                st.metric("1σ 매수 비율", f"{best_result['ratio'][0]:.2f}x")
-            
-            with col_opt2:
-                st.metric("2σ 매수 비율", f"{best_result['ratio'][1]:.2f}x")
-            
-            with col_opt3:
-                st.metric("3σ 매수 비율", f"{best_result['ratio'][2]:.2f}x")
-            
-            with col_opt4:
-                st.metric("예상 수익률", f"{best_result['return']:.2f}%")
-            
-            # 정규화된 비율 (가장 작은 값을 1로)
-            min_ratio = min(best_result['ratio'])
-            normalized_ratios = [r/min_ratio for r in best_result['ratio']]
-            
-            st.info(f"📊 정규화된 비율: **{normalized_ratios[0]:.1f} : {normalized_ratios[1]:.1f} : {normalized_ratios[2]:.1f}**")
-            
-            # 최적 비율 상세 정보
-            st.markdown("### 📈 최적 비율 상세 분석")
-            
-            details = best_result['details']
-            
-            col_detail1, col_detail2, col_detail3 = st.columns(3)
-            
-            with col_detail1:
-                st.markdown("**매수 횟수**")
-                for sigma, count in details['buy_counts'].items():
-                    st.write(f"• {sigma}: {count}회")
-            
-            with col_detail2:
-                st.markdown("**매수 금액 비중**")
-                total_amount = sum(details['buy_amounts'].values())
-                if total_amount > 0:
-                    for sigma, amount in details['buy_amounts'].items():
-                        percentage = (amount / total_amount) * 100
-                        st.write(f"• {sigma}: {percentage:.1f}%")
-            
-            with col_detail3:
-                st.markdown("**투자 성과**")
-                st.write(f"• 총 투자금: ${details['total_investment']:,.0f}")
-                st.write(f"• 최종 가치: ${details['final_value']:,.0f}")
-                st.write(f"• 평균 매수가: ${details['avg_price']:.2f}")
-            
-            # 시각화: 수익률 분포
-            st.markdown("### 📊 시뮬레이션 결과 분포")
-            
-            # 수익률 분포 히스토그램
-            returns = [r['return'] for r in all_results]
-            
-            fig_dist = go.Figure()
-            
-            fig_dist.add_trace(go.Histogram(
-                x=returns,
-                nbinsx=50,
-                marker_color='lightblue',
-                opacity=0.7,
-                name='수익률 분포'
-            ))
-            
-            # 최적 수익률 표시
-            fig_dist.add_vline(
-                x=best_result['return'],
-                line_dash="dash",
-                line_color="red",
-                annotation_text=f"최적: {best_result['return']:.1f}%"
-            )
-            
-            fig_dist.update_layout(
-                title=f"{num_simulations:,}개 비율 조합의 수익률 분포",
-                xaxis_title="수익률 (%)",
-                yaxis_title="빈도",
-                height=400
-            )
-            
-            st.plotly_chart(fig_dist, use_container_width=True)
-        
-            # 실행 가이드
-            st.markdown("### 💰 실전 적용 가이드")
-            
-            # 기본 투자 단위 설정
-            if is_us_stock:
-                base_unit = 100  # $100
-                currency = "$"
+                return {
+                    'total_return': total_return,
+                    'total_investment': total_investment,
+                    'avg_price': avg_price,
+                    'buy_counts': buy_counts,
+                    'buy_amounts': buy_amounts,
+                    'buy_history': buy_history,
+                    'final_value': final_value,
+                    'total_shares': total_shares
+                }
             else:
-                base_unit = 100000  # 10만원
-                currency = "₩"
+                return {
+                    'total_return': 0,
+                    'total_investment': 0,
+                    'avg_price': 0,
+                    'buy_counts': buy_counts,
+                    'buy_amounts': buy_amounts,
+                    'buy_history': [],
+                    'final_value': 0,
+                    'total_shares': 0
+                }
+
+        # 몬테카를로 시뮬레이션 함수
+        def monte_carlo_ratio_optimization(df_data, num_simulations=1000):
+            """몬테카를로 시뮬레이션으로 최적의 시그마별 매수 비율 찾기"""
+            best_result = {
+                'ratio': (0, 0, 0),
+                'return': -999,
+                'details': None
+            }
             
-            st.markdown(f"**기본 매수 단위: {currency}{base_unit:,}**")
+            all_results = []
             
-            col_guide1, col_guide2, col_guide3 = st.columns(3)
+            # 다양한 비율 조합 테스트
+            for _ in range(num_simulations):
+                # 랜덤 비율 생성 (0.5~10 범위)
+                ratio_1s = np.random.uniform(0.5, 5)
+                ratio_2s = np.random.uniform(0.5, 8)
+                ratio_3s = np.random.uniform(0.5, 10)
+                
+                # 백테스팅 실행
+                result = backtest_sigma_ratio(df_data, ratio_1s, ratio_2s, ratio_3s)
+                
+                all_results.append({
+                    'ratio_1s': ratio_1s,
+                    'ratio_2s': ratio_2s,
+                    'ratio_3s': ratio_3s,
+                    'return': result['total_return'],
+                    'investment': result['total_investment'],
+                    'details': result
+                })
+                
+                # 최고 수익률 업데이트
+                if result['total_return'] > best_result['return']:
+                    best_result = {
+                        'ratio': (ratio_1s, ratio_2s, ratio_3s),
+                        'return': result['total_return'],
+                        'details': result
+                    }
             
-            with col_guide1:
-                amount_1s = base_unit * best_result['ratio'][0]
-                st.markdown("**1σ 하락 시**")
-                st.write(f"{currency}{amount_1s:,.0f} 매수")
-                st.caption(f"(기본 단위 × {best_result['ratio'][0]:.2f})")
+            return best_result, all_results
+
+        # 사전 정의된 비율 테스트
+        st.markdown("### 📊 사전 정의 비율 테스트")
+
+        predefined_ratios = [
+            ("보수적 (1:1.5:2)", 1, 1.5, 2),
+            ("균형형 (1:2:3)", 1, 2, 3),
+            ("균형형2 (1:2:4)", 1, 2, 4),
+            ("공격적 (1:3:5)", 1, 3, 5),
+            ("초공격적 (1:4:8)", 1, 4, 8),
+            ("선형 증가 (1:2.5:4)", 1, 2.5, 4),
+            ("지수 증가 (1:3:9)", 1, 3, 9)
+        ]
+
+        # 1년, 5년 데이터 모두 테스트
+        test_periods = [
+            ("1년", df_1year),
+            ("5년", df_5year)
+        ]
+
+        # 테스트 실행 버튼
+        if st.button("📈 비율 테스트 실행", type="primary", use_container_width=True):
+            with st.spinner("다양한 비율 조합을 테스트 중..."):
+                
+                # 각 기간별로 테스트
+                for period_name, period_data in test_periods:
+                    st.markdown(f"#### {period_name} 결과")
+                    
+                    results_list = []
+                    
+                    for name, r1, r2, r3 in predefined_ratios:
+                        result = backtest_sigma_ratio(period_data, r1, r2, r3)
+                        
+                        # 정규화된 비율 문자열
+                        normalized = f"{r1:.0f}:{r2:.0f}:{r3:.0f}"
+                        
+                        results_list.append({
+                            '전략': name,
+                            '비율': normalized,
+                            '총 수익률': f"{result['total_return']:.2f}%",
+                            '1σ 매수': result['buy_counts']['1σ'],
+                            '2σ 매수': result['buy_counts']['2σ'],
+                            '3σ 매수': result['buy_counts']['3σ'],
+                            '평균 매수가': f"${result['avg_price']:.2f}" if is_us_stock else f"₩{result['avg_price']:,.0f}"
+                        })
+                    
+                    # 데이터프레임으로 표시
+                    df_results = pd.DataFrame(results_list)
+                    st.dataframe(df_results, use_container_width=True, hide_index=True)
+                    
+                    # 최고 수익률 전략 하이라이트
+                    best_idx = df_results['총 수익률'].apply(lambda x: float(x.strip('%'))).idxmax()
+                    best_strategy = df_results.loc[best_idx, '전략']
+                    best_return = df_results.loc[best_idx, '총 수익률']
+                    
+                    st.success(f"✅ {period_name} 최고 수익률: **{best_strategy}** - {best_return}")
+
+        # 몬테카를로 최적화
+        st.markdown("---")
+        st.markdown("### 🎯 몬테카를로 최적화")
+        st.info("1,000개의 랜덤 비율 조합을 테스트하여 최적의 비율을 찾습니다.")
+
+        col_mc1, col_mc2 = st.columns(2)
+
+        with col_mc1:
+            period_option = st.selectbox(
+                "분석 기간 선택",
+                ["1년", "5년"],
+                key="mc_period"
+            )
+
+        with col_mc2:
+            num_simulations = st.slider(
+                "시뮬레이션 횟수",
+                min_value=100,
+                max_value=5000,
+                value=1000,
+                step=100,
+                key="mc_simulations"
+            )
+
+        if st.button("🚀 최적 비율 찾기", type="secondary", use_container_width=True):
+            with st.spinner(f"{num_simulations:,}개 조합 테스트 중..."):
+                
+                # 선택된 기간 데이터
+                selected_data = df_1year if period_option == "1년" else df_5year
+                
+                # 몬테카를로 실행
+                progress_bar = st.progress(0)
+                best_result, all_results = monte_carlo_ratio_optimization(selected_data, num_simulations)
+                progress_bar.progress(100)
+                
+                # 최적 비율 표시
+                st.success("✅ 최적 비율 발견!")
+                
+                col_opt1, col_opt2, col_opt3, col_opt4 = st.columns(4)
+                
+                with col_opt1:
+                    st.metric("1σ 매수 비율", f"{best_result['ratio'][0]:.2f}x")
+                
+                with col_opt2:
+                    st.metric("2σ 매수 비율", f"{best_result['ratio'][1]:.2f}x")
+                
+                with col_opt3:
+                    st.metric("3σ 매수 비율", f"{best_result['ratio'][2]:.2f}x")
+                
+                with col_opt4:
+                    st.metric("예상 수익률", f"{best_result['return']:.2f}%")
+                
+                # 정규화된 비율 (가장 작은 값을 1로)
+                min_ratio = min(best_result['ratio'])
+                normalized_ratios = [r/min_ratio for r in best_result['ratio']]
+                
+                st.info(f"📊 정규화된 비율: **{normalized_ratios[0]:.1f} : {normalized_ratios[1]:.1f} : {normalized_ratios[2]:.1f}**")
+                
+                # 최적 비율 상세 정보
+                st.markdown("### 📈 최적 비율 상세 분석")
+                
+                details = best_result['details']
+                
+                col_detail1, col_detail2, col_detail3 = st.columns(3)
+                
+                with col_detail1:
+                    st.markdown("**매수 횟수**")
+                    for sigma, count in details['buy_counts'].items():
+                        st.write(f"• {sigma}: {count}회")
+                
+                with col_detail2:
+                    st.markdown("**매수 금액 비중**")
+                    total_amount = sum(details['buy_amounts'].values())
+                    if total_amount > 0:
+                        for sigma, amount in details['buy_amounts'].items():
+                            percentage = (amount / total_amount) * 100
+                            st.write(f"• {sigma}: {percentage:.1f}%")
+                
+                with col_detail3:
+                    st.markdown("**투자 성과**")
+                    st.write(f"• 총 투자금: ${details['total_investment']:,.0f}")
+                    st.write(f"• 최종 가치: ${details['final_value']:,.0f}")
+                    st.write(f"• 평균 매수가: ${details['avg_price']:.2f}")
+                
+                # 시각화: 수익률 분포
+                st.markdown("### 📊 시뮬레이션 결과 분포")
+                
+                # 수익률 분포 히스토그램
+                returns = [r['return'] for r in all_results]
+                
+                fig_dist = go.Figure()
+                
+                fig_dist.add_trace(go.Histogram(
+                    x=returns,
+                    nbinsx=50,
+                    marker_color='lightblue',
+                    opacity=0.7,
+                    name='수익률 분포'
+                ))
+                
+                # 최적 수익률 표시
+                fig_dist.add_vline(
+                    x=best_result['return'],
+                    line_dash="dash",
+                    line_color="red",
+                    annotation_text=f"최적: {best_result['return']:.1f}%"
+                )
+                
+                fig_dist.update_layout(
+                    title=f"{num_simulations:,}개 비율 조합의 수익률 분포",
+                    xaxis_title="수익률 (%)",
+                    yaxis_title="빈도",
+                    height=400
+                )
+                
+                st.plotly_chart(fig_dist, use_container_width=True)
             
-            with col_guide2:
-                amount_2s = base_unit * best_result['ratio'][1]
-                st.markdown("**2σ 하락 시**")
-                st.write(f"{currency}{amount_2s:,.0f} 매수")
-                st.caption(f"(기본 단위 × {best_result['ratio'][1]:.2f})")
-            
-            with col_guide3:
-                amount_3s = base_unit * best_result['ratio'][2]
-                st.markdown("**3σ 하락 시**")
-                st.write(f"{currency}{amount_3s:,.0f} 매수")
-                st.caption(f"(기본 단위 × {best_result['ratio'][2]:.2f})")
-            
-            # 인사이트
-            st.markdown("### 💡 핵심 인사이트")
-            
-            insights = []
-            
-            # 비율 패턴 분석
-            ratio_pattern = best_result['ratio'][1] / best_result['ratio'][0]
-            if ratio_pattern > 2.5:
-                insights.append("📈 2σ 하락에 공격적으로 대응하는 전략이 효과적")
-            elif ratio_pattern < 1.5:
-                insights.append("📊 1σ와 2σ 하락을 비슷하게 취급하는 것이 효과적")
-            
-            # 3시그마 비중
-            ratio_3s_pattern = best_result['ratio'][2] / best_result['ratio'][0]
-            if ratio_3s_pattern > 5:
-                insights.append("🎯 극단적 하락(3σ)에서 큰 베팅이 높은 수익률 창출")
-            elif ratio_3s_pattern < 3:
-                insights.append("⚖️ 극단적 하락에서도 과도한 베팅은 피하는 것이 유리")
-            
-            # 상위 10% 분석
-            sorted_results = sorted(all_results, key=lambda x: x['return'], reverse=True)
-            top_10_percent = sorted_results[:max(1, len(sorted_results)//10)]
-            avg_top_ratios = [
-                np.mean([r['ratio_1s'] for r in top_10_percent]),
-                np.mean([r['ratio_2s'] for r in top_10_percent]),
-                np.mean([r['ratio_3s'] for r in top_10_percent])
-            ]
-            
-            insights.append(f"🏆 상위 10% 전략의 평균 비율: {avg_top_ratios[0]:.1f}:{avg_top_ratios[1]:.1f}:{avg_top_ratios[2]:.1f}")
-            
-            for insight in insights:
-                st.info(insight)
-            
-            # 세션 스테이트에 저장
-            st.session_state['optimal_sigma_ratios'] = best_result['ratio']
-            st.session_state['optimal_sigma_return'] = best_result['return']
+                # 실행 가이드
+                st.markdown("### 💰 실전 적용 가이드")
+                
+                # 기본 투자 단위 설정
+                if is_us_stock:
+                    base_unit = 100  # $100
+                    currency = "$"
+                else:
+                    base_unit = 100000  # 10만원
+                    currency = "₩"
+                
+                st.markdown(f"**기본 매수 단위: {currency}{base_unit:,}**")
+                
+                col_guide1, col_guide2, col_guide3 = st.columns(3)
+                
+                with col_guide1:
+                    amount_1s = base_unit * best_result['ratio'][0]
+                    st.markdown("**1σ 하락 시**")
+                    st.write(f"{currency}{amount_1s:,.0f} 매수")
+                    st.caption(f"(기본 단위 × {best_result['ratio'][0]:.2f})")
+                
+                with col_guide2:
+                    amount_2s = base_unit * best_result['ratio'][1]
+                    st.markdown("**2σ 하락 시**")
+                    st.write(f"{currency}{amount_2s:,.0f} 매수")
+                    st.caption(f"(기본 단위 × {best_result['ratio'][1]:.2f})")
+                
+                with col_guide3:
+                    amount_3s = base_unit * best_result['ratio'][2]
+                    st.markdown("**3σ 하락 시**")
+                    st.write(f"{currency}{amount_3s:,.0f} 매수")
+                    st.caption(f"(기본 단위 × {best_result['ratio'][2]:.2f})")
+                
+                # 인사이트
+                st.markdown("### 💡 핵심 인사이트")
+                
+                insights = []
+                
+                # 비율 패턴 분석
+                ratio_pattern = best_result['ratio'][1] / best_result['ratio'][0]
+                if ratio_pattern > 2.5:
+                    insights.append("📈 2σ 하락에 공격적으로 대응하는 전략이 효과적")
+                elif ratio_pattern < 1.5:
+                    insights.append("📊 1σ와 2σ 하락을 비슷하게 취급하는 것이 효과적")
+                
+                # 3시그마 비중
+                ratio_3s_pattern = best_result['ratio'][2] / best_result['ratio'][0]
+                if ratio_3s_pattern > 5:
+                    insights.append("🎯 극단적 하락(3σ)에서 큰 베팅이 높은 수익률 창출")
+                elif ratio_3s_pattern < 3:
+                    insights.append("⚖️ 극단적 하락에서도 과도한 베팅은 피하는 것이 유리")
+                
+                # 상위 10% 분석
+                sorted_results = sorted(all_results, key=lambda x: x['return'], reverse=True)
+                top_10_percent = sorted_results[:max(1, len(sorted_results)//10)]
+                avg_top_ratios = [
+                    np.mean([r['ratio_1s'] for r in top_10_percent]),
+                    np.mean([r['ratio_2s'] for r in top_10_percent]),
+                    np.mean([r['ratio_3s'] for r in top_10_percent])
+                ]
+                
+                insights.append(f"🏆 상위 10% 전략의 평균 비율: {avg_top_ratios[0]:.1f}:{avg_top_ratios[1]:.1f}:{avg_top_ratios[2]:.1f}")
+                
+                for insight in insights:
+                    st.info(insight)
+                
+                # 세션 스테이트에 저장
+                st.session_state['optimal_sigma_ratios'] = best_result['ratio']
+                st.session_state['optimal_sigma_return'] = best_result['return']
+    else:
+        st.info("먼저 백테스팅을 실행해주세요.")
