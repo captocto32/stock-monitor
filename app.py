@@ -1042,6 +1042,16 @@ with tab3:
     if 'current_analysis' in st.session_state:
         analysis = st.session_state.current_analysis
         selected_symbol = analysis['symbol']
+
+        # 종목이 바뀌었는지 체크
+        if 'last_backtest_symbol' in st.session_state:
+            if st.session_state.last_backtest_symbol != selected_symbol:
+                # 이전 백테스팅 결과 삭제
+                if 'backtest_completed' in st.session_state:
+                    st.session_state.backtest_completed = False
+                if 'backtest_results' in st.session_state:
+                    del st.session_state.backtest_results
+                    
         st.info(f"📊 백테스팅 종목: {analysis['name']} ({analysis['symbol']})")
     else:
         st.info("📊 먼저 탭 1에서 종목을 검색하고 분석해주세요.")
