@@ -1046,12 +1046,28 @@ with tab3:
         # 종목이 바뀌었는지 체크
         if 'last_backtest_symbol' in st.session_state:
             if st.session_state.last_backtest_symbol != selected_symbol:
-                # 이전 백테스팅 결과 삭제
-                if 'backtest_completed' in st.session_state:
-                    st.session_state.backtest_completed = False
-                if 'backtest_results' in st.session_state:
-                    del st.session_state.backtest_results
-                    
+                # 모든 백테스팅 관련 세션 상태 삭제
+                keys_to_delete = [
+                    'backtest_completed',
+                    'backtest_results',
+                    'results_1sigma_1year',
+                    'results_1sigma_5year', 
+                    'results_2sigma_1year',
+                    'results_2sigma_5year',
+                    'comparison_1y',
+                    'comparison_5y',
+                    'df_1year',
+                    'df_5year',
+                    'optimal_sigma_ratios',
+                    'optimal_sigma_return'
+                ]
+                for key in keys_to_delete:
+                    if key in st.session_state:
+                        del st.session_state[key]
+        
+        # 현재 종목 저장
+        st.session_state.last_backtest_symbol = selected_symbol
+
         st.info(f"📊 백테스팅 종목: {analysis['name']} ({analysis['symbol']})")
     else:
         st.info("📊 먼저 탭 1에서 종목을 검색하고 분석해주세요.")
