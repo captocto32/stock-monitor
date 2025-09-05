@@ -1058,7 +1058,7 @@ with tab3:
     with col1_3:
         amount_3sigma = st.number_input("3σ 하락시", min_value=0, value=100)
     
-# 백테스팅 실행 버튼
+    # 백테스팅 실행 버튼
     if st.button("🚀 백테스팅 실행", use_container_width=True, type="primary"):
         if selected_symbol:
             # 백테스팅 실행
@@ -1079,14 +1079,93 @@ with tab3:
             df_1year = df.tail(252)  # 1년 데이터
             df_5year = df  # 5년 데이터
             
-            # 시그마 레벨 가져오기
+            # 시그마 레벨 가져오기 (analysis['stats']에서 직접 사용)
             stats = analysis['stats']
             sigma_1 = stats['1sigma']
             sigma_2 = stats['2sigma']
             sigma_3 = stats['3sigma']
             
-            # 백테스팅 함수 정의 (수정됨)
-            def run_backtest(df_data, period_name, include_1sigma=True):
+            # 백테스팅 함수 정의 (수정됨 - 독립적 구간 방식)
+            def run_backtest_independent(df_data, period_name):
+                """독립적 구간 방식 백테스팅"""
+                buy_history = []
+                total_investment = 0
+                total_shares = 0
+                
+                # 시그마별 카운트
+                sigma_counts = {'1σ': 0, '2σ': 0, '3σ': 0}
+                
+                for i in range(1, len(df_data)):
+                    current_return = df_data['Returns'].iloc[i]
+                    current_price = df_data['Close'].iloc[i]
+                    current_date = df_data.index[i]
+                    
+                    investment = 0
+                    sigma_level = None
+                    
+                    # 독립적 구간 판정 (elif 구조)
+                    if current_return <= sigma_3:
+                        investment = amount_3sigma
+                        sigma_level = '3σ'
+                    elif current_return <= sigma_2:
+                        investment = amount_2sigma
+                        sigma_level = '2σ'
+                    elif current_return <= sigma_1:
+                        investment = amount_1sigma
+                        sigma_level = '1σ'
+                    
+                    # 매수 실행
+                    if investment > 0:
+                        # 한국 주식의 경우 만원 단위 처리
+                        if not is_us_stock:
+                            investment = investment
+                        
+                        shares = investment / current_price
+                        sigma_counts[sigma_level] += 1
+                        
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': sigma_level,
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                
+                # 결과 계산
+                if buy_history:
+                    avg_price = total_investment / total_shares
+                    current_price = df_data['Close'].iloc[-1]
+                    current_value = total_shares * current_price
+                    total_return = ((current_value - total_investment) / total_investment) * 100
+                    
+                    return {
+                        'buy_history': buy_history,
+                        'buy_count': len(buy_history),
+                        'sigma_counts': sigma_counts,
+                        'total_investment': total_investment,
+                        'total_shares': total_shares,
+                        'avg_price': avg_price,
+                        'current_value': current_value,
+                        'total_return': total_return
+                    }
+                else:
+                    return {
+                        'buy_history': [],
+                        'buy_count': 0,
+                        'sigma_counts': {'1σ': 0, '2σ': 0, '3σ': 0},
+                        'total_investment': 0,
+                        'total_shares': 0,
+                        'avg_price': 0,
+                        'current_value': 0,
+                        'total_return': 0
+                    }
+            
+            # 1σ 전략 (1σ 이하 모든 경우 매수)
+            def run_1sigma_strategy(df_data, period_name):
+                """1σ 전략: 1σ 이하 모든 하락에서 동일 금액 매수"""
                 buy_history = []
                 total_investment = 0
                 total_shares = 0
@@ -1096,29 +1175,24 @@ with tab3:
                     current_price = df_data['Close'].iloc[i]
                     current_date = df_data.index[i]
                     
-                    investment = 0  # 기본값 초기화
-                    sigma_level = None
-                    
-                    # 3σ 하락 시 (가장 큰 하락 우선 체크)
-                    if current_return <= sigma_3:
-                        investment = amount_3sigma
-                        sigma_level = '3σ'
-                    # 2σ 하락 시
-                    elif current_return <= sigma_2:
-                        investment = amount_2sigma
-                        sigma_level = '2σ'
-                    # 1σ 하락 시 (include_1sigma가 True일 때만)
-                    elif include_1sigma and current_return <= sigma_1:
+                    # 1σ 이하면 모두 매수 (금액은 동일)
+                    if current_return <= sigma_1:
                         investment = amount_1sigma
-                        sigma_level = '1σ'
-                    
-                    # 매수 실행
-                    if investment > 0:
-                        # 한국 주식의 경우 만원 단위 처리 (여기서 한 번만)
+                        
+                        # 시그마 레벨 표시용
+                        if current_return <= sigma_3:
+                            sigma_level = '3σ'
+                        elif current_return <= sigma_2:
+                            sigma_level = '2σ'
+                        else:
+                            sigma_level = '1σ'
+                        
+                        # 한국 주식의 경우 만원 단위 처리
                         if not is_us_stock:
-                            investment = investment * 10000  # 만원을 원으로 변환
+                            investment = investment
                         
                         shares = investment / current_price
+                        
                         buy_history.append({
                             'date': current_date,
                             'price': current_price,
@@ -1157,7 +1231,73 @@ with tab3:
                         'total_return': 0
                     }
             
-            # DCA 전략 계산 (수정됨)
+            # 2σ 전략 (2σ 이하 모든 경우 매수)
+            def run_2sigma_strategy(df_data, period_name):
+                """2σ 전략: 2σ 이하 모든 하락에서 동일 금액 매수"""
+                buy_history = []
+                total_investment = 0
+                total_shares = 0
+                
+                for i in range(1, len(df_data)):
+                    current_return = df_data['Returns'].iloc[i]
+                    current_price = df_data['Close'].iloc[i]
+                    current_date = df_data.index[i]
+                    
+                    # 2σ 이하면 모두 매수 (금액은 동일)
+                    if current_return <= sigma_2:
+                        investment = amount_2sigma
+                        
+                        # 시그마 레벨 표시용
+                        if current_return <= sigma_3:
+                            sigma_level = '3σ'
+                        else:
+                            sigma_level = '2σ'
+                        
+                        # 한국 주식의 경우 만원 단위 처리
+                        if not is_us_stock:
+                            investment = investment
+                        
+                        shares = investment / current_price
+                        
+                        buy_history.append({
+                            'date': current_date,
+                            'price': current_price,
+                            'return': current_return,
+                            'sigma_level': sigma_level,
+                            'investment': investment,
+                            'shares': shares
+                        })
+                        total_investment += investment
+                        total_shares += shares
+                
+                # 결과 계산
+                if buy_history:
+                    avg_price = total_investment / total_shares
+                    current_price = df_data['Close'].iloc[-1]
+                    current_value = total_shares * current_price
+                    total_return = ((current_value - total_investment) / total_investment) * 100
+                    
+                    return {
+                        'buy_history': buy_history,
+                        'buy_count': len(buy_history),
+                        'total_investment': total_investment,
+                        'total_shares': total_shares,
+                        'avg_price': avg_price,
+                        'current_value': current_value,
+                        'total_return': total_return
+                    }
+                else:
+                    return {
+                        'buy_history': [],
+                        'buy_count': 0,
+                        'total_investment': 0,
+                        'total_shares': 0,
+                        'avg_price': 0,
+                        'current_value': 0,
+                        'total_return': 0
+                    }
+            
+            # DCA 전략 계산 (변경 없음)
             def run_dca_comparison(df_data, period_months):
                 # 매월 고정 투자금 설정
                 if is_us_stock:
@@ -1171,7 +1311,7 @@ with tab3:
                 dca_buy_count = 0
                 dca_buy_history = []
                 
-                # 매월 투자 로직 (수정됨)
+                # 매월 투자 로직
                 found_months = 0
                 last_year_month = None
                 
@@ -1227,19 +1367,19 @@ with tab3:
             
             # 백테스팅 실행
             with st.spinner("백테스팅 분석 중..."):
-                # 1σ 전략 (1년, 5년)
-                results_1sigma_1year = run_backtest(df_1year, "1년", include_1sigma=True)
-                results_1sigma_5year = run_backtest(df_5year, "5년", include_1sigma=True)
+                # 1σ 전략 실행
+                results_1sigma_1year = run_1sigma_strategy(df_1year, "1년")
+                results_1sigma_5year = run_1sigma_strategy(df_5year, "5년")
                 
-                # 2σ 전략 (1년, 5년)
-                results_2sigma_1year = run_backtest(df_1year, "1년", include_1sigma=False)
-                results_2sigma_5year = run_backtest(df_5year, "5년", include_1sigma=False)
+                # 2σ 전략 실행
+                results_2sigma_1year = run_2sigma_strategy(df_1year, "1년")
+                results_2sigma_5year = run_2sigma_strategy(df_5year, "5년")
                 
-                # DCA 비교 (1년=12개월, 5년=60개월)
+                # DCA 비교
                 comparison_1y = {'dca': run_dca_comparison(df_1year, 12)}
                 comparison_5y = {'dca': run_dca_comparison(df_5year, 60)}
             
-            # 결과를 세션에 저장 (핵심 수정 부분!)
+            # 결과를 세션에 저장
             st.session_state.update({
                 'backtest_completed': True,
                 'backtest_results': {
@@ -1254,9 +1394,10 @@ with tab3:
                     'stats': stats,
                     'sigma_1': sigma_1,
                     'sigma_2': sigma_2,
+                    'sigma_3': sigma_3,
                     'is_us_stock': is_us_stock
                 },
-                # 몬테카를로에서 사용할 데이터도 함께 저장
+                # 몬테카를로에서 사용할 데이터
                 'results_1sigma_1year': results_1sigma_1year,
                 'results_1sigma_5year': results_1sigma_5year,
                 'results_2sigma_1year': results_2sigma_1year,
@@ -1269,7 +1410,7 @@ with tab3:
                 'stats': stats
             })
             
-            # 즉시 결과 표시를 위해 페이지 새로고침
+            # 페이지 새로고침
             st.rerun()
     
     # 백테스팅 결과가 있으면 표시
@@ -1287,6 +1428,7 @@ with tab3:
         stats = backtest_data['stats']
         sigma_1 = backtest_data['sigma_1']
         sigma_2 = backtest_data['sigma_2']
+        sigma_3 = backtest_data['sigma_3']
         is_us_stock = backtest_data['is_us_stock']
         dca_1y = comparison_1y['dca']
         dca_5y = comparison_5y['dca']
@@ -1294,12 +1436,13 @@ with tab3:
         # 결과 표시
         st.success("✅ 백테스팅 완료!")
         
-        # 3가지 전략 비교 섹션 (일시불 제외)
+        # 3가지 전략 비교 섹션
         st.markdown("#### 📊 투자 전략 백테스팅 결과")
         
         # 1σ 전략
         st.markdown("---")
         st.markdown("### 1️⃣ 1σ 이상 하락시 매수 전략")
+        st.caption("1σ 이하 모든 하락에서 동일 금액 매수")
         
         col_1s_1y, col_1s_5y = st.columns(2)
         
@@ -1349,7 +1492,6 @@ with tab3:
         with col_1s_5y:
             st.markdown("**📅 최근 5년**")
             if results_1sigma_5year['buy_count'] > 0:
-                # 첫 행: 매수횟수, 평균 매수 단가, 보유주식수
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("매수 횟수", f"{results_1sigma_5year['buy_count']}회")
@@ -1361,7 +1503,6 @@ with tab3:
                 with col3:
                     st.metric("보유 주식수", f"{results_1sigma_5year['total_shares']:.2f}주")
                 
-                # 둘째 행: 총 투자금, 수익률
                 col4, col5 = st.columns(2)
                 with col4:
                     if is_us_stock:
@@ -1372,7 +1513,6 @@ with tab3:
                     st.metric("수익률", f"{results_1sigma_5year['total_return']:+.2f}%",
                              delta=f"{results_1sigma_5year['total_return']:+.2f}%")
                 
-                # 매수 내역
                 with st.expander(f"📋 매수 내역 ({results_1sigma_5year['buy_count']}건)"):
                     buy_df = pd.DataFrame(results_1sigma_5year['buy_history'])
                     buy_df['날짜'] = buy_df['date'].dt.strftime('%Y.%m.%d')
@@ -1392,6 +1532,7 @@ with tab3:
         # 2σ 전략
         st.markdown("---")
         st.markdown("### 2️⃣ 2σ 이상 하락시 매수 전략")
+        st.caption("2σ 이하 모든 하락에서 동일 금액 매수")
         
         col_2s_1y, col_2s_5y = st.columns(2)
         
@@ -1475,7 +1616,7 @@ with tab3:
             else:
                 st.info("매수 내역 없음")
         
-        # DCA 전략
+        # DCA 전략 (변경 없음)
         st.markdown("---")
         st.markdown("### 3️⃣ DCA (매월 정액 투자)")
 
@@ -1561,7 +1702,7 @@ with tab3:
 
         # 수익률 비교 그래프
         st.markdown("---")
-        st.markdown("#### 📊 투자 효율 비교 (100만원당 수익률)")
+        st.markdown("#### 📊 투자 효율 비교 (수익률)")
         
         col_graph_1y, col_graph_5y = st.columns(2)
         
@@ -2033,317 +2174,3 @@ with tab3:
             # 세션 스테이트에 저장
             st.session_state['optimal_sigma_ratios'] = best_result['ratio']
             st.session_state['optimal_sigma_return'] = best_result['return']
-
-    # ============= 시그마 매수 횟수 디버깅 =============
-    import streamlit as st
-    import pandas as pd
-    import numpy as np
-    import plotly.graph_objects as go
-    from datetime import datetime, timedelta
-
-    st.title("🔍 시그마 매수 횟수 불일치 디버깅")
-
-    # 데이터 로드 섹션
-    st.markdown("## 1. 데이터 확인")
-    st.info("먼저 동일한 데이터를 사용하고 있는지 확인합니다.")
-
-    # 여기서 df_1year가 이미 로드되어 있다고 가정
-    if 'df_1year' in locals():
-        st.write(f"데이터 기간: {df_1year.index[0].date()} ~ {df_1year.index[-1].date()}")
-        st.write(f"총 거래일 수: {len(df_1year)}")
-        
-        # 일별 수익률 계산
-        df_1year['Daily_Return'] = df_1year['Close'].pct_change()
-        
-        # 시그마 값 계산 (두 가지 방식)
-        st.markdown("## 2. 시그마 계산 방식 비교")
-        
-        # 방식 1: 전체 기간 고정 시그마
-        mean_return_fixed = df_1year['Daily_Return'].mean()
-        std_return_fixed = df_1year['Daily_Return'].std()
-        
-        sigma_1_fixed = mean_return_fixed - 1 * std_return_fixed
-        sigma_2_fixed = mean_return_fixed - 2 * std_return_fixed
-        sigma_3_fixed = mean_return_fixed - 3 * std_return_fixed
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("1σ 임계값", f"{sigma_1_fixed:.4f}")
-        with col2:
-            st.metric("2σ 임계값", f"{sigma_2_fixed:.4f}")
-        with col3:
-            st.metric("3σ 임계값", f"{sigma_3_fixed:.4f}")
-        
-        # 매수 신호 카운트 함수들
-        st.markdown("## 3. 매수 횟수 계산 (여러 방식)")
-        
-        # 방식 1: 원본 1σ 전략 (1σ 이하 모든 하락)
-        def count_1sigma_strategy(df, sigma_1):
-            """1σ 이하 모든 하락에서 매수"""
-            count = 0
-            for i in range(1, len(df)):
-                if df['Daily_Return'].iloc[i] <= sigma_1:
-                    count += 1
-            return count
-        
-        # 방식 2: 원본 2σ 전략 (2σ 이하 하락)
-        def count_2sigma_strategy(df, sigma_2):
-            """2σ 이하 모든 하락에서 매수"""
-            count = 0
-            for i in range(1, len(df)):
-                if df['Daily_Return'].iloc[i] <= sigma_2:
-                    count += 1
-            return count
-        
-        # 방식 3: 구간별 독립 카운트 (비율 테스트용)
-        def count_independent_sigmas(df, sigma_1, sigma_2, sigma_3):
-            """각 시그마 구간별 독립 카운트"""
-            count_1s = 0
-            count_2s = 0
-            count_3s = 0
-            
-            for i in range(1, len(df)):
-                ret = df['Daily_Return'].iloc[i]
-                
-                if ret <= sigma_3:
-                    count_3s += 1
-                elif ret <= sigma_2:
-                    count_2s += 1
-                elif ret <= sigma_1:
-                    count_1s += 1
-            
-            return count_1s, count_2s, count_3s
-        
-        # 방식 4: 상세 분석 (모든 경우)
-        def detailed_analysis(df, sigma_1, sigma_2, sigma_3):
-            """상세한 매수 신호 분석"""
-            results = {
-                'dates_1s': [],
-                'dates_2s': [],
-                'dates_3s': [],
-                'returns_1s': [],
-                'returns_2s': [],
-                'returns_3s': []
-            }
-            
-            for i in range(1, len(df)):
-                date = df.index[i]
-                ret = df['Daily_Return'].iloc[i]
-                
-                if ret <= sigma_3:
-                    results['dates_3s'].append(date)
-                    results['returns_3s'].append(ret)
-                elif ret <= sigma_2:
-                    results['dates_2s'].append(date)
-                    results['returns_2s'].append(ret)
-                elif ret <= sigma_1:
-                    results['dates_1s'].append(date)
-                    results['returns_1s'].append(ret)
-            
-            return results
-        
-        # 계산 실행
-        st.markdown("### 📊 계산 결과")
-        
-        # 1σ, 2σ 전략 카운트
-        count_1sigma_strat = count_1sigma_strategy(df_1year, sigma_1_fixed)
-        count_2sigma_strat = count_2sigma_strategy(df_1year, sigma_2_fixed)
-        
-        # 독립 구간 카운트
-        count_1s_only, count_2s_only, count_3s_only = count_independent_sigmas(
-            df_1year, sigma_1_fixed, sigma_2_fixed, sigma_3_fixed
-        )
-        
-        # 결과 표시
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**전략별 매수 횟수 (누적)**")
-            st.write(f"• 1σ 전략 (1σ 이하 모든 하락): {count_1sigma_strat}회")
-            st.write(f"• 2σ 전략 (2σ 이하 모든 하락): {count_2sigma_strat}회")
-            
-        with col2:
-            st.markdown("**시그마 구간별 횟수 (독립)**")
-            st.write(f"• 1σ만 해당: {count_1s_only}회")
-            st.write(f"• 2σ만 해당: {count_2s_only}회")
-            st.write(f"• 3σ 해당: {count_3s_only}회")
-            st.write(f"• 2σ+3σ 합계: {count_2s_only + count_3s_only}회")
-        
-        # 불일치 분석
-        st.markdown("### 🔍 불일치 분석")
-        
-        expected_1s = 24  # 카드에 표시된 값
-        expected_2s = 9   # 카드에 표시된 값
-        table_2s_3s = 7   # 테이블에 표시된 값 (6+1)
-        
-        diff_1s = count_1sigma_strat - expected_1s
-        diff_2s = count_2sigma_strat - expected_2s
-        diff_table = count_2s_only + count_3s_only - table_2s_3s
-        
-        if diff_1s != 0:
-            st.warning(f"1σ 전략: 계산값 {count_1sigma_strat} vs 예상값 {expected_1s} (차이: {diff_1s})")
-        else:
-            st.success(f"✅ 1σ 전략 일치: {count_1sigma_strat}회")
-        
-        if diff_2s != 0:
-            st.warning(f"2σ 전략: 계산값 {count_2sigma_strat} vs 예상값 {expected_2s} (차이: {diff_2s})")
-        else:
-            st.success(f"✅ 2σ 전략 일치: {count_2sigma_strat}회")
-        
-        if diff_table != 0:
-            st.warning(f"테이블 2σ+3σ: 계산값 {count_2s_only + count_3s_only} vs 표시값 {table_2s_3s} (차이: {diff_table})")
-        else:
-            st.success(f"✅ 테이블 값 일치: {count_2s_only + count_3s_only}회")
-        
-        # 상세 분석
-        st.markdown("## 4. 상세 매수 신호 분석")
-        
-        if st.button("상세 분석 실행"):
-            details = detailed_analysis(df_1year, sigma_1_fixed, sigma_2_fixed, sigma_3_fixed)
-            
-            # 탭으로 구분
-            tab1, tab2, tab3 = st.tabs(["1σ 구간", "2σ 구간", "3σ 구간"])
-            
-            with tab1:
-                st.write(f"1σ 구간 매수 신호: {len(details['dates_1s'])}회")
-                if details['dates_1s']:
-                    df_1s = pd.DataFrame({
-                        '날짜': details['dates_1s'],
-                        '수익률': [f"{r*100:.2f}%" for r in details['returns_1s']]
-                    })
-                    st.dataframe(df_1s, use_container_width=True)
-            
-            with tab2:
-                st.write(f"2σ 구간 매수 신호: {len(details['dates_2s'])}회")
-                if details['dates_2s']:
-                    df_2s = pd.DataFrame({
-                        '날짜': details['dates_2s'],
-                        '수익률': [f"{r*100:.2f}%" for r in details['returns_2s']]
-                    })
-                    st.dataframe(df_2s, use_container_width=True)
-            
-            with tab3:
-                st.write(f"3σ 구간 매수 신호: {len(details['dates_3s'])}회")
-                if details['dates_3s']:
-                    df_3s = pd.DataFrame({
-                        '날짜': details['dates_3s'],
-                        '수익률': [f"{r*100:.2f}%" for r in details['returns_3s']]
-                    })
-                    st.dataframe(df_3s, use_container_width=True)
-        
-        # 시각화
-        st.markdown("## 5. 시각화")
-        
-        # 수익률 분포와 시그마 선
-        fig = go.Figure()
-        
-        # 히스토그램
-        fig.add_trace(go.Histogram(
-            x=df_1year['Daily_Return'].dropna(),
-            name='일별 수익률 분포',
-            nbinsx=50,
-            marker_color='lightblue',
-            opacity=0.7
-        ))
-        
-        # 시그마 선 추가
-        fig.add_vline(x=sigma_1_fixed, line_dash="dash", line_color="yellow", 
-                    annotation_text=f"1σ ({sigma_1_fixed:.3f})")
-        fig.add_vline(x=sigma_2_fixed, line_dash="dash", line_color="orange",
-                    annotation_text=f"2σ ({sigma_2_fixed:.3f})")
-        fig.add_vline(x=sigma_3_fixed, line_dash="dash", line_color="red",
-                    annotation_text=f"3σ ({sigma_3_fixed:.3f})")
-        
-        fig.update_layout(
-            title="일별 수익률 분포와 시그마 임계값",
-            xaxis_title="일별 수익률",
-            yaxis_title="빈도",
-            height=400
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # 시계열 차트
-        st.markdown("### 시계열 매수 신호")
-        
-        fig2 = go.Figure()
-        
-        # 가격 차트
-        fig2.add_trace(go.Scatter(
-            x=df_1year.index,
-            y=df_1year['Close'],
-            mode='lines',
-            name='종가',
-            line=dict(color='blue', width=1)
-        ))
-        
-        # 매수 신호 표시
-        for i in range(1, len(df_1year)):
-            ret = df_1year['Daily_Return'].iloc[i]
-            if ret <= sigma_3_fixed:
-                fig2.add_vline(x=df_1year.index[i], line_color="red", opacity=0.3)
-            elif ret <= sigma_2_fixed:
-                fig2.add_vline(x=df_1year.index[i], line_color="orange", opacity=0.3)
-            elif ret <= sigma_1_fixed:
-                fig2.add_vline(x=df_1year.index[i], line_color="yellow", opacity=0.2)
-        
-        fig2.update_layout(
-            title="가격 차트와 매수 신호",
-            xaxis_title="날짜",
-            yaxis_title="가격",
-            height=400
-        )
-        
-        st.plotly_chart(fig2, use_container_width=True)
-        
-        # 추가 체크사항
-        st.markdown("## 6. 추가 확인 사항")
-        
-        # 경계값 처리 확인
-        st.markdown("### 경계값 처리")
-        edge_cases = 0
-        for i in range(1, len(df_1year)):
-            ret = df_1year['Daily_Return'].iloc[i]
-            # 정확히 시그마 값과 같은 경우
-            if abs(ret - sigma_1_fixed) < 0.0001 or abs(ret - sigma_2_fixed) < 0.0001:
-                edge_cases += 1
-        
-        st.write(f"시그마 값과 거의 같은 경우: {edge_cases}회")
-        
-        # 데이터 품질 확인
-        st.markdown("### 데이터 품질")
-        nan_count = df_1year['Daily_Return'].isna().sum()
-        st.write(f"결측치(NaN) 개수: {nan_count}")
-        
-        # 주말/공휴일 확인
-        dates_diff = []
-        for i in range(1, len(df_1year)):
-            diff = (df_1year.index[i] - df_1year.index[i-1]).days
-            if diff > 1:
-                dates_diff.append((df_1year.index[i-1], df_1year.index[i], diff))
-        
-        if dates_diff:
-            st.write(f"1일 초과 간격: {len(dates_diff)}개")
-            if st.checkbox("간격 상세 보기"):
-                for start, end, diff in dates_diff[:5]:  # 처음 5개만
-                    st.write(f"  {start.date()} → {end.date()} ({diff}일 간격)")
-
-    else:
-        st.error("df_1year 데이터가 로드되지 않았습니다. 먼저 데이터를 로드해주세요.")
-
-    # 해결 방안 제시
-    st.markdown("## 💡 가능한 해결 방안")
-
-    st.info("""
-    **불일치 원인:**
-    1. **시그마 계산 시점**: 전체 기간 vs 롤링 윈도우
-    2. **데이터 범위**: 정확히 같은 날짜 범위인지
-    3. **경계값 처리**: <= vs < 차이
-    4. **매수 로직**: 누적 vs 독립 카운트
-
-    **해결 방법:**
-    1. 동일한 데이터 소스 사용 확인
-    2. 시그마 계산 방식 통일
-    3. 매수 조건 명확히 정의
-    4. 디버깅 로그 추가하여 각 매수 시점 기록
-    """)
