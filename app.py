@@ -194,41 +194,48 @@ class StockAnalyzer:
             today = datetime.now()
             
             if stock_type == 'KR':
-                # 한국 주식 - 전일 종가 명시적으로 가져오기
-                # 주말과 공휴일을 고려하여 최근 거래일 찾기
-                for i in range(1, 10):  # 최대 10일 전까지 확인
+                # 한국 주식 - 현재 시간이 장 마감 후라면 오늘 데이터도 포함
+                market_close_time = today.replace(hour=15, minute=30, second=0, microsecond=0)
+                
+                # 장 마감 후라면 오늘 데이터부터 확인
+                if today > market_close_time:
+                    start_days_back = 0  # 오늘부터 확인
+                else:
+                    start_days_back = 1  # 어제부터 확인
+                
+                # 최근 거래일 찾기 (주말과 공휴일 고려)
+                for i in range(start_days_back, 10):  # 최대 10일 전까지 확인
                     check_date = today - timedelta(days=i)
-                    df = stock.get_market_ohlcv_by_date(
-                        fromdate=check_date.strftime('%Y%m%d'),
-                        todate=check_date.strftime('%Y%m%d'),
-                        ticker=symbol
-                    )
-                    if not df.empty:
-                        return df['종가'].iloc[-1], check_date
+                    try:
+                        df = stock.get_market_ohlcv_by_date(
+                            fromdate=check_date.strftime('%Y%m%d'),
+                            todate=check_date.strftime('%Y%m%d'),
+                            ticker=symbol
+                        )
+                        if not df.empty:
+                            return df['종가'].iloc[-1], check_date
+                    except Exception as e:
+                        continue
             else:
-                # 미국 주식 - yfinance의 previous close 사용
+                # 미국 주식 로직은 그대로 유지
                 ticker = yf.Ticker(symbol)
                 info = ticker.info
                 
                 if 'regularMarketPreviousClose' in info and info['regularMarketPreviousClose']:
-                    # history에서 날짜 확인
                     hist = ticker.history(period='5d')
                     if not hist.empty and len(hist) > 1:
-                        # 마지막에서 두 번째 날짜가 전일
                         prev_date = hist.index[-2].date() if len(hist) > 1 else hist.index[-1].date()
                         return info['regularMarketPreviousClose'], prev_date
                 
-                # info에서 못 구하면 history 사용
                 hist = ticker.history(period='1mo')
                 if not hist.empty:
-                    # 오늘 데이터 제외하고 마지막 거래일
                     today_str = today.strftime('%Y-%m-%d')
                     hist_filtered = hist[hist.index.strftime('%Y-%m-%d') < today_str]
                     if not hist_filtered.empty:
                         last_close = hist_filtered['Close'].iloc[-1]
                         last_date = hist_filtered.index[-1].date()
                         return last_close, last_date
-                        
+                            
         except Exception as e:
             st.warning(f"전일 종가 가져오기 실패 ({symbol}): {e}")
         
@@ -264,13 +271,19 @@ class StockAnalyzer:
         """주식 데이터 가져오기"""
         try:
             if stock_type == 'KR':
-                # 한국 주식 - 오늘 데이터는 제외하고 가져오기
+                # 한국 주식 - 장 마감 시간 확인
                 today = datetime.now()
-                yesterday = today - timedelta(days=1)
+                market_close_time = today.replace(hour=15, minute=30, second=0, microsecond=0)
+                
+                # 장 마감 후라면 오늘까지, 장중이라면 어제까지
+                if today > market_close_time:
+                    end_date = today  # 오늘까지 포함
+                else:
+                    end_date = today - timedelta(days=1)  # 어제까지만
                 
                 df = stock.get_market_ohlcv_by_date(
                     fromdate=(today - timedelta(days=365*5)).strftime('%Y%m%d'),
-                    todate=yesterday.strftime('%Y%m%d'),  # 어제까지만
+                    todate=end_date.strftime('%Y%m%d'),
                     ticker=symbol
                 )
             
@@ -292,7 +305,7 @@ class StockAnalyzer:
                 df['Returns'] = df['Close'].pct_change() * 100
                 
             else:
-                # 미국 주식
+                # 미국 주식 로직은 그대로 유지
                 ticker = yf.Ticker(symbol)
                 df = ticker.history(period='5y')
                 
@@ -372,23 +385,65 @@ class StockAnalyzer:
         try:
             if stock_type == 'KR':
                 # 한국 주식 현재가
-                today = datetime.now().strftime('%Y%m%d')
+                today = datetime.now()
+                market_close_time = today.replace(hour=15, minute=30, second=0, microsecond=0)
+                
+                # 장중이면 실시간 가격, 장 마감 후면 종가
+                today_str = today.strftime('%Y%m%d')
                 price = stock.get_market_ohlcv_by_date(
-                    fromdate=today,
-                    todate=today,
+                    fromdate=today_str,
+                    todate=today_str,
                     ticker=symbol
                 )
                 if not price.empty:
-                    return price['종가'].iloc[-1], price['전일대비'].iloc[-1]
+                    current_price = price['종가'].iloc[-1]
+                    # 전일 종가와 비교
+                    yesterday = today - timedelta(days=1)
+                    yesterday_price = stock.get_market_ohlcv_by_date(
+                        fromdate=yesterday.strftime('%Y%m%d'),
+                        todate=yesterday.strftime('%Y%m%d'),
+                        ticker=symbol
+                    )
+                    if not yesterday_price.empty:
+                        prev_close = yesterday_price['종가'].iloc[-1]
+                        change_pct = ((current_price - prev_close) / prev_close) * 100
+                        return current_price, change_pct
+                    return current_price, 0
             else:
-                # 미국 주식 현재가
+                # 미국 주식 현재가 - 시간대 고려
+                import pytz
+                
+                # 미국 동부시간으로 변환
+                et_tz = pytz.timezone('US/Eastern')
+                now_et = today.astimezone(et_tz) if today.tzinfo else pytz.timezone('Asia/Seoul').localize(today).astimezone(et_tz)
+                
+                # 미국 장 시간 확인
+                market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+                market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+                is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
+                
                 ticker = yf.Ticker(symbol)
-                info = ticker.info
-                if 'regularMarketPrice' in info and info['regularMarketPrice']:
-                    current = info['regularMarketPrice']
-                    previous = info.get('regularMarketPreviousClose', current)
-                    change = ((current - previous) / previous) * 100 if previous else 0
-                    return current, change
+                
+                if is_market_open:
+                    # 장중이면 실시간 가격
+                    info = ticker.info
+                    if 'regularMarketPrice' in info and info['regularMarketPrice']:
+                        current = info['regularMarketPrice']
+                        previous = info.get('regularMarketPreviousClose', current)
+                        change = ((current - previous) / previous) * 100 if previous else 0
+                        return current, change
+                else:
+                    # 장 마감 후면 최근 종가
+                    hist = ticker.history(period='5d')
+                    if not hist.empty:
+                        # 최근 2거래일 비교
+                        if len(hist) >= 2:
+                            current_close = hist['Close'].iloc[-1]
+                            prev_close = hist['Close'].iloc[-2]
+                            change = ((current_close - prev_close) / prev_close) * 100
+                            return current_close, change
+                        else:
+                            return hist['Close'].iloc[-1], 0
             
             return None, None
             
