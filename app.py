@@ -12,6 +12,7 @@ import time
 import warnings
 import gspread
 from google.oauth2.service_account import Credentials
+import pytz
 warnings.filterwarnings('ignore')
 
 # 페이지 설정
@@ -189,23 +190,25 @@ class StockAnalyzer:
         pass
     
     def get_accurate_last_close(self, symbol, stock_type='KR'):
-        """정확한 전일 종가와 날짜 가져오기"""
+        """정확한 기준 종가와 날짜 가져오기 (시간대 고려)"""
         try:
-            today = datetime.now()
-            
             if stock_type == 'KR':
-                # 한국 주식 - 현재 시간이 장 마감 후라면 오늘 데이터도 포함
-                market_close_time = today.replace(hour=15, minute=30, second=0, microsecond=0)
+                # 한국 주식 - 한국 시간 기준
+                kst = pytz.timezone('Asia/Seoul')
+                now_kst = datetime.now(kst)
                 
-                # 장 마감 후라면 오늘 데이터부터 확인
-                if today > market_close_time:
+                # 한국 장 마감 시간 (오후 3:30)
+                market_close_time = now_kst.replace(hour=15, minute=30, second=0, microsecond=0)
+                
+                # 장 마감 후라면 오늘 데이터부터 확인, 장중이라면 어제부터 확인
+                if now_kst > market_close_time:
                     start_days_back = 0  # 오늘부터 확인
                 else:
                     start_days_back = 1  # 어제부터 확인
                 
                 # 최근 거래일 찾기 (주말과 공휴일 고려)
                 for i in range(start_days_back, 10):  # 최대 10일 전까지 확인
-                    check_date = today - timedelta(days=i)
+                    check_date = now_kst - timedelta(days=i)
                     try:
                         df = stock.get_market_ohlcv_by_date(
                             fromdate=check_date.strftime('%Y%m%d'),
@@ -217,27 +220,35 @@ class StockAnalyzer:
                     except Exception as e:
                         continue
             else:
-                # 미국 주식 로직은 그대로 유지
+                # 미국 주식 - 미국 동부시간 기준
+                et_tz = pytz.timezone('US/Eastern')
+                now_et = datetime.now(et_tz)
+                
+                # 미국 장 시간 (동부시간 기준: 9:30 AM - 4:00 PM)
+                market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+                market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+                
                 ticker = yf.Ticker(symbol)
-                info = ticker.info
-                
-                if 'regularMarketPreviousClose' in info and info['regularMarketPreviousClose']:
-                    hist = ticker.history(period='5d')
-                    if not hist.empty and len(hist) > 1:
-                        prev_date = hist.index[-2].date() if len(hist) > 1 else hist.index[-1].date()
-                        return info['regularMarketPreviousClose'], prev_date
-                
                 hist = ticker.history(period='1mo')
+                
                 if not hist.empty:
-                    today_str = today.strftime('%Y-%m-%d')
-                    hist_filtered = hist[hist.index.strftime('%Y-%m-%d') < today_str]
+                    # 현재 시간이 장중인지 확인 (평일 9:30-16:00)
+                    is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
+                    
+                    if is_market_open:
+                        # 장중이면 전일 종가 사용
+                        hist_filtered = hist[hist.index.date < now_et.date()]
+                    else:
+                        # 장 마감 후거나 주말이면 최근 거래일 종가 사용
+                        hist_filtered = hist[hist.index.date <= now_et.date()]
+                    
                     if not hist_filtered.empty:
                         last_close = hist_filtered['Close'].iloc[-1]
-                        last_date = hist_filtered.index[-1].date()
+                        last_date = hist_filtered.index[-1]
                         return last_close, last_date
-                            
+                        
         except Exception as e:
-            st.warning(f"전일 종가 가져오기 실패 ({symbol}): {e}")
+            st.warning(f"기준 종가 가져오기 실패 ({symbol}): {e}")
         
         return None, None
     
@@ -268,21 +279,22 @@ class StockAnalyzer:
             return None, None
     
     def get_stock_data(self, symbol, stock_type='KR'):
-        """주식 데이터 가져오기"""
+        """주식 데이터 가져오기 (시간대 고려)"""
         try:
             if stock_type == 'KR':
-                # 한국 주식 - 장 마감 시간 확인
-                today = datetime.now()
-                market_close_time = today.replace(hour=15, minute=30, second=0, microsecond=0)
+                # 한국 주식 - 한국 시간 기준
+                kst = pytz.timezone('Asia/Seoul')
+                now_kst = datetime.now(kst)
+                market_close_time = now_kst.replace(hour=15, minute=30, second=0, microsecond=0)
                 
                 # 장 마감 후라면 오늘까지, 장중이라면 어제까지
-                if today > market_close_time:
-                    end_date = today  # 오늘까지 포함
+                if now_kst > market_close_time:
+                    end_date = now_kst  # 오늘까지 포함
                 else:
-                    end_date = today - timedelta(days=1)  # 어제까지만
+                    end_date = now_kst - timedelta(days=1)  # 어제까지만
                 
                 df = stock.get_market_ohlcv_by_date(
-                    fromdate=(today - timedelta(days=365*5)).strftime('%Y%m%d'),
+                    fromdate=(now_kst - timedelta(days=365*5)).strftime('%Y%m%d'),
                     todate=end_date.strftime('%Y%m%d'),
                     ticker=symbol
                 )
@@ -305,14 +317,28 @@ class StockAnalyzer:
                 df['Returns'] = df['Close'].pct_change() * 100
                 
             else:
-                # 미국 주식 로직은 그대로 유지
+                # 미국 주식 - 미국 동부시간 기준
+                et_tz = pytz.timezone('US/Eastern')
+                now_et = datetime.now(et_tz)
+                
+                # 미국 장 시간 확인
+                market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+                market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+                is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
+                
                 ticker = yf.Ticker(symbol)
                 df = ticker.history(period='5y')
                 
-                # 오늘 데이터가 있으면 제외
-                today = datetime.now().date()
-                if not df.empty and df.index[-1].date() == today:
-                    df = df[:-1]
+                if not df.empty:
+                    if is_market_open:
+                        # 장중이면 전일까지의 데이터만
+                        df_filtered = df[df.index.date < now_et.date()]
+                    else:
+                        # 장 마감 후거나 주말이면 최근 거래일까지 포함
+                        df_filtered = df[df.index.date <= now_et.date()]
+                    
+                    if not df_filtered.empty:
+                        df = df_filtered
                 
                 if df.empty:
                     return None
@@ -381,15 +407,14 @@ class StockAnalyzer:
             return None
     
     def get_current_price(self, symbol, stock_type='KR'):
-        """현재가 가져오기"""
+        """현재가 가져오기 (시간대 고려)"""
         try:
             if stock_type == 'KR':
                 # 한국 주식 현재가
-                today = datetime.now()
-                market_close_time = today.replace(hour=15, minute=30, second=0, microsecond=0)
+                kst = pytz.timezone('Asia/Seoul')
+                now_kst = datetime.now(kst)
+                today_str = now_kst.strftime('%Y%m%d')
                 
-                # 장중이면 실시간 가격, 장 마감 후면 종가
-                today_str = today.strftime('%Y%m%d')
                 price = stock.get_market_ohlcv_by_date(
                     fromdate=today_str,
                     todate=today_str,
@@ -398,7 +423,7 @@ class StockAnalyzer:
                 if not price.empty:
                     current_price = price['종가'].iloc[-1]
                     # 전일 종가와 비교
-                    yesterday = today - timedelta(days=1)
+                    yesterday = now_kst - timedelta(days=1)
                     yesterday_price = stock.get_market_ohlcv_by_date(
                         fromdate=yesterday.strftime('%Y%m%d'),
                         todate=yesterday.strftime('%Y%m%d'),
@@ -411,11 +436,8 @@ class StockAnalyzer:
                     return current_price, 0
             else:
                 # 미국 주식 현재가 - 시간대 고려
-                import pytz
-                
-                # 미국 동부시간으로 변환
                 et_tz = pytz.timezone('US/Eastern')
-                now_et = today.astimezone(et_tz) if today.tzinfo else pytz.timezone('Asia/Seoul').localize(today).astimezone(et_tz)
+                now_et = datetime.now(et_tz)
                 
                 # 미국 장 시간 확인
                 market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
@@ -478,6 +500,58 @@ with st.sidebar:
         
         if load_stocks_from_sheets():
             st.rerun()
+    
+    # 강제 새로고침 버튼 추가
+    if st.button("🔄 데이터 강제 새로고침", use_container_width=True, help="모든 캐시를 지우고 최신 데이터로 업데이트"):
+        # 모든 캐시 무효화
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        
+        # 세션 상태 초기화
+        if 'current_analysis' in st.session_state:
+            del st.session_state.current_analysis
+        
+        # 모니터링 종목들의 데이터 다시 로드
+        if st.session_state.monitoring_stocks:
+            analyzer = StockAnalyzer()
+            updated_stocks = {}
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for idx, (symbol, info) in enumerate(st.session_state.monitoring_stocks.items()):
+                status_text.text(f"업데이트 중: {info['name']} ({symbol})")
+                progress_bar.progress((idx + 1) / len(st.session_state.monitoring_stocks))
+                
+                try:
+                    # 최신 데이터 가져오기
+                    df = analyzer.get_stock_data(symbol, info['type'])
+                    if df is not None:
+                        stats = analyzer.calculate_sigma_levels(df)
+                        # 정확한 기준 종가 가져오기
+                        base_close, base_date = analyzer.get_accurate_last_close(symbol, info['type'])
+                        if base_close:
+                            stats['base_close'] = base_close
+                            stats['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
+                        
+                        updated_stocks[symbol] = {
+                            'name': info['name'],
+                            'type': info['type'],
+                            'stats': stats,
+                            'df': df
+                        }
+                except Exception as e:
+                    st.warning(f"{symbol} 업데이트 실패: {e}")
+                    updated_stocks[symbol] = info  # 기존 정보 유지
+            
+            progress_bar.empty()
+            status_text.empty()
+            
+            # 업데이트된 정보로 교체
+            st.session_state.monitoring_stocks = updated_stocks
+            
+        st.success("✅ 모든 데이터가 최신으로 업데이트되었습니다!")
+        st.rerun()
     
     if st.session_state.monitoring_stocks:
         if st.button("💾 Google Sheets 저장", use_container_width=True):
@@ -591,42 +665,120 @@ with tab1:
         # 주요 지표
         col_a, col_b, col_c, col_d = st.columns(4)
         with col_a:
-            current_price, price_change = analyzer.get_current_price(analysis['symbol'], analysis['type'])
-            if current_price:
+            # 현재가 가져오기 (수정된 부분)
+            current_price = None
+            price_change = None
+            
+            try:
+                if analysis['type'] == 'KR':
+                    # 한국 주식 현재가
+                    kst = pytz.timezone('Asia/Seoul')
+                    now_kst = datetime.now(kst)
+                    
+                    # 주말 체크
+                    if now_kst.weekday() >= 5:  # 토요일(5) 또는 일요일(6)
+                        # 주말에는 금요일 종가 표시
+                        current_price = base_close
+                        price_change = 0
+                    else:
+                        # 평일: 오늘 데이터 확인
+                        today_str = now_kst.strftime('%Y%m%d')
+                        today_data = stock.get_market_ohlcv_by_date(
+                            fromdate=today_str,
+                            todate=today_str,
+                            ticker=analysis['symbol']
+                        )
+                        
+                        if not today_data.empty:
+                            # 오늘 데이터가 있으면 (장중 또는 장마감)
+                            current_price = today_data['종가'].iloc[-1]
+                            # 기준 종가 대비 변화율
+                            price_change = ((current_price - base_close) / base_close) * 100
+                        else:
+                            # 오늘 데이터가 없으면 (장 시작 전 또는 휴장)
+                            current_price = base_close
+                            price_change = 0
+                else:
+                    # 미국 주식 - 전날 종가 기준 사용
+                    et_tz = pytz.timezone('US/Eastern')
+                    now_et = datetime.now(et_tz)
+                    
+                    # 주말 체크
+                    if now_et.weekday() >= 5:  # 토요일(5) 또는 일요일(6)
+                        # 주말에는 금요일 종가 표시
+                        current_price = base_close
+                        price_change = 0
+                    else:
+                        # 평일: 최근 거래일 종가 확인
+                        ticker = yf.Ticker(analysis['symbol'])
+                        hist = ticker.history(period='5d')
+                        
+                        if not hist.empty:
+                            # 가장 최근 종가 사용
+                            latest_close = hist['Close'].iloc[-1]
+                            latest_date = hist.index[-1].date()
+                            
+                            # base_date와 비교
+                            if base_date:
+                                base_date_obj = datetime.strptime(base_date, '%Y-%m-%d').date()
+                                if latest_date > base_date_obj:
+                                    # 새로운 거래일 데이터가 있으면 업데이트
+                                    current_price = latest_close
+                                    price_change = ((current_price - base_close) / base_close) * 100
+                                else:
+                                    # 같은 날이면 변화 없음
+                                    current_price = base_close
+                                    price_change = 0
+                            else:
+                                current_price = latest_close
+                                price_change = ((current_price - base_close) / base_close) * 100
+                        else:
+                            current_price = base_close
+                            price_change = 0
+                            
+            except Exception as e:
+                # 오류 발생 시 기준 종가 표시
+                current_price = base_close
+                price_change = 0
+            
+            # 가격 표시
+            if current_price and current_price != base_close:
+                # 현재가와 기준 종가가 다르면 현재가 표시
                 if analysis['type'] == 'KR':
                     st.metric("현재가", f"₩{current_price:,.0f}", f"{price_change:+.2f}%")
                 else:
                     st.metric("현재가", f"${current_price:,.2f}", f"{price_change:+.2f}%")
             else:
+                # 현재가를 가져올 수 없으면 기준 종가 표시
                 if analysis['type'] == 'KR':
                     st.metric("기준 종가", f"₩{base_close:,.0f}")
-                    if base_date:
-                        st.caption(f"기준일: {base_date}")
                 else:
                     st.metric("기준 종가", f"${base_close:,.2f}")
-                    if base_date:
-                        st.caption(f"기준일: {base_date}")
+                if base_date:
+                    st.caption(f"기준일: {base_date}")
+                    
         with col_b:
             st.metric("평균 수익률", f"{analysis['stats']['mean']:.2f}%")
         with col_c:
             st.metric("표준편차", f"{analysis['stats']['std']:.2f}%")
         with col_d:
             # 현재 변화율과 시그마 레벨 비교
-            if current_price:
-                change_pct = ((current_price - base_close) / base_close) * 100
-                if change_pct <= analysis['stats']['3sigma']:
+            if current_price and price_change is not None:
+                if price_change <= analysis['stats']['3sigma']:
                     level = "3σ 돌파!"
                     delta_color = "inverse"
-                elif change_pct <= analysis['stats']['2sigma']:
+                elif price_change <= analysis['stats']['2sigma']:
                     level = "2σ 돌파!"
                     delta_color = "inverse"
-                elif change_pct <= analysis['stats']['1sigma']:
+                elif price_change <= analysis['stats']['1sigma']:
                     level = "1σ 돌파!"
                     delta_color = "inverse"
                 else:
                     level = "정상"
                     delta_color = "normal"
-                st.metric("현재 상태", level, f"{change_pct:+.2f}%", delta_color=delta_color)
+                st.metric("현재 상태", level, f"{price_change:+.2f}%", delta_color=delta_color)
+            else:
+                st.metric("현재 상태", "데이터 없음", "")
         
         # 시그마 하락시 가격 표시
         st.markdown("---")
@@ -878,19 +1030,44 @@ with tab2:
     2. 시그마 레벨 도달 시 텔레그램 알림
     """)
 
-    # 새로고침 버튼
+    # 새로고침 버튼 - 더 완벽한 업데이트
     if st.button("🔄 새로고침", use_container_width=True):
-        # 모든 종목 데이터 업데이트
         analyzer = StockAnalyzer()
-        for symbol, info in st.session_state.monitoring_stocks.items():
-            try:
-                # 정확한 전일 종가 가져오기
-                base_close, base_date = analyzer.get_accurate_last_close(symbol, info['type'])
-                if base_close:
-                    info['stats']['base_close'] = base_close
-                    info['stats']['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
-            except Exception as e:
-                st.warning(f"{symbol} 업데이트 실패: {e}")
+        update_count = 0
+        
+        with st.spinner('모든 종목 데이터를 업데이트 중...'):
+            for symbol, info in st.session_state.monitoring_stocks.items():
+                try:
+                    # 최신 데이터 가져오기
+                    df = analyzer.get_stock_data(symbol, info['type'])
+                    if df is not None:
+                        # 시그마 레벨 재계산
+                        stats = analyzer.calculate_sigma_levels(df)
+                        
+                        # 정확한 기준 종가 가져오기
+                        base_close, base_date = analyzer.get_accurate_last_close(symbol, info['type'])
+                        
+                        if base_close:
+                            stats['base_close'] = base_close
+                            stats['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
+                        else:
+                            # 기준 종가를 못 가져오면 데이터프레임의 마지막 값 사용
+                            stats['base_close'] = df['Close'].iloc[-1]
+                            stats['base_date'] = df.index[-1].strftime('%Y-%m-%d')
+                        
+                        # 업데이트된 정보 저장
+                        info['stats'] = stats
+                        info['df'] = df
+                        update_count += 1
+                        
+                except Exception as e:
+                    st.warning(f"{symbol} 업데이트 실패: {e}")
+        
+        if update_count > 0:
+            # Google Sheets에도 저장
+            save_stocks_to_sheets()
+            st.success(f"✅ {update_count}개 종목이 최신 데이터로 업데이트되었습니다!")
+        
         st.rerun()
         
     # 현재가 표시 - 새로운 표 형식
@@ -971,18 +1148,27 @@ with tab2:
                                     stock_info = st.session_state.monitoring_stocks[symbol]
                                     analyzer = StockAnalyzer()
                                     
-                                    # 종목 데이터 가져오기
+                                    # 최신 데이터로 업데이트
                                     df = analyzer.get_stock_data(symbol, stock_info['type'])
                                     if df is not None:
+                                        # 시그마 레벨 재계산
+                                        stats = analyzer.calculate_sigma_levels(df)
+                                        
+                                        # 정확한 기준 종가 가져오기
+                                        base_close, base_date = analyzer.get_accurate_last_close(symbol, stock_info['type'])
+                                        if base_close:
+                                            stats['base_close'] = base_close
+                                            stats['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
+                                        
                                         # 분석 결과를 세션에 저장
                                         st.session_state.current_analysis = {
                                             'symbol': symbol,
                                             'name': stock_info['name'],
                                             'type': stock_info['type'],
                                             'df': df,
-                                            'stats': stock_info['stats']
+                                            'stats': stats
                                         }
-                                        st.success(f"{selected_stock['종목']} 분석 데이터가 로드되었습니다!")
+                                        st.success(f"{selected_stock['종목']} 분석 데이터가 최신으로 로드되었습니다!")
                                         st.rerun()
                         
                         with col_delete:
@@ -1063,18 +1249,27 @@ with tab2:
                                     stock_info = st.session_state.monitoring_stocks[symbol]
                                     analyzer = StockAnalyzer()
                                     
-                                    # 종목 데이터 가져오기
+                                    # 최신 데이터로 업데이트
                                     df = analyzer.get_stock_data(symbol, stock_info['type'])
                                     if df is not None:
+                                        # 시그마 레벨 재계산
+                                        stats = analyzer.calculate_sigma_levels(df)
+                                        
+                                        # 정확한 기준 종가 가져오기
+                                        base_close, base_date = analyzer.get_accurate_last_close(symbol, stock_info['type'])
+                                        if base_close:
+                                            stats['base_close'] = base_close
+                                            stats['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
+                                        
                                         # 분석 결과를 세션에 저장
                                         st.session_state.current_analysis = {
                                             'symbol': symbol,
                                             'name': stock_info['name'],
                                             'type': stock_info['type'],
                                             'df': df,
-                                            'stats': stock_info['stats']
+                                            'stats': stats
                                         }
-                                        st.success(f"{selected_stock['종목']} 분석 데이터가 로드되었습니다!")
+                                        st.success(f"{selected_stock['종목']} 분석 데이터가 최신으로 로드되었습니다!")
                                         st.rerun()
                         
                         with col_delete:
