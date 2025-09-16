@@ -86,7 +86,52 @@ def save_stocks_to_sheets():
         for symbol, info in st.session_state.monitoring_stocks.items():
             # 기준 날짜와 종가 정보 추출
             base_date = info['stats'].get('base_date', '')
-            base_close = info['stats'].get('base_close', info['stats']['last_close'])
+            base_close = info['stats'].get('base_close', info['stats'].get('last_close', 0))
+            
+            row = [symbol, info['name'], info['type'], base_date, str(base_close)]
+            worksheet.append_row(row)
+        
+        st.success("✅ Google Sheets에 저장 완료!")
+        return True
+        
+    except Exception as e:
+        st.error(f"Google Sheets 저장 실패: {e}")
+        return False
+
+def save_stocks_to_sheets():
+    """모니터링 종목을 Google Sheets에 저장"""
+    try:
+        client = get_google_sheets_client()
+        if not client:
+            return False
+        
+        # 스프레드시트 열기 (없으면 생성)
+        try:
+            spreadsheet = client.open(SPREADSHEET_NAME)
+        except gspread.SpreadsheetNotFound:
+            # 스프레드시트 생성 시도
+            try:
+                spreadsheet = client.create(SPREADSHEET_NAME)
+                st.success("✅ 새 Google Sheets 문서가 생성되었습니다!")
+            except Exception as e:
+                st.error(f"스프레드시트 생성 실패: {e}")
+                st.info("수동으로 'stock-monitoring' 스프레드시트를 생성하고 서비스 계정과 공유해주세요.")
+                st.info("서비스 계정 이메일: sheets-writer@gen-lang-client-0213805963.iam.gserviceaccount.com")
+                return False
+        
+        # 첫 번째 시트 선택
+        worksheet = spreadsheet.sheet1
+        
+        # 헤더 설정 - 기준 날짜와 종가 추가
+        headers = ['종목코드', '종목명', '타입', '기준날짜', '기준종가']
+        worksheet.clear()
+        worksheet.append_row(headers)
+        
+        # 데이터 추가
+        for symbol, info in st.session_state.monitoring_stocks.items():
+            # 기준 날짜와 종가 정보 추출
+            base_date = info['stats'].get('base_date', '')
+            base_close = info['stats'].get('base_close', info['stats'].get('last_close', 0))
             
             row = [symbol, info['name'], info['type'], base_date, str(base_close)]
             worksheet.append_row(row)
@@ -111,7 +156,6 @@ def load_stocks_from_sheets():
             worksheet = spreadsheet.sheet1
             
             # 모든 값 가져오기
-            worksheet = spreadsheet.get_worksheet(0)
             all_values = worksheet.get_all_values()
             
             if len(all_values) <= 1:  # 헤더만 있거나 빈 경우
@@ -120,21 +164,42 @@ def load_stocks_from_sheets():
             
             # 헤더 제외하고 데이터 처리
             stocks = {}
-            for row in all_values[1:]:  # 헤더 제외
+            for row_idx, row in enumerate(all_values[1:], start=1):  # 헤더 제외
                 if len(row) >= 3:
-                    symbol = row[0]
-                    name = row[1]
-                    stock_type = row[2]
-                    # 기준 날짜와 종가 정보 (있으면)
-                    base_date = row[3] if len(row) > 3 else None
-                    base_close = float(row[4]) if len(row) > 4 and row[4] else None
-                    
-                    stocks[symbol] = {
-                        'name': name,
-                        'type': stock_type,
-                        'saved_base_date': base_date,
-                        'saved_base_close': base_close
-                    }
+                    try:
+                        symbol = row[0]
+                        name = row[1]
+                        stock_type = row[2]
+                        
+                        # 빈 행 건너뛰기
+                        if not symbol or not name:
+                            continue
+                        
+                        # 기준 날짜와 종가 정보 (있으면)
+                        base_date = row[3] if len(row) > 3 and row[3] else None
+                        
+                        # 기준종가 안전하게 변환
+                        base_close = None
+                        if len(row) > 4 and row[4]:
+                            try:
+                                # 문자열이 숫자로 변환 가능한지 확인
+                                base_close_str = row[4].replace(',', '')  # 쉼표 제거
+                                if base_close_str and base_close_str != '기준종가':  # 헤더 텍스트 제외
+                                    base_close = float(base_close_str)
+                            except (ValueError, AttributeError):
+                                # 변환 실패 시 None으로 유지
+                                pass
+                        
+                        stocks[symbol] = {
+                            'name': name,
+                            'type': stock_type,
+                            'saved_base_date': base_date,
+                            'saved_base_close': base_close
+                        }
+                        
+                    except Exception as e:
+                        st.warning(f"행 {row_idx + 1} 처리 중 오류 (무시하고 계속): {e}")
+                        continue
             
             if stocks:
                 # 분석기로 현재 가격 정보 추가
@@ -150,13 +215,23 @@ def load_stocks_from_sheets():
                         df = analyzer.get_stock_data(symbol, info['type'])
                         if df is not None:
                             stats = analyzer.calculate_sigma_levels(df)
-                            # 정확한 전일 종가 가져오기
+                            
+                            # 정확한 기준 종가 가져오기
                             base_close, base_date = analyzer.get_accurate_last_close(symbol, info['type'])
+                            
                             if base_close:
                                 stats['base_close'] = base_close
                                 stats['base_date'] = base_date.strftime('%Y-%m-%d') if base_date else ''
+                            else:
+                                # get_accurate_last_close 실패 시 데이터프레임의 마지막 값 사용
+                                stats['base_close'] = df['Close'].iloc[-1] if not df.empty else 0
+                                stats['base_date'] = df.index[-1].strftime('%Y-%m-%d') if not df.empty else ''
+                            
                             info['stats'] = stats
                             info['df'] = df
+                        else:
+                            st.warning(f"{symbol}: 데이터를 가져올 수 없습니다.")
+                            
                     except Exception as e:
                         st.warning(f"{symbol} 데이터 로드 실패: {e}")
                 
@@ -172,6 +247,10 @@ def load_stocks_from_sheets():
                 st.cache_data.clear()
                 
                 st.success(f"✅ Google Sheets에서 {len(stocks)}개 종목을 불러왔습니다!")
+                
+                # 불러온 후 바로 업데이트된 데이터로 다시 저장 (기준일 업데이트)
+                save_stocks_to_sheets()
+                
                 return True
             else:
                 st.info("Google Sheets에 저장된 종목이 없습니다.")
