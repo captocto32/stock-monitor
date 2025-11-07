@@ -98,51 +98,6 @@ def save_stocks_to_sheets():
         st.error(f"Google Sheets 저장 실패: {e}")
         return False
 
-def save_stocks_to_sheets():
-    """모니터링 종목을 Google Sheets에 저장"""
-    try:
-        client = get_google_sheets_client()
-        if not client:
-            return False
-        
-        # 스프레드시트 열기 (없으면 생성)
-        try:
-            spreadsheet = client.open(SPREADSHEET_NAME)
-        except gspread.SpreadsheetNotFound:
-            # 스프레드시트 생성 시도
-            try:
-                spreadsheet = client.create(SPREADSHEET_NAME)
-                st.success("✅ 새 Google Sheets 문서가 생성되었습니다!")
-            except Exception as e:
-                st.error(f"스프레드시트 생성 실패: {e}")
-                st.info("수동으로 'stock-monitoring' 스프레드시트를 생성하고 서비스 계정과 공유해주세요.")
-                st.info("서비스 계정 이메일: sheets-writer@gen-lang-client-0213805963.iam.gserviceaccount.com")
-                return False
-        
-        # 첫 번째 시트 선택
-        worksheet = spreadsheet.sheet1
-        
-        # 헤더 설정 - 기준 날짜와 종가 추가
-        headers = ['종목코드', '종목명', '타입', '기준날짜', '기준종가']
-        worksheet.clear()
-        worksheet.append_row(headers)
-        
-        # 데이터 추가
-        for symbol, info in st.session_state.monitoring_stocks.items():
-            # 기준 날짜와 종가 정보 추출
-            base_date = info['stats'].get('base_date', '')
-            base_close = info['stats'].get('base_close', info['stats'].get('last_close', 0))
-            
-            row = [symbol, info['name'], info['type'], base_date, str(base_close)]
-            worksheet.append_row(row)
-        
-        st.success("✅ Google Sheets에 저장 완료!")
-        return True
-        
-    except Exception as e:
-        st.error(f"Google Sheets 저장 실패: {e}")
-        return False
-
 def load_stocks_from_sheets():
     """Google Sheets에서 모니터링 종목 불러오기"""
     try:
@@ -350,7 +305,7 @@ class StockAnalyzer:
             return None, None
     
     def get_stock_data(self, symbol, stock_type='KR'):
-        """주식 데이터 가져오기 (시간대 고려)"""
+        """주식 데이터 가져오기 (시간대 고려) - 10년 데이터"""
         try:
             if stock_type == 'KR':
                 # 한국 주식 - 한국 시간 기준
@@ -365,7 +320,7 @@ class StockAnalyzer:
                     end_date = now_kst - timedelta(days=1)  # 어제까지만
                 
                 df = stock.get_market_ohlcv_by_date(
-                    fromdate=(now_kst - timedelta(days=365*5)).strftime('%Y%m%d'),
+                    fromdate=(now_kst - timedelta(days=365*10)).strftime('%Y%m%d'),
                     todate=end_date.strftime('%Y%m%d'),
                     ticker=symbol
                 )
@@ -398,7 +353,7 @@ class StockAnalyzer:
                 is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
                 
                 ticker = yf.Ticker(symbol)
-                df = ticker.history(period='5y')
+                df = ticker.history(period='10y')
                 
                 if not df.empty:
                     if is_market_open:
@@ -423,7 +378,7 @@ class StockAnalyzer:
             return None
     
     def calculate_sigma_levels(self, df):
-        """시그마 레벨 계산"""
+        """시그마 레벨 계산 (10년, 5년, 1년)"""
         try:
             if df is None or df.empty:
                 return None
@@ -433,7 +388,7 @@ class StockAnalyzer:
             if len(returns) < 10:
                 return None
             
-            # 기본 통계
+            # 전체 데이터(10년) 통계
             mean = returns.mean()
             std = returns.std()
             
@@ -444,6 +399,21 @@ class StockAnalyzer:
             
             # 마지막 종가 (데이터프레임의 마지막 값)
             last_close = df['Close'].iloc[-1]
+            
+            # 5년 데이터로 별도 계산
+            if len(df) >= 252 * 5:
+                returns_5y = df['Returns'].tail(252 * 5).dropna()
+                if len(returns_5y) >= 10:
+                    mean_5y = returns_5y.mean()
+                    std_5y = returns_5y.std()
+                    
+                    sigma_1_5y = mean_5y - std_5y
+                    sigma_2_5y = mean_5y - 2 * std_5y
+                    sigma_3_5y = mean_5y - 3 * std_5y
+                else:
+                    sigma_1_5y, sigma_2_5y, sigma_3_5y = sigma_1, sigma_2, sigma_3
+            else:
+                sigma_1_5y, sigma_2_5y, sigma_3_5y = sigma_1, sigma_2, sigma_3
             
             # 1년 데이터로 별도 계산
             if len(df) >= 252:
@@ -466,6 +436,9 @@ class StockAnalyzer:
                 '1sigma': sigma_1,
                 '2sigma': sigma_2,
                 '3sigma': sigma_3,
+                '1sigma_5y': sigma_1_5y,
+                '2sigma_5y': sigma_2_5y,
+                '3sigma_5y': sigma_3_5y,
                 '1sigma_1y': sigma_1_1y,
                 '2sigma_1y': sigma_2_1y,
                 '3sigma_1y': sigma_3_1y,
@@ -901,19 +874,47 @@ with tab1:
         st.markdown("---")
         st.subheader("🎯 하락 알림 기준")
         
-        # 5년과 1년 비교 탭
-        tab_5y, tab_1y = st.tabs(["5년 기준", "1년 기준"])
+        # 10년, 5년, 1년 비교 탭
+        tab_10y, tab_5y, tab_1y = st.tabs(["10년 기준", "5년 기준", "1년 기준"])
+        
+        with tab_10y:
+            # 10년 데이터로 실제 발생 확률 계산
+            returns_10y = analysis['stats']['returns']
+            sigma_1_10y = analysis['stats']['1sigma']
+            sigma_2_10y = analysis['stats']['2sigma']
+            sigma_3_10y = analysis['stats']['3sigma']
+            
+            actual_prob_1_10y = (np.array(returns_10y) <= sigma_1_10y).sum() / len(returns_10y) * 100
+            actual_prob_2_10y = (np.array(returns_10y) <= sigma_2_10y).sum() / len(returns_10y) * 100
+            actual_prob_3_10y = (np.array(returns_10y) <= sigma_3_10y).sum() / len(returns_10y) * 100
+            
+            sigma_df_10y = pd.DataFrame({
+                '레벨': ['1시그마', '2시그마', '3시그마'],
+                '하락률': [f"{sigma_1_10y:.2f}%", f"{sigma_2_10y:.2f}%", f"{sigma_3_10y:.2f}%"],
+                '이론적 확률': ['15.87%', '2.28%', '0.13%'],
+                '실제 발생률': [f"{actual_prob_1_10y:.2f}%", f"{actual_prob_2_10y:.2f}%", f"{actual_prob_3_10y:.2f}%"]
+            })
+            st.dataframe(sigma_df_10y, use_container_width=True, hide_index=True)
         
         with tab_5y:
             # 5년 데이터로 실제 발생 확률 계산
-            returns_5y = analysis['stats']['returns']
-            sigma_1_5y = analysis['stats']['1sigma']
-            sigma_2_5y = analysis['stats']['2sigma']
-            sigma_3_5y = analysis['stats']['3sigma']
-            
-            actual_prob_1_5y = (np.array(returns_5y) <= sigma_1_5y).sum() / len(returns_5y) * 100
-            actual_prob_2_5y = (np.array(returns_5y) <= sigma_2_5y).sum() / len(returns_5y) * 100
-            actual_prob_3_5y = (np.array(returns_5y) <= sigma_3_5y).sum() / len(returns_5y) * 100
+            if len(analysis['stats']['returns']) >= 252 * 5:
+                returns_5y = analysis['stats']['returns'][-252*5:]
+                sigma_1_5y = analysis['stats'].get('1sigma_5y', analysis['stats']['1sigma'])
+                sigma_2_5y = analysis['stats'].get('2sigma_5y', analysis['stats']['2sigma'])
+                sigma_3_5y = analysis['stats'].get('3sigma_5y', analysis['stats']['3sigma'])
+                
+                actual_prob_1_5y = (np.array(returns_5y) <= sigma_1_5y).sum() / len(returns_5y) * 100
+                actual_prob_2_5y = (np.array(returns_5y) <= sigma_2_5y).sum() / len(returns_5y) * 100
+                actual_prob_3_5y = (np.array(returns_5y) <= sigma_3_5y).sum() / len(returns_5y) * 100
+            else:
+                returns_5y = analysis['stats']['returns']
+                sigma_1_5y = analysis['stats']['1sigma']
+                sigma_2_5y = analysis['stats']['2sigma']
+                sigma_3_5y = analysis['stats']['3sigma']
+                actual_prob_1_5y = actual_prob_1_10y
+                actual_prob_2_5y = actual_prob_2_10y
+                actual_prob_3_5y = actual_prob_3_10y
             
             sigma_df_5y = pd.DataFrame({
                 '레벨': ['1시그마', '2시그마', '3시그마'],
@@ -932,7 +933,7 @@ with tab1:
                 actual_prob_2_1y = (np.array(returns_1y) <= sigma_2_1y).sum() / len(returns_1y) * 100
                 actual_prob_3_1y = (np.array(returns_1y) <= sigma_3_1y).sum() / len(returns_1y) * 100
             else:
-                actual_prob_1_1y, actual_prob_2_1y, actual_prob_3_1y = actual_prob_1_5y, actual_prob_2_5y, actual_prob_3_5y
+                actual_prob_1_1y, actual_prob_2_1y, actual_prob_3_1y = actual_prob_1_10y, actual_prob_2_10y, actual_prob_3_10y
             
             sigma_df_1y = pd.DataFrame({
                 '레벨': ['1시그마', '2시그마', '3시그마'],
@@ -942,26 +943,31 @@ with tab1:
             })
             st.dataframe(sigma_df_1y, use_container_width=True, hide_index=True)
         
-        # 연도별 발생 횟수
+        # 연도별 발생 횟수 (최근 10년)
         st.markdown("---")
-        st.subheader("📅 연도별 시그마 하락 발생 횟수")
+        st.subheader("📅 연도별 시그마 하락 발생 횟수 (최근 10년)")
         
         # 연도별 통계 계산
         df_analysis = analysis['df'].copy()
         df_analysis['Returns'] = df_analysis['Close'].pct_change() * 100
         df_analysis['연도'] = df_analysis.index.year
         
+        # 최근 10년 필터링
+        current_year = datetime.now().year
+        recent_10_years = range(current_year - 9, current_year + 1)
+        
         yearly_stats = {}
         for year in sorted(df_analysis['연도'].unique()):
-            year_data = df_analysis[df_analysis['연도'] == year]
-            returns_year = year_data['Returns'].dropna()
-            
-            yearly_stats[year] = {
-                '1sigma': ((returns_year <= sigma_1_5y) & (returns_year > sigma_2_5y)).sum(),
-                '2sigma': ((returns_year <= sigma_2_5y) & (returns_year > sigma_3_5y)).sum(),
-                '3sigma': (returns_year <= sigma_3_5y).sum(),
-                'total_days': len(returns_year)
-            }
+            if year in recent_10_years:  # 최근 10년만
+                year_data = df_analysis[df_analysis['연도'] == year]
+                returns_year = year_data['Returns'].dropna()
+                
+                yearly_stats[year] = {
+                    '1sigma': ((returns_year <= sigma_1_10y) & (returns_year > sigma_2_10y)).sum(),
+                    '2sigma': ((returns_year <= sigma_2_10y) & (returns_year > sigma_3_10y)).sum(),
+                    '3sigma': (returns_year <= sigma_3_10y).sum(),
+                    'total_days': len(returns_year)
+                }
         
         yearly_data = []
         for year, data in yearly_stats.items():
@@ -981,11 +987,11 @@ with tab1:
         
         # 각 시그마 구간별 발생일 찾기
         df_analysis_clean = df_analysis.dropna()
-        sigma_1_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_1_5y) & 
-                                        (df_analysis_clean['Returns'] > sigma_2_5y)].index
-        sigma_2_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_2_5y) & 
-                                        (df_analysis_clean['Returns'] > sigma_3_5y)].index
-        sigma_3_dates = df_analysis_clean[df_analysis_clean['Returns'] <= sigma_3_5y].index
+        sigma_1_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_1_10y) & 
+                                        (df_analysis_clean['Returns'] > sigma_2_10y)].index
+        sigma_2_dates = df_analysis_clean[(df_analysis_clean['Returns'] <= sigma_2_10y) & 
+                                        (df_analysis_clean['Returns'] > sigma_3_10y)].index
+        sigma_3_dates = df_analysis_clean[df_analysis_clean['Returns'] <= sigma_3_10y].index
         
         col1, col2, col3 = st.columns(3)
         
@@ -1027,7 +1033,7 @@ with tab1:
                             '수익률': f"{return_pct:.2f}%"
                         })
                     st.dataframe(pd.DataFrame(recent_2sigma), use_container_width=True, hide_index=True)
-                    st.caption(f"2σ 구간: {sigma_3_5y:.2f}% < 하락률 ≤ {sigma_2_5y:.2f}%")
+                    st.caption(f"2σ 구간: {sigma_3_10y:.2f}% < 하락률 ≤ {sigma_2_10y:.2f}%")
                 else:
                     st.info("2σ 구간 하락 발생 이력이 없습니다.")
                     
@@ -1041,7 +1047,7 @@ with tab1:
                             '수익률': f"{return_pct:.2f}%"
                         })
                     st.dataframe(pd.DataFrame(recent_3sigma), use_container_width=True, hide_index=True)
-                    st.caption(f"3σ 이하: 하락률 ≤ {sigma_3_5y:.2f}%")
+                    st.caption(f"3σ 이하: 하락률 ≤ {sigma_3_10y:.2f}%")
                 else:
                     st.info("3σ 이하 하락 발생 이력이 없습니다.")
                     
@@ -1054,7 +1060,7 @@ with tab1:
 
         # 수익률 분포 차트
         st.markdown("---")
-        st.subheader("📈 일일 수익률 분포 (5년)")
+        st.subheader("📈 일일 수익률 분포 (10년)")
         
         fig = go.Figure()
         
