@@ -300,75 +300,23 @@ class StockAnalyzer:
                         continue
             else:
                 # 미국 주식 - 미국 동부시간 기준
-                et_tz = pytz.timezone('US/Eastern')
-                now_et = datetime.now(et_tz)
-
-                # 디버깅 코드 추가해서 확인해보세요
-                st.write("=" * 50)
-                st.write(f"🔍 DEBUG: {symbol} 분석 중")
-                kst = pytz.timezone('Asia/Seoul')
-                now_kst = datetime.now(kst)
-                st.write(f"한국 시간: {now_kst.strftime('%Y-%m-%d %H:%M:%S %A')}")
-                st.write(f"미국 동부시간: {now_et.strftime('%Y-%m-%d %H:%M:%S %A')}")
-                
-                # 미국 장 시간 (동부시간 기준: 9:30 AM - 4:00 PM)
-                market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
-                market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
-                
-                st.write(f"장 시작: {market_open.strftime('%H:%M')}")
-                st.write(f"장 마감: {market_close.strftime('%H:%M')}")
-                st.write(f"현재 요일: {now_et.weekday()} (0=월요일, 4=금요일)")
-                
-                is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
-                st.write(f"장중 여부: {is_market_open}")
-                
                 ticker = yf.Ticker(symbol)
-                hist = ticker.history(period='5d')
-                st.write("최근 5일 yfinance 데이터:")
-                st.dataframe(hist[['Close']])
-                st.write("=" * 50)
-                
-                # 미국 장 시간 (동부시간 기준: 9:30 AM - 4:00 PM)
-                market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
-                market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
-                
-                ticker = yf.Ticker(symbol)
-                hist = ticker.history(period='1mo')
+                info = ticker.info
 
-                # ===== 여기부터 새로운 디버깅 추가 =====
-                st.write("📊 필터링 전후 비교")
-                st.write(f"hist 전체 개수: {len(hist)}")
-                st.write(f"hist.index 날짜들: {[d.strftime('%Y-%m-%d') for d in hist.index]}")
-                st.write(f"now_et.date(): {now_et.date()}")
-                # ===== 여기까지 =====
-                
-                if not hist.empty:
-                    # 현재 시간이 장중인지 확인 (평일 9:30-16:00)
-                    is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
+                # previousClose 가져오기
+                if 'previousClose' in info and info['previousClose']:
+                    previous_close = info['previousClose']
                     
-                    # ===== 여기 추가 =====
-                    st.write(f"장중 여부 재확인: {is_market_open}")
-                    # ===== 여기까지 =====
-
-                    if is_market_open:
-                        # 장중이면 전일 종가 사용
-                        hist_filtered = hist[hist.index.date < now_et.date()]
-                    else:
-                        # 장 마감 후거나 주말이면 최근 거래일 종가 사용
-                        hist_filtered = hist[hist.index.date <= now_et.date()]
+                    # 날짜는 미국 동부시간 기준으로 어제
+                    et_tz = pytz.timezone('US/Eastern')
+                    now_et = datetime.now(et_tz)
+                    previous_date = now_et - timedelta(days=1)
                     
-                    # ===== 여기 추가 =====
-                    st.write(f"필터 후 개수: {len(hist_filtered)}")
-                    if not hist_filtered.empty:
-                        st.write(f"필터 후 날짜들: {[d.strftime('%Y-%m-%d') for d in hist_filtered.index]}")
-                        st.write(f"선택된 마지막 날짜: {hist_filtered.index[-1].strftime('%Y-%m-%d')}")
-                    st.write("=" * 50)
-                    # ===== 여기까지 =====
-
-                    if not hist_filtered.empty:
-                        last_close = hist_filtered['Close'].iloc[-1]
-                        last_date = hist_filtered.index[-1]
-                        return last_close, last_date
+                    # 주말이면 금요일로 조정
+                    while previous_date.weekday() >= 5:  # 5=토요일, 6=일요일
+                        previous_date -= timedelta(days=1)
+                    
+                    return previous_close, previous_date
                         
         except Exception as e:
             st.warning(f"기준 종가 가져오기 실패 ({symbol}): {e}")
@@ -754,7 +702,7 @@ with st.sidebar:
                         'df': df
                     }
                     st.success(f"✅ {name} ({symbol}) 분석 완료! 탭 1에서 결과를 확인하세요.")
-                    # st.rerun()
+                    st.rerun()
                 else:
                     st.error("분석에 실패했습니다.")
             else:
