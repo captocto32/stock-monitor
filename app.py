@@ -334,17 +334,36 @@ class StockAnalyzer:
                 
                 ticker = yf.Ticker(symbol)
                 hist = ticker.history(period='1mo')
+
+                # ===== 여기부터 새로운 디버깅 추가 =====
+                st.write("📊 필터링 전후 비교")
+                st.write(f"hist 전체 개수: {len(hist)}")
+                st.write(f"hist.index 날짜들: {[d.strftime('%Y-%m-%d') for d in hist.index]}")
+                st.write(f"now_et.date(): {now_et.date()}")
+                # ===== 여기까지 =====
                 
                 if not hist.empty:
                     # 현재 시간이 장중인지 확인 (평일 9:30-16:00)
                     is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
                     
+                    # ===== 여기 추가 =====
+                    st.write(f"장중 여부 재확인: {is_market_open}")
+                    # ===== 여기까지 =====
+
                     if is_market_open:
                         # 장중이면 전일 종가 사용
                         hist_filtered = hist[hist.index.date < now_et.date()]
                     else:
                         # 장 마감 후거나 주말이면 최근 거래일 종가 사용
                         hist_filtered = hist[hist.index.date <= now_et.date()]
+                    
+                    # ===== 여기 추가 =====
+                    st.write(f"필터 후 개수: {len(hist_filtered)}")
+                    if not hist_filtered.empty:
+                        st.write(f"필터 후 날짜들: {[d.strftime('%Y-%m-%d') for d in hist_filtered.index]}")
+                        st.write(f"선택된 마지막 날짜: {hist_filtered.index[-1].strftime('%Y-%m-%d')}")
+                    st.write("=" * 50)
+                    # ===== 여기까지 =====
                     
                     if not hist_filtered.empty:
                         last_close = hist_filtered['Close'].iloc[-1]
