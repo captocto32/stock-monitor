@@ -364,7 +364,7 @@ class StockAnalyzer:
                         st.write(f"선택된 마지막 날짜: {hist_filtered.index[-1].strftime('%Y-%m-%d')}")
                     st.write("=" * 50)
                     # ===== 여기까지 =====
-                    
+
                     if not hist_filtered.empty:
                         last_close = hist_filtered['Close'].iloc[-1]
                         last_date = hist_filtered.index[-1]
@@ -754,7 +754,7 @@ with st.sidebar:
                         'df': df
                     }
                     st.success(f"✅ {name} ({symbol}) 분석 완료! 탭 1에서 결과를 확인하세요.")
-                    st.rerun()
+                    # st.rerun()
                 else:
                     st.error("분석에 실패했습니다.")
             else:
