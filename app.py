@@ -302,6 +302,31 @@ class StockAnalyzer:
                 # 미국 주식 - 미국 동부시간 기준
                 et_tz = pytz.timezone('US/Eastern')
                 now_et = datetime.now(et_tz)
+
+                # 디버깅 코드 추가해서 확인해보세요
+                st.write("=" * 50)
+                st.write(f"🔍 DEBUG: {symbol} 분석 중")
+                kst = pytz.timezone('Asia/Seoul')
+                now_kst = datetime.now(kst)
+                st.write(f"한국 시간: {now_kst.strftime('%Y-%m-%d %H:%M:%S %A')}")
+                st.write(f"미국 동부시간: {now_et.strftime('%Y-%m-%d %H:%M:%S %A')}")
+                
+                # 미국 장 시간 (동부시간 기준: 9:30 AM - 4:00 PM)
+                market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+                market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+                
+                st.write(f"장 시작: {market_open.strftime('%H:%M')}")
+                st.write(f"장 마감: {market_close.strftime('%H:%M')}")
+                st.write(f"현재 요일: {now_et.weekday()} (0=월요일, 4=금요일)")
+                
+                is_market_open = market_open <= now_et <= market_close and now_et.weekday() < 5
+                st.write(f"장중 여부: {is_market_open}")
+                
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period='5d')
+                st.write("최근 5일 yfinance 데이터:")
+                st.dataframe(hist[['Close']])
+                st.write("=" * 50)
                 
                 # 미국 장 시간 (동부시간 기준: 9:30 AM - 4:00 PM)
                 market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
