@@ -630,24 +630,7 @@ with st.sidebar:
     # 종목 추가 섹션
     st.header("➕ 종목 추가")
 
-    # 세션 상태로 종목코드 관리
-    if 'stock_code_input' not in st.session_state:
-        st.session_state.stock_code_input = ""
-
-    # 종목코드 입력창
-    def update_stock_input():
-        st.session_state.stock_code_input = st.session_state.main_input
-
-    st.markdown("**한국주식은 종목코드 입력**")
-    stock_input = st.text_input(
-        "종목코드", 
-        value=st.session_state.get('stock_code_input', ''),
-        placeholder="005930 또는 AAPL",
-        label_visibility="collapsed",
-        key="main_stock_input"
-    )
-
-    # 종목코드 검색 도우미
+    # 종목코드 검색 도우미 (먼저 배치)
     with st.expander("📎 종목코드 검색"):
         search_name = st.text_input("종목명 입력", placeholder="삼성전자", key="name_search")
         
@@ -658,21 +641,32 @@ with st.sidebar:
                 matched = df_krx[df_krx['Name'].str.contains(search_name, case=False, na=False)]
                 
                 if not matched.empty:
-                    st.success(f"검색 결과 ({len(matched)}건):")
                     st.session_state.search_results = matched.head(5)[['Code', 'Name']].to_dict('records')
                 else:
                     st.warning("검색 결과가 없습니다.")
+                    st.session_state.search_results = []
             except Exception as e:
                 st.error(f"검색 실패: {e}")
         
-        # 검색 결과 버튼 표시
-        if 'search_results' in st.session_state:
-            for item in st.session_state.search_results:
-                if st.button(f"{item['Code']} - {item['Name']}", key=f"sel_{item['Code']}", use_container_width=True):
-                    st.session_state.stock_code_input = item['Code']
-                    st.session_state.main_input = item['Code']
-                    del st.session_state.search_results
-                    st.rerun()
+        # 검색 결과를 selectbox로 표시
+        if st.session_state.get('search_results'):
+            options = [f"{item['Code']} - {item['Name']}" for item in st.session_state.search_results]
+            selected = st.selectbox("종목 선택", options, key="stock_select")
+            
+            if st.button("✅ 선택 완료", key="confirm_select"):
+                selected_code = selected.split(' - ')[0]
+                st.session_state.selected_stock_code = selected_code
+                st.success(f"'{selected_code}' 선택됨! 아래 검색 버튼을 누르세요.")
+
+    # 종목코드 입력창
+    st.markdown("**한국주식은 종목코드 입력**")
+    default_value = st.session_state.get('selected_stock_code', '')
+    stock_input = st.text_input(
+        "종목코드",
+        value=default_value,
+        placeholder="005930 또는 AAPL",
+        label_visibility="collapsed"
+    )
     
     # 검색 버튼 클릭으로 검색
     if st.button("🔍 검색 및 분석", use_container_width=True) and stock_input.strip():
