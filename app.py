@@ -281,10 +281,6 @@ class StockAnalyzer:
     def search_korean_stock(self, query):
         """한국 주식 검색"""
         try:
-            # 직접 삼성전자 코드로 테스트
-            test_name = stock.get_market_ticker_name("005930")
-            st.write(f"🔍 삼성전자 직접 조회: {test_name}")
-            
             # 6자리 숫자면 종목코드로 검색
             if query.isdigit() and len(query) == 6:
                 name = stock.get_market_ticker_name(query)
@@ -638,7 +634,7 @@ with st.sidebar:
     if 'search_history' not in st.session_state:
         st.session_state.search_history = []
     
-    stock_input = st.text_input("종목명 또는 종목코드", placeholder="삼성전자 또는 005930", on_change=None)
+    stock_input = st.text_input("한국주식은 종목코드 입력", placeholder="005930", on_change=None)
     
     # 검색 버튼 클릭으로 검색
     if st.button("🔍 검색 및 분석", use_container_width=True) and stock_input.strip():
