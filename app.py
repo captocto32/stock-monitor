@@ -630,8 +630,8 @@ with st.sidebar:
     if search_triggered and stock_input:
         analyzer = StockAnalyzer()
         
-        # 한 글자면 미국 주식으로 바로 처리
-        if len(stock_input) == 1:
+        # 영문 1글자면 미국 주식으로 바로 처리(한글은 제외)
+        if len(stock_input) == 1 and stock_input.isascii():
             symbol = stock_input.upper()
             name, stock_type = symbol, 'US'
             st.info(f"미국 주식: {symbol}")
