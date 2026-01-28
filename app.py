@@ -632,7 +632,7 @@ with st.sidebar:
 
     # 종목코드 검색 도우미 (먼저 배치)
     with st.expander("📎 종목코드 검색"):
-        search_name = st.text_input("종목명 입력", placeholder="삼성전자", key="name_search")
+        search_name = st.text_input("종목명 입력", placeholder="예시:삼성전자", key="name_search")
         
         if st.button("🔍 코드 찾기", key="find_code") and search_name:
             try:
@@ -659,7 +659,7 @@ with st.sidebar:
                 st.success(f"'{selected_code}' 선택됨! 아래 검색 버튼을 누르세요.")
 
     # 종목코드 입력창
-    st.markdown("**한국주식은 종목코드 검색/미국주식은 티커 입력**")
+    st.markdown("**KR 종목코드 검색/US 티커 입력**")
     default_value = st.session_state.get('selected_stock_code', '')
     stock_input = st.text_input(
         "종목코드",
