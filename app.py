@@ -628,7 +628,7 @@ with st.sidebar:
     st.markdown("---")
     
     # 종목 추가 섹션
-    st.header("➕ 종목 추가")
+    st.header("➕ 종목 검색")
 
     # 종목코드 검색 도우미 (먼저 배치)
     with st.expander("📎 종목코드 검색"):
@@ -659,7 +659,7 @@ with st.sidebar:
                 st.success(f"'{selected_code}' 선택됨! 아래 검색 버튼을 누르세요.")
 
     # 종목코드 입력창
-    st.markdown("**한국주식은 종목코드 입력**")
+    st.markdown("**한국주식은 종목코드 검색/미국주식은 티커 입력**")
     default_value = st.session_state.get('selected_stock_code', '')
     stock_input = st.text_input(
         "종목코드",
