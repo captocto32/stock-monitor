@@ -281,6 +281,10 @@ class StockAnalyzer:
     def search_korean_stock(self, query):
         """한국 주식 검색"""
         try:
+            # 직접 삼성전자 코드로 테스트
+            test_name = stock.get_market_ticker_name("005930")
+            st.write(f"🔍 삼성전자 직접 조회: {test_name}")
+            
             # 6자리 숫자면 종목코드로 검색
             if query.isdigit() and len(query) == 6:
                 name = stock.get_market_ticker_name(query)
