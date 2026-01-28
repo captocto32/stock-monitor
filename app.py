@@ -638,9 +638,10 @@ with st.sidebar:
     st.markdown("**한국주식은 종목코드 입력**")
     stock_input = st.text_input(
         "종목코드", 
-        value=st.session_state.stock_code_input,
+        value=st.session_state.get('stock_code_input', ''),
         placeholder="005930 또는 AAPL",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="main_stock_input"
     )
 
     # 종목코드 검색 도우미
@@ -655,14 +656,20 @@ with st.sidebar:
                 
                 if not matched.empty:
                     st.success(f"검색 결과 ({len(matched)}건):")
-                    for idx, row in matched.head(5).iterrows():
-                        if st.button(f"{row['Code']} - {row['Name']}", key=f"select_{row['Code']}", use_container_width=True):
-                            st.session_state.stock_code_input = row['Code']
-                            st.rerun()
+                    #세션에 검색 결과 저장
+                    st.session_state.search_results = matched.head(5)[['Code', 'Name']].to_dict('records')
                 else:
                     st.warning("검색 결과가 없습니다.")
             except Exception as e:
                 st.error(f"검색 실패: {e}")
+        
+        # 검색 결과 버튼 표시
+        if 'search_results' in st.session_state:
+            for item in st.session_state.search_results:
+                if st.button(f"{item['Code']} - {item['Name']}", key=f"sel_{item['Code']}", use_container_width=True):
+                    st.session_state.stock_code_input = item['Code']
+                    del st.session_state.search_results  # 결과 삭제
+                    st.rerun()
     
     # 검색 버튼 클릭으로 검색
     if st.button("🔍 검색 및 분석", use_container_width=True) and stock_input.strip():
