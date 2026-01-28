@@ -623,21 +623,8 @@ with st.sidebar:
     
     stock_input = st.text_input("종목명 또는 종목코드", placeholder="삼성전자 또는 005930", on_change=None)
     
-    # 엔터키 또는 버튼 클릭으로 검색
-    search_triggered = False
-    
-    if st.button("🔍 검색 및 분석", use_container_width=True):
-        search_triggered = True
-    
-    # 엔터키 감지 (세션 상태로 관리)
-    if 'last_input' not in st.session_state:
-        st.session_state.last_input = ""
-    
-    if stock_input != st.session_state.last_input and stock_input.strip():
-        st.session_state.last_input = stock_input
-        search_triggered = True
-    
-    if search_triggered and stock_input:
+    # 검색 버튼 클릭으로 검색
+    if st.button("🔍 검색 및 분석", use_container_width=True) and stock_input.strip():
         analyzer = StockAnalyzer()
         
         # 영문 1글자면 미국 주식으로 바로 처리(한글은 제외)
