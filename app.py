@@ -287,8 +287,19 @@ class StockAnalyzer:
                 if name:
                     return query, name
             
-            # 종목명으로 검색 - 날짜 파라미터 추가
-            today = datetime.now().strftime('%Y%m%d')
+            # 최근 거래일 찾기
+            tickers = []
+            check_date = None
+            for i in range(7):
+                check_date = (datetime.now() - timedelta(days=i)).strftime('%Y%m%d')
+                tickers = stock.get_market_ticker_list(check_date, market="KOSPI")
+                if tickers:
+                    st.write(f"🔍 거래일 찾음: {check_date}, KOSPI 종목 수: {len(tickers)}")
+                    break
+            
+            if not tickers:
+                st.error("❌ KOSPI 종목 리스트를 가져올 수 없습니다")
+                return None, None
             
             # KOSPI 검색
             tickers = stock.get_market_ticker_list(today, market="KOSPI")
@@ -312,6 +323,7 @@ class StockAnalyzer:
             
             return None, None
         except Exception as e:
+            st.error(f"검색 오류: {e}")
             return None, None
     
     def get_stock_data(self, symbol, stock_type='KR'):
