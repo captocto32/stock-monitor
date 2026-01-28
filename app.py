@@ -287,15 +287,25 @@ class StockAnalyzer:
                 if name:
                     return query, name
             
-            # 종목명으로 검색
-            tickers = stock.get_market_ticker_list()
-            query_upper = query.upper()
+            # 종목명으로 검색 - 날짜 파라미터 추가
+            today = datetime.now().strftime('%Y%m%d')
             
-            # 전체 검색
+            # KOSPI 검색
+            tickers = stock.get_market_ticker_list(today, market="KOSPI")
             for ticker in tickers:
                 try:
                     name = stock.get_market_ticker_name(ticker)
-                    if name and query_upper in name.upper():
+                    if name and query.upper() in name.upper():
+                        return ticker, name
+                except Exception:
+                    continue
+            
+            # KOSDAQ 검색
+            tickers = stock.get_market_ticker_list(today, market="KOSDAQ")
+            for ticker in tickers:
+                try:
+                    name = stock.get_market_ticker_name(ticker)
+                    if name and query.upper() in name.upper():
                         return ticker, name
                 except Exception:
                     continue
