@@ -635,6 +635,9 @@ with st.sidebar:
         st.session_state.stock_code_input = ""
 
     # 종목코드 입력창
+    def update_stock_input():
+        st.session_state.stock_code_input = st.session_state.main_input
+
     st.markdown("**한국주식은 종목코드 입력**")
     stock_input = st.text_input(
         "종목코드", 
@@ -656,7 +659,6 @@ with st.sidebar:
                 
                 if not matched.empty:
                     st.success(f"검색 결과 ({len(matched)}건):")
-                    #세션에 검색 결과 저장
                     st.session_state.search_results = matched.head(5)[['Code', 'Name']].to_dict('records')
                 else:
                     st.warning("검색 결과가 없습니다.")
@@ -668,7 +670,8 @@ with st.sidebar:
             for item in st.session_state.search_results:
                 if st.button(f"{item['Code']} - {item['Name']}", key=f"sel_{item['Code']}", use_container_width=True):
                     st.session_state.stock_code_input = item['Code']
-                    del st.session_state.search_results  # 결과 삭제
+                    st.session_state.main_input = item['Code']
+                    del st.session_state.search_results
                     st.rerun()
     
     # 검색 버튼 클릭으로 검색
