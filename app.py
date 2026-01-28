@@ -281,8 +281,6 @@ class StockAnalyzer:
     def search_korean_stock(self, query):
         """한국 주식 검색"""
         try:
-            st.write(f"DEBUG: 검색어 = {query}") # 디버깅용
-        
             # 6자리 숫자면 종목코드로 검색
             if query.isdigit() and len(query) == 6:
                 name = stock.get_market_ticker_name(query)
@@ -634,8 +632,17 @@ with st.sidebar:
             symbol = stock_input.upper()
             name, stock_type = symbol, 'US'
             st.info(f"미국 주식: {symbol}")
+        # 한글이 포함되어 있으면 무조건 한국 주식
+        elif any('\uac00' <= c <= '\ud7a3' for c in stock_input):
+            kr_code, kr_name = analyzer.search_korean_stock(stock_input)
+            if kr_code:
+                symbol, name, stock_type = kr_code, kr_name, 'KR'
+                st.success(f"한국 주식: {name} ({kr_code})")
+            else:
+                st.error(f"'{stock_input}' 종목을 찾을 수 없습니다.")
+                st.stop()  # 여기서 멈춤 (미국 주식으로 넘어가지 않음)
         else:
-            # 한국 주식 검색
+            # 한국 주식 검색 시도
             kr_code, kr_name = analyzer.search_korean_stock(stock_input)
             
             if kr_code:
