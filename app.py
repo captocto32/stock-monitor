@@ -281,6 +281,8 @@ class StockAnalyzer:
     def search_korean_stock(self, query):
         """한국 주식 검색"""
         try:
+            st.write(f"DEBUG: 검색어 = {query}") # 디버깅용
+        
             # 6자리 숫자면 종목코드로 검색
             if query.isdigit() and len(query) == 6:
                 name = stock.get_market_ticker_name(query)
