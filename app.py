@@ -629,12 +629,40 @@ with st.sidebar:
     
     # 종목 추가 섹션
     st.header("➕ 종목 추가")
-    
-    # 검색 히스토리 초기화
-    if 'search_history' not in st.session_state:
-        st.session_state.search_history = []
-    
-    stock_input = st.text_input("한국주식은 종목코드 입력", placeholder="005930", on_change=None)
+
+    # 세션 상태로 종목코드 관리
+    if 'stock_code_input' not in st.session_state:
+        st.session_state.stock_code_input = ""
+
+    # 종목코드 입력창
+    st.markdown("**한국주식은 종목코드 입력**")
+    stock_input = st.text_input(
+        "종목코드", 
+        value=st.session_state.stock_code_input,
+        placeholder="005930 또는 AAPL",
+        label_visibility="collapsed"
+    )
+
+    # 종목코드 검색 도우미
+    with st.expander("📎 종목코드 검색"):
+        search_name = st.text_input("종목명 입력", placeholder="삼성전자", key="name_search")
+        
+        if st.button("🔍 코드 찾기", key="find_code") and search_name:
+            try:
+                import FinanceDataReader as fdr
+                df_krx = fdr.StockListing('KRX')
+                matched = df_krx[df_krx['Name'].str.contains(search_name, case=False, na=False)]
+                
+                if not matched.empty:
+                    st.success(f"검색 결과 ({len(matched)}건):")
+                    for idx, row in matched.head(5).iterrows():
+                        if st.button(f"{row['Code']} - {row['Name']}", key=f"select_{row['Code']}", use_container_width=True):
+                            st.session_state.stock_code_input = row['Code']
+                            st.rerun()
+                else:
+                    st.warning("검색 결과가 없습니다.")
+            except Exception as e:
+                st.error(f"검색 실패: {e}")
     
     # 검색 버튼 클릭으로 검색
     if st.button("🔍 검색 및 분석", use_container_width=True) and stock_input.strip():
